@@ -657,6 +657,8 @@ void MainWindow::buildCommonWidgets()
     infoview->addSource(mavlinkDecoder);
     createDockWidget(pilotView,infoview,tr("Info View"),"UAS_INFO_INFOVIEW_DOCKWIDGET",VIEW_FLIGHT,Qt::LeftDockWidgetArea);
 
+    createDockWidget(plannerView,new QGCSwarmRemote(this),tr("Swarm Remote"),"SWARM_REMOTE",VIEW_MISSION,Qt::RightDockWidgetArea);
+
     // Custom widgets, added last to all menus and layouts
     buildCustomWidget();
 }

@@ -73,6 +73,8 @@ This file is part of the QGROUNDCONTROL project
 #include "QGCVehicleConfig.h"
 #include "MAVLinkDecoder.h"
 #include "QGCUASFileViewMulti.h"
+#include "QGCSwarmRemote.h"
+
 
 class QGCMapTool;
 class QGCMAVLinkMessageSender;
