@@ -6,7 +6,7 @@
 #include "UASManager.h"
 #include "UASInterface.h"
 #include "LinkManager.h"
-#include <QtGui/QListWidget>
+#include <QListWidget>
 #include <QMap>
 
 
