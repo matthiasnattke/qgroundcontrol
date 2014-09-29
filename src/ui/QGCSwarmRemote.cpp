@@ -10,6 +10,9 @@ QGCSwarmRemote::QGCSwarmRemote(QWidget *parent) :
 	connect(ui->CheckAll,SIGNAL(clicked()),this,SLOT(CheckAllButton_clicked()));
 	connect(ui->ClearAll,SIGNAL(clicked()),this,SLOT(ClearAllButton_clicked()));
 
+	//Creates fixed items in WidgetList
+	QListWidgetItem* item = new QListWidgetItem("test");
+	ui->listWidget->addItem(item);
 }
 
 QGCSwarmRemote::~QGCSwarmRemote()
