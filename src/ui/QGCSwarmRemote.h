@@ -25,6 +25,8 @@ public:
 public slots:
 
 private slots:
+	void CheckAllButton_clicked();
+	void ClearAllButton_clicked();
 
 private:
     Ui::QGCSwarmRemote *ui;
