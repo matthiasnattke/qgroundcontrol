@@ -73,6 +73,7 @@ This file is part of the QGROUNDCONTROL project
 #include "menuactionhelper.h"
 #include "QGCUASFileViewMulti.h"
 #include <QDesktopWidget>
+#include "QGCSwarmControl.h"
 
 #ifdef QGC_OSG_ENABLED
 #include "Q3DWidgetFactory.h"
@@ -652,6 +653,8 @@ void MainWindow::buildCommonWidgets()
 
     createDockWidget(simView,new PrimaryFlightDisplay(this),tr("Primary Flight Display"),"PRIMARY_FLIGHT_DISPLAY_DOCKWIDGET",VIEW_SIMULATION,Qt::RightDockWidgetArea);
     createDockWidget(plannerView,new PrimaryFlightDisplay(this),tr("Primary Flight Display"),"PRIMARY_FLIGHT_DISPLAY_DOCKWIDGET",VIEW_FLIGHT,Qt::LeftDockWidgetArea);
+
+	createDockWidget(plannerView,new QGCSwarmControl(this),tr("Swarm Control"),"SWARM_CONTROL",VIEW_MISSION,Qt::RightDockWidgetArea);
 
     QGCTabbedInfoView *infoview = new QGCTabbedInfoView(this);
     infoview->addSource(mavlinkDecoder);
