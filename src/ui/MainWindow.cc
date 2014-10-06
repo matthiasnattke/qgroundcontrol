@@ -73,6 +73,8 @@ This file is part of the QGROUNDCONTROL project
 #include "menuactionhelper.h"
 #include "QGCUASFileViewMulti.h"
 #include <QDesktopWidget>
+#include "QGCSwarmRemote.h"
+
 
 #ifdef QGC_OSG_ENABLED
 #include "Q3DWidgetFactory.h"
