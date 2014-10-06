@@ -53,7 +53,7 @@ void QGCSwarmControl::continueAllButton_clicked()
 	qDebug() << "continueAllButton clicked";
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 255, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_MISSION_START, 1, 1, 1, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_MISSION_START, 1, 1, 1, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }
 
@@ -62,7 +62,7 @@ void QGCSwarmControl::Return2startButton_clicked()
 	qDebug() << "Return2startButton clicked";
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 255, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_NAV_RETURN_TO_LAUNCH, 1, 0, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_NAV_RETURN_TO_LAUNCH, 1, 0, 0, 0, 0, 0, 0, 0);
     mavlink->sendMessage(msg);
 }
 
@@ -81,7 +81,7 @@ void QGCSwarmControl::launchScenario_clicked()
 	}
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 255, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_CONDITION_LAST, 1, ui->radiusSpinBox->value(), ui->numVhcSpinBox->value(), scenarioNum, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_CONDITION_LAST, 1, ui->radiusSpinBox->value(), ui->numVhcSpinBox->value(), scenarioNum, 0, 0, 0, 0);
     mavlink->sendMessage(msg);
 }
 
@@ -90,7 +90,7 @@ void QGCSwarmControl::autoLanding_clicked()
 	qDebug() << "autoLanding clicked";
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 255, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_NAV_LAND, 1, 0, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_NAV_LAND, 1, 0, 0, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }
 
