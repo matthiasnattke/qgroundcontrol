@@ -31,6 +31,9 @@ private slots:
 	void autoLanding_clicked();
 	void autoTakeoff_clicked();
 
+	void startLogging_clicked();
+	void stopLogging_clicked();
+
 	void UASCreated(UASInterface* uas);
 	void RemoveUAS(UASInterface* uas);
 	void ListWidgetClicked(QListWidgetItem* item);

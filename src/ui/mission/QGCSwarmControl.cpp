@@ -21,6 +21,9 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	connect(ui->autoLanding,SIGNAL(clicked()),this,SLOT(autoLanding_clicked()));
 	connect(ui->autoTakeoff,SIGNAL(clicked()),this,SLOT(autoTakeoff_clicked()));
 
+	connect(ui->startLogging,SIGNAL(clicked()),this,SLOT(startLogging_clicked()));
+	connect(ui->stopLogging,SIGNAL(clicked()),this,SLOT(stopLogging_clicked()));
+
 	// Get current MAV list => in parameterinterface.cc
     //QList<UASInterface*> systems = UASManager::instance()->getUASList();
 	mavlink = MainWindow::instance()->getMAVLink();
@@ -113,6 +116,24 @@ void QGCSwarmControl::autoTakeoff_clicked()
 
 	mavlink_message_t msg;
 	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_TAKEOFF, 1, 0, 0, 0, 0, 0, 0, 0);
+	mavlink->sendMessage(msg);
+}
+
+void QGCSwarmControl::startLogging_clicked()
+{
+	qDebug() << "startLogging clicked";
+
+	mavlink_message_t msg;
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_PARAMETER, 1, 1, 0, 0, 0, 0, 0, 0);
+	mavlink->sendMessage(msg);
+}
+
+void QGCSwarmControl::stopLogging_clicked()
+{
+	qDebug() << "stopLogging clicked";
+
+	mavlink_message_t msg;
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_PARAMETER, 1, 0, 0, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }
 

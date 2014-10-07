@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>270</width>
-    <height>423</height>
+    <height>541</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -43,9 +43,9 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>190</y>
+     <y>220</y>
      <width>251</width>
-     <height>221</height>
+     <height>301</height>
     </rect>
    </property>
   </widget>
@@ -53,7 +53,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>150</y>
+     <y>180</y>
      <width>101</width>
      <height>23</height>
     </rect>
@@ -66,7 +66,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>90</y>
+     <y>120</y>
      <width>42</width>
      <height>22</height>
     </rect>
@@ -85,7 +85,7 @@
    <property name="geometry">
     <rect>
      <x>100</x>
-     <y>90</y>
+     <y>120</y>
      <width>42</width>
      <height>22</height>
     </rect>
@@ -98,7 +98,7 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>70</y>
+     <y>100</y>
      <width>91</width>
      <height>20</height>
     </rect>
@@ -111,7 +111,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>70</y>
+     <y>100</y>
      <width>61</width>
      <height>21</height>
     </rect>
@@ -137,7 +137,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>120</y>
+     <y>150</y>
      <width>111</width>
      <height>61</height>
     </rect>
@@ -184,7 +184,7 @@
    <property name="geometry">
     <rect>
      <x>190</x>
-     <y>90</y>
+     <y>120</y>
      <width>42</width>
      <height>22</height>
     </rect>
@@ -197,7 +197,7 @@
    <property name="geometry">
     <rect>
      <x>190</x>
-     <y>70</y>
+     <y>100</y>
      <width>41</width>
      <height>20</height>
     </rect>
@@ -210,13 +210,39 @@
    <property name="geometry">
     <rect>
      <x>160</x>
-     <y>130</y>
+     <y>160</y>
      <width>91</width>
      <height>17</height>
     </rect>
    </property>
    <property name="text">
     <string>Auto continue</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="startLogging">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>70</y>
+     <width>99</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Start Logging</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="stopLogging">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>70</y>
+     <width>99</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Stop Logging</string>
    </property>
   </widget>
  </widget>
