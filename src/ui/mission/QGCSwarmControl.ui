@@ -18,7 +18,7 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>91</width>
+     <width>101</width>
      <height>23</height>
     </rect>
    </property>
@@ -43,17 +43,17 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>140</y>
+     <y>190</y>
      <width>251</width>
-     <height>271</height>
+     <height>221</height>
     </rect>
    </property>
   </widget>
   <widget class="QPushButton" name="scenarioLaunch">
    <property name="geometry">
     <rect>
-     <x>160</x>
-     <y>60</y>
+     <x>150</x>
+     <y>150</y>
      <width>101</width>
      <height>23</height>
     </rect>
@@ -66,7 +66,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>60</y>
+     <y>90</y>
      <width>42</width>
      <height>22</height>
     </rect>
@@ -78,14 +78,14 @@
     <bool>false</bool>
    </property>
    <property name="value">
-    <number>20</number>
+    <number>30</number>
    </property>
   </widget>
   <widget class="QSpinBox" name="numVhcSpinBox">
    <property name="geometry">
     <rect>
      <x>100</x>
-     <y>60</y>
+     <y>90</y>
      <width>42</width>
      <height>22</height>
     </rect>
@@ -98,7 +98,7 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>40</y>
+     <y>70</y>
      <width>91</width>
      <height>20</height>
     </rect>
@@ -111,7 +111,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>40</y>
+     <y>70</y>
      <width>61</width>
      <height>21</height>
     </rect>
@@ -124,22 +124,22 @@
    <property name="geometry">
     <rect>
      <x>160</x>
-     <y>90</y>
+     <y>40</y>
      <width>101</width>
      <height>23</height>
     </rect>
    </property>
    <property name="text">
-    <string>Automatic landing</string>
+    <string>Auto landing</string>
    </property>
   </widget>
   <widget class="QListWidget" name="scenarioList">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>90</y>
-     <width>71</width>
-     <height>41</height>
+     <y>120</y>
+     <width>111</width>
+     <height>61</height>
     </rect>
    </property>
    <item>
@@ -152,12 +152,72 @@
    </item>
    <item>
     <property name="text">
+     <string>Circle uniform</string>
+    </property>
+    <property name="checkState">
+     <enum>Unchecked</enum>
+    </property>
+   </item>
+   <item>
+    <property name="text">
      <string>Stream</string>
     </property>
     <property name="checkState">
      <enum>Unchecked</enum>
     </property>
    </item>
+  </widget>
+  <widget class="QPushButton" name="autoTakeoff">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>40</y>
+     <width>101</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Auto takeoff</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="altitudeSpinBox">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>90</y>
+     <width>42</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="value">
+    <number>30</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_3">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>70</y>
+     <width>41</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Altitude</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="autoContinueCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>130</y>
+     <width>91</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Auto continue</string>
+   </property>
   </widget>
  </widget>
  <resources/>

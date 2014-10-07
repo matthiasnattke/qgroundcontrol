@@ -29,6 +29,7 @@ private slots:
 	void Return2startButton_clicked();
 	void launchScenario_clicked();
 	void autoLanding_clicked();
+	void autoTakeoff_clicked();
 
 	void UASCreated(UASInterface* uas);
 	void RemoveUAS(UASInterface* uas);

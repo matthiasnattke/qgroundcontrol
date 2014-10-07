@@ -19,6 +19,7 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	connect(ui->Return2Start,SIGNAL(clicked()),this,SLOT(Return2startButton_clicked()));
 	connect(ui->scenarioLaunch,SIGNAL(clicked()),this,SLOT(launchScenario_clicked()));
 	connect(ui->autoLanding,SIGNAL(clicked()),this,SLOT(autoLanding_clicked()));
+	connect(ui->autoTakeoff,SIGNAL(clicked()),this,SLOT(autoTakeoff_clicked()));
 
 	// Get current MAV list => in parameterinterface.cc
     //QList<UASInterface*> systems = UASManager::instance()->getUASList();
@@ -53,7 +54,7 @@ void QGCSwarmControl::continueAllButton_clicked()
 	qDebug() << "continueAllButton clicked";
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 255, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_MISSION_START, 1, 1, 1, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_MISSION_START, 1, 1, 1, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }
 
@@ -62,7 +63,7 @@ void QGCSwarmControl::Return2startButton_clicked()
 	qDebug() << "Return2startButton clicked";
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 255, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_NAV_RETURN_TO_LAUNCH, 1, 0, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_NAV_RETURN_TO_LAUNCH, 1, 0, 0, 0, 0, 0, 0, 0);
     mavlink->sendMessage(msg);
 }
 
@@ -76,12 +77,24 @@ void QGCSwarmControl::launchScenario_clicked()
 	if(currentItem->text() == "Circle")
 	{
 		scenarioNum = 1;
-	}else{
+	}
+	else if (currentItem->text() == "Circle uniform")
+	{
 		scenarioNum = 2;
+	}
+	else
+	{
+		scenarioNum = 3;
+	}
+
+	int autoContinue = 0;
+	if(ui->autoContinueCheckBox->checkState() == Qt::Checked)
+	{
+		autoContinue = 1;
 	}
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 255, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_CONDITION_LAST, 1, ui->radiusSpinBox->value(), ui->numVhcSpinBox->value(), scenarioNum, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_CONDITION_LAST, 1, scenarioNum, ui->radiusSpinBox->value(), ui->numVhcSpinBox->value(),  ui->altitudeSpinBox->value(), autoContinue, 0, 0);
     mavlink->sendMessage(msg);
 }
 
@@ -90,7 +103,16 @@ void QGCSwarmControl::autoLanding_clicked()
 	qDebug() << "autoLanding clicked";
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 255, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_NAV_LAND, 1, 0, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_LAND, 1, 0, 0, 0, 0, 0, 0, 0);
+	mavlink->sendMessage(msg);
+}
+
+void QGCSwarmControl::autoTakeoff_clicked()
+{
+	qDebug() << "autoTakeoff clicked";
+
+	mavlink_message_t msg;
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_TAKEOFF, 1, 0, 0, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }
 
