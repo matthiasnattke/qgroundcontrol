@@ -1,5 +1,5 @@
 #include "QGCSwarmControl.h"
-#include "ui_qgcswarmcontrol.h"
+#include "ui_QGCSwarmControl.h"
 
 #include <QMessageBox>
 #include "UAS.h"
