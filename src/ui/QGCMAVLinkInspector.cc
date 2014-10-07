@@ -27,6 +27,8 @@ QGCMAVLinkInspector::QGCMAVLinkInspector(MAVLinkProtocol* protocol, QWidget *par
     mavlink_message_info_t msg_infos[256] = MAVLINK_MESSAGE_INFO;
     memcpy(messageInfo, msg_infos, sizeof(mavlink_message_info_t)*256);
 
+    mavlink_protocol = protocol;
+
     // Set up the column headers for the message listing
     QStringList header;
     header << tr("Name");
@@ -56,6 +58,11 @@ QGCMAVLinkInspector::QGCMAVLinkInspector(MAVLinkProtocol* protocol, QWidget *par
     // Attach the UI's refresh rate to a timer.
     connect(&updateTimer, SIGNAL(timeout()), this, SLOT(refreshView()));
     updateTimer.start(updateInterval);
+
+    // connect to activate the streams
+    connect(ui->treeWidget,SIGNAL(itemClicked(QTreeWidgetItem*,int)),this,SLOT(activateStream(QTreeWidgetItem*,int)));
+    //connect(ui->treeWidget,SIGNAL(itemChanged(QTreeWidgetItem*,int)),this,SLOT(activateStream(QTreeWidgetItem*,int)));
+    connect(ui->sendStreamButton,SIGNAL(clicked()),this,SLOT(sendStreamButton()));
 }
 
 void QGCMAVLinkInspector::addSystem(UASInterface* uas)
@@ -183,6 +190,26 @@ void QGCMAVLinkInspector::clearView()
     }
     uasLastMessageUpdate.clear();
 
+    // The pointers QTreeWidgetItem are already cleared before
+    widgetTreeItems.clear();
+    // QMap<QTreeWidgetItem*,int>::iterator iteWidget;
+    // for(iteWidget=widgetTreeItems.begin(); iteWidget!= widgetTreeItems.end();++iteWidget)
+    // {
+    //     iteWidget.value()->clear();
+    //     delete iteWidget.value();
+    //     iteWidget.value() = NULL;
+    // }
+
+    // The pointers QTreeWidgetItem are already cleared before
+    msgUasTreeItems.clear();
+    // QMap<QTreeWidgetItem*,int>::iterator iteMsgUas;
+    // for(iteMsgUas=msgUasTreeItems.begin(); iteMsgUas!=msgUasTreeItems.end();++iteMsgUas)
+    // {
+    //     iteMsgUas.value()->clear();
+    //     delete iteMsgUas.value();
+    //     iteMsgUas.value() = NULL;
+    // }
+
     onboardMessageInterval.clear();
 
     ui->treeWidget->clear();
@@ -260,12 +287,19 @@ void QGCMAVLinkInspector::refreshView()
             QStringList fields;
             fields << messageName;
             QTreeWidgetItem* widget = new QTreeWidgetItem();
+
+            widget->setFlags(widget->flags() | Qt::ItemIsUserCheckable);
+
             for (unsigned int i = 0; i < messageInfo[msg->msgid].num_fields; ++i)
             {
                 QTreeWidgetItem* field = new QTreeWidgetItem();
                 widget->addChild(field);
             }
+            
             msgTreeItems->insert(msg->msgid,widget);
+            msgUasTreeItems.insert(widget,msg->sysid);
+            widgetTreeItems.insert(widget,msg->msgid);
+
             QList<int> groupKeys = msgTreeItems->uniqueKeys();
             int insertIndex = groupKeys.indexOf(msg->msgid);
             uasTreeWidgetItems.value(msg->sysid)->insertChild(insertIndex,widget);
@@ -275,6 +309,15 @@ void QGCMAVLinkInspector::refreshView()
         QTreeWidgetItem* message = msgTreeItems->value(msg->msgid);
         if(message)
         {
+            if (msgHz <= 0.01)
+            {
+                message->setCheckState(0,Qt::Unchecked);
+            }
+            else
+            {
+                message->setCheckState(0,Qt::Checked);
+            }
+
             message->setFirstColumnSpanned(true);
             message->setData(0, Qt::DisplayRole, QVariant(messageName));
             for (unsigned int i = 0; i < messageInfo[msg->msgid].num_fields; ++i)
@@ -782,4 +825,86 @@ void QGCMAVLinkInspector::updateField(int sysid, int msgid, int fieldid, QTreeWi
         }
         break;
     }
+}
+
+void QGCMAVLinkInspector::activateStream(QTreeWidgetItem* item, int col)
+{
+    //Q_UNUSED(col);
+    qDebug() << "Checkvalue:" << QString::number(item->checkState(0)) << ", on column:" << QString::number(col);
+    
+    QMap<QTreeWidgetItem*, int>::const_iterator it = msgUasTreeItems.constFind(item);
+    QMap<QTreeWidgetItem*, int>::const_iterator it2 = widgetTreeItems.constFind(item);
+    
+    int sysID = it.value();
+    int msgID = it2.value();
+    
+    mavlink_request_data_stream_t request_stream;
+    mavlink_message_t msg;
+    
+    request_stream.target_system = sysID;
+    request_stream.target_component = 0;
+    
+    if (item->checkState(0) == Qt::Checked)
+    {
+        qDebug() << "Switching on the clicked stream.";
+        request_stream.start_stop = 1;
+        request_stream.req_message_rate = ui->frequencySpinBox->value();
+    }
+    else
+    {
+        qDebug() << "Switching off the clicked stream.";
+        request_stream.start_stop = 0;
+        request_stream.req_message_rate = 0;
+    }
+    request_stream.req_stream_id = msgID; // request stream ID
+    mavlink_msg_request_data_stream_encode(mavlink_protocol->getSystemId(),mavlink_protocol->getComponentId(), &msg, &request_stream);
+    mavlink_protocol->sendMessage(msg);
+    
+    // setting messageCount and messageHz to zero
+    QMap<int, QMap<int, float>* >::const_iterator iteHz = uasMessageHz.find(sysID);
+    QMap<int, float> * uasMessagesHz;
+    
+    while((iteHz != uasMessageHz.end()) && (iteHz.key() == sysID))
+    {
+        if(iteHz.value()->contains(msgID))
+        {
+            uasMessagesHz = iteHz.value();
+            break;
+        }
+        ++iteHz;
+    }
+
+    QMap<int, unsigned int>* uasMsgCount;
+    QMap<int, QMap<int, unsigned int> * >::const_iterator iter = uasMessageCount.find(sysID);
+    while((iter != uasMessageCount.end()) && (iter.key()==sysID))
+    {
+        if(iter.value()->contains(msgID))
+        {
+            uasMsgCount = iter.value();
+            break;
+        }
+        ++iter;
+    }
+
+    uasMessagesHz->insert(msgID,0.0);
+    uasMsgCount->insert(msgID,(unsigned int) 0);
+}
+
+void QGCMAVLinkInspector::sendStreamButton()
+{
+    qDebug() << "Ask to send all available streams";
+
+    UASInterface* uas = UASManager::instance()->getActiveUAS();
+    
+    mavlink_request_data_stream_t request_stream;
+    mavlink_message_t msg;
+    
+    request_stream.target_system = uas->getUASID();
+    request_stream.target_component = 0; //TODO: change to uas->getCompenentId();
+    request_stream.req_message_rate = 1;
+    request_stream.req_stream_id = 255; // request all streams
+    request_stream.start_stop = 1;
+
+    mavlink_msg_request_data_stream_encode(mavlink_protocol->getSystemId(),mavlink_protocol->getComponentId(), &msg, &request_stream);
+    mavlink_protocol->sendMessage(msg);
 }

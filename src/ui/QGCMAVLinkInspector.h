@@ -60,6 +60,9 @@ protected:
 
     QMap<int, QMap<int, quint64>* > uasLastMessageUpdate; ///< Stores the time of the last message for each message of each UAS
 
+    QMap<QTreeWidgetItem*,int> widgetTreeItems; ///< Available msgid tree items
+    QMap<QTreeWidgetItem*,int> msgUasTreeItems;
+
     /* @brief Update one message field */
     void updateField(int sysid, int msgid, int fieldid, QTreeWidgetItem* item);
     /** @brief Rebuild the list of components */
@@ -68,9 +71,15 @@ protected:
     void changeStreamInterval(int msgid, int interval);
     /* @brief Create a new tree for a new UAS */
     void addUAStoTree(int sysId);
+    /* @brief Activate stream */
+    void activateStream(QTreeWidgetItem* item, int col);
+    /* @brief Activate all streams */
+    void sendStreamButton();
 
     static const unsigned int updateInterval; ///< The update interval of the refresh function
     static const float updateHzLowpass; ///< The low-pass filter value for the frequency of each message
+
+    MAVLinkProtocol* mavlink_protocol;
 
 private:
     Ui::QGCMAVLinkInspector *ui;
