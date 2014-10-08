@@ -39,6 +39,10 @@ public slots:
 
     void rateTreeItemChanged(QTreeWidgetItem* paramItem, int column);
 
+    void activateStream_clicked(QTreeWidgetItem* item, int col);
+    /* @brief Activate all streams */
+    void sendStreamButton_clicked();
+
 protected:
     MAVLinkProtocol *_protocol;     ///< MAVLink instance
     int selectedSystemID;          ///< Currently selected system
@@ -72,14 +76,9 @@ protected:
     /* @brief Create a new tree for a new UAS */
     void addUAStoTree(int sysId);
     /* @brief Activate stream */
-    void activateStream(QTreeWidgetItem* item, int col);
-    /* @brief Activate all streams */
-    void sendStreamButton();
 
     static const unsigned int updateInterval; ///< The update interval of the refresh function
     static const float updateHzLowpass; ///< The low-pass filter value for the frequency of each message
-
-    MAVLinkProtocol* mavlink_protocol;
 
 private:
     Ui::QGCMAVLinkInspector *ui;
