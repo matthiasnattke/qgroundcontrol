@@ -46,6 +46,8 @@ private slots:
 
 	void refreshView();
 
+	void setComfort_clicked();
+
 private:
     Ui::QGCSwarmControl *ui;
 

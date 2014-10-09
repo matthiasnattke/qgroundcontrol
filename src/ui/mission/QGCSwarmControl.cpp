@@ -54,6 +54,8 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 
 	connect(&updateTimer, SIGNAL(timeout()), this, SLOT(refreshView()));
     updateTimer.start(updateInterval);
+
+    connect(ui->setComfortSlider,SIGNAL(clicked()),this,SLOT(setComfort_clicked()));
 }
 
 QGCSwarmControl::~QGCSwarmControl()
@@ -275,4 +277,12 @@ void QGCSwarmControl::refreshView()
 		item = uasToItemMapping[uas];
 		item->setBackground(Qt::transparent);
 	}
+}
+void QGCSwarmControl::setComfort_clicked()
+{
+	float comfortValue = ui->comfortSpinBox->value();
+
+	mavlink_message_t msg;
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_PATHPLANNING, 1, comfortValue, 0, 0, 0, 0, 0, 0);
+	mavlink->sendMessage(msg);
 }
