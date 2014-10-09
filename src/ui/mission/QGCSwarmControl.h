@@ -24,6 +24,9 @@ public:
 
 public slots:
 
+	void textMessageReceived(UASInterface* uas, QString message);
+	void textEmit(int uasid, int component, int severity, QString message);
+
 private slots:
     void continueAllButton_clicked();
 	void Return2startButton_clicked();
@@ -41,6 +44,8 @@ private slots:
 	void newActiveUAS(UASInterface* uas);
 	void scenarioListClicked(QListWidgetItem* item);
 
+	void refreshView();
+
 private:
     Ui::QGCSwarmControl *ui;
 
@@ -56,6 +61,12 @@ protected:
 	UASInterface *uas_previous;
 
 	QListWidgetItem* scenarioSelected;
+
+	QTimer updateTimer; ///< Only update at 1 Hz to not overload the GUI
+	static const unsigned int updateInterval; ///< The update interval of the refresh function
+
+signals:
+	void uasTextReceived(UASInterface* uas, QString message);
 
 };
 

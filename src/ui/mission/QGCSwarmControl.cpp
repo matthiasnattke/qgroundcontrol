@@ -8,6 +8,9 @@
 #include <QRadioButton>
 #include <QString>
 #include <QListWidget>
+#include "UASView.h"
+
+const unsigned int QGCSwarmControl::updateInterval = 5000U;
 
 QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
     QWidget(parent),
@@ -41,10 +44,16 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	connect(ui->listWidget,SIGNAL(itemClicked(QListWidgetItem*)),this,SLOT(ListWidgetClicked(QListWidgetItem*)));
 	connect(UASManager::instance(),SIGNAL(activeUASSet(UASInterface*)),this,SLOT(newActiveUAS(UASInterface*)));
 
+	
 	scenarioSelected = 	ui->scenarioList->item(0);
 	ui->scenarioList->setCurrentItem(scenarioSelected);
 
 	connect(ui->scenarioList,SIGNAL(itemClicked(QListWidgetItem*)),this,SLOT(scenarioListClicked(QListWidgetItem*)));
+
+	connect(this,SIGNAL(uasTextReceived(UASInterface*, QString)),this,SLOT(textMessageReceived(UASInterface*, QString)));
+
+	connect(&updateTimer, SIGNAL(timeout()), this, SLOT(refreshView()));
+    updateTimer.start(updateInterval);
 }
 
 QGCSwarmControl::~QGCSwarmControl()
@@ -161,6 +170,8 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 
 	uasToItemMapping[uas] = item;
 	itemToUasMapping[item] = uas;
+
+	connect(uas,SIGNAL(textMessageReceived(int,int,int,QString)),this,SLOT(textEmit(int,int,int,QString)));
 }
 
 
@@ -222,4 +233,46 @@ void QGCSwarmControl::scenarioListClicked(QListWidgetItem* item)
 	qDebug() << "new current item: " << item->text();
 
 	item->setCheckState(Qt::Checked);
+}
+
+void QGCSwarmControl::textEmit(int uasid, int component, int severity, QString message)
+{
+	Q_UNUSED(uasid);
+	Q_UNUSED(component);
+    Q_UNUSED(severity);
+
+	UASInterface* uas = (UASInterface*)sender();
+
+	emit uasTextReceived(uas,message);
+}
+
+void QGCSwarmControl::textMessageReceived(UASInterface* uas, QString message)
+{
+    QListWidgetItem* item;
+
+    if (uas)
+    {
+    	qDebug() << "UAS id:" << QString::number(uas->getUASID());
+    	item = uasToItemMapping[uas];
+
+    	if (message.contains("SUCCESS"))
+    	{
+    		item->setBackground(Qt::green);
+    	}
+    	else
+    	{
+    		item->setBackground(Qt::red);
+    	}
+    }
+}
+
+void QGCSwarmControl::refreshView()
+{
+	QListWidgetItem* item;
+
+	foreach(UASInterface* uas, UASManager::instance()->getUASList())
+	{
+		item = uasToItemMapping[uas];
+		item->setBackground(Qt::transparent);
+	}
 }
