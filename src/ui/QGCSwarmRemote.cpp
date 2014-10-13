@@ -19,13 +19,21 @@ QGCSwarmRemote::QGCSwarmRemote(QWidget *parent) :
 	connect(ui->ClearAll, SIGNAL(clicked()), this, SLOT(ClearAllButton_clicked()));
 
 	connect(ui->listWidget, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(ListWidgetChanged(QListWidgetItem*)));
-	connect(ui->listWidget, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(ListWidgetClicked(QListWidgetItem*)));
 
 	// Creates Test item in WidgetList
-	QListWidgetItem* item = new QListWidgetItem("test");
+	QListWidgetItem* item = new QListWidgetItem("test1");
 
 	item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
 	item->setCheckState(Qt::Unchecked);
+
+	ui->listWidget->addItem(item);
+
+	item = new QListWidgetItem("test2");
+
+	item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+	item->setCheckState(Qt::Unchecked);
+
+	ui->listWidget->addItem(item);
 
 	//Creates list of connected UAS
 
@@ -42,7 +50,6 @@ QGCSwarmRemote::QGCSwarmRemote(QWidget *parent) :
 	connect(UASManager::instance(),SIGNAL(UASDeleted(UASInterface*)),this,SLOT(RemoveUAS(UASInterface*)));
 
 
-	ui->listWidget->addItem(item);
 }
 
 QGCSwarmRemote::~QGCSwarmRemote()
@@ -91,20 +98,25 @@ void QGCSwarmRemote::RemoveUAS(UASInterface* uas)
 
 void QGCSwarmRemote::CheckAllButton_clicked()
 {
-	qDebug() << "CheckAllButton clicked";
+	int row;
+	for(row = 0; row < ui->listWidget->count(); row++)
+	{
+		QListWidgetItem* item = ui->listWidget->item(row);
+		item->setCheckState(Qt::Checked);
+	}
 }
 
 void QGCSwarmRemote::ClearAllButton_clicked()
 {
-	qDebug() << "ClearAllButton clicked";
+	int row;
+	for(row = 0; row < ui->listWidget->count(); row++)
+	{
+		QListWidgetItem* item = ui->listWidget->item(row);
+		item->setCheckState(Qt::Unchecked);
+	}
 }
 
 void QGCSwarmRemote::ListWidgetChanged(QListWidgetItem* item)
 {
 	qDebug() << "ListWidgetItem changed";
-}
-
-void QGCSwarmRemote::ListWidgetClicked(QListWidgetItem* item)
-{
-	qDebug() <<"ListWidgetItem clicked";
 }

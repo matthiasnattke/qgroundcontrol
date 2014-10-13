@@ -28,7 +28,6 @@ private slots:
 	void CheckAllButton_clicked();
 	void ClearAllButton_clicked();
 	void ListWidgetChanged(QListWidgetItem* item);
-	void ListWidgetClicked(QListWidgetItem* item);
 	void UASCreated(UASInterface* uas);
 	void RemoveUAS(UASInterface* uas);
 
