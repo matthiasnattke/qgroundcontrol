@@ -27,6 +27,9 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	connect(ui->startLogging,SIGNAL(clicked()),this,SLOT(startLogging_clicked()));
 	connect(ui->stopLogging,SIGNAL(clicked()),this,SLOT(stopLogging_clicked()));
 
+	connect(ui->startButton,SIGNAL(clicked()),this,SLOT(startButton_clicked()));
+	connect(ui->stopButton,SIGNAL(clicked()),this,SLOT(stopButton_clicked()));
+
 	// Get current MAV list => in parameterinterface.cc
     //QList<UASInterface*> systems = UASManager::instance()->getUASList();
 	mavlink = MainWindow::instance()->getMAVLink();
@@ -284,5 +287,20 @@ void QGCSwarmControl::setComfort_clicked()
 
 	mavlink_message_t msg;
 	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_PATHPLANNING, 1, comfortValue, 0, 0, 0, 0, 0, 0);
+	mavlink->sendMessage(msg);
+}
+
+void QGCSwarmControl::startButton_clicked()
+{
+	//MAV_CMD_OVERRIDE_GOTO=252, /* Hold / continue the current action |MAV_GOTO_DO_HOLD: hold MAV_GOTO_DO_CONTINUE: continue with next item in mission plan| MAV_GOTO_HOLD_AT_CURRENT_POSITION: Hold at current position MAV_GOTO_HOLD_AT_SPECIFIED_POSITION: hold at specified position| MAV_FRAME coordinate frame of hold point| Desired yaw angle in degrees| Latitude / X position| Longitude / Y position| Altitude / Z position|  */
+	mavlink_message_t msg;
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_OVERRIDE_GOTO, 1, MAV_GOTO_DO_CONTINUE, 0, 0, 0, 0, 0, 0);
+	mavlink->sendMessage(msg);
+}
+
+void QGCSwarmControl::stopButton_clicked()
+{
+	mavlink_message_t msg;
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_OVERRIDE_GOTO, 1, MAV_GOTO_DO_HOLD, MAV_GOTO_HOLD_AT_CURRENT_POSITION, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }

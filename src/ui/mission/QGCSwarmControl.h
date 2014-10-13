@@ -48,6 +48,9 @@ private slots:
 
 	void setComfort_clicked();
 
+	void startButton_clicked();
+	void stopButton_clicked();
+
 private:
     Ui::QGCSwarmControl *ui;
 
