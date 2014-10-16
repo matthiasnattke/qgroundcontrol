@@ -12,6 +12,17 @@
 
 const unsigned int QGCSwarmControl::updateInterval = 5000U;
 
+static struct full_mode_s modes_list_common[] = {
+    { MAV_MODE_FLAG_MANUAL_INPUT_ENABLED,
+            0 },
+    { (MAV_MODE_FLAG_MANUAL_INPUT_ENABLED | MAV_MODE_FLAG_STABILIZE_ENABLED),
+            0 },
+    { (MAV_MODE_FLAG_MANUAL_INPUT_ENABLED | MAV_MODE_FLAG_STABILIZE_ENABLED | MAV_MODE_FLAG_GUIDED_ENABLED),
+            0 },
+    { (MAV_MODE_FLAG_AUTO_ENABLED | MAV_MODE_FLAG_STABILIZE_ENABLED | MAV_MODE_FLAG_GUIDED_ENABLED),
+            0 },
+};
+
 QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::QGCSwarmControl)
@@ -30,6 +41,11 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	connect(ui->startButton,SIGNAL(clicked()),this,SLOT(startButton_clicked()));
 	connect(ui->stopButton,SIGNAL(clicked()),this,SLOT(stopButton_clicked()));
 
+	connect(ui->armButton,SIGNAL(clicked()),this,SLOT(armButton_clicked()));
+	connect(ui->disarmButton,SIGNAL(clicked()),this,SLOT(disarmButton_clicked()));
+
+	connect(ui->selectButton,SIGNAL(clicked()),this,SLOT(selectButton_clicked()));
+
 	// Get current MAV list => in parameterinterface.cc
     //QList<UASInterface*> systems = UASManager::instance()->getUASList();
 	mavlink = MainWindow::instance()->getMAVLink();
@@ -47,6 +63,7 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	connect(ui->listWidget,SIGNAL(itemClicked(QListWidgetItem*)),this,SLOT(ListWidgetClicked(QListWidgetItem*)));
 	connect(UASManager::instance(),SIGNAL(activeUASSet(UASInterface*)),this,SLOT(newActiveUAS(UASInterface*)));
 
+	connect(ui->remoteList,SIGNAL(itemClicked(QListWidgetItem*)),this,SLOT(remoteItem_clicked(QListWidgetItem*)));
 	
 	scenarioSelected = 	ui->scenarioList->item(0);
 	ui->scenarioList->setCurrentItem(scenarioSelected);
@@ -59,6 +76,27 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
     updateTimer.start(updateInterval);
 
     connect(ui->setComfortSlider,SIGNAL(clicked()),this,SLOT(setComfort_clicked()));
+
+    connect(ui->remoteButton,SIGNAL(clicked()),this,SLOT(remoteButton_clicked()));
+
+    connect(ui->modeComboBox, SIGNAL(activated(int)), this, SLOT(setMode(int)));
+
+    modesList = modes_list_common;
+    modesNum = sizeof(modes_list_common) / sizeof(struct full_mode_s);
+
+    // Set combobox items
+    ui->modeComboBox->clear();
+    for (int i = 0; i < modesNum; i++) {
+        struct full_mode_s mode = modesList[i];
+        ui->modeComboBox->insertItem(i, UAS::getShortModeTextFor(mode.baseMode, mode.customMode, MAV_AUTOPILOT_GENERIC).remove(0, 2), i);
+    }
+
+    // Select first mode in list
+    modeIdx = 0;
+    ui->modeComboBox->setCurrentIndex(modeIdx);
+    ui->modeComboBox->update();
+
+    all_selected = true;
 }
 
 QGCSwarmControl::~QGCSwarmControl()
@@ -177,6 +215,15 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 	itemToUasMapping[item] = uas;
 
 	connect(uas,SIGNAL(textMessageReceived(int,int,int,QString)),this,SLOT(textEmit(int,int,int,QString)));
+
+	QListWidgetItem* itemRemote = new QListWidgetItem(idstring);
+	item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+	item->setCheckState(Qt::Checked);
+
+	uasToItemRemote[uas] = itemRemote;
+	itemToUasRemote[itemRemote] = uas;
+
+	ui->remoteList->addItem(itemRemote);
 }
 
 
@@ -190,6 +237,15 @@ void QGCSwarmControl::RemoveUAS(UASInterface* uas)
 	//ui->listWidget->removeItemWidget(item);
 	ui->listWidget->takeItem(ui->listWidget->row(item));
 	delete item;
+
+	item = uasToItemRemote[uas];
+	uasToItemRemote.remove(uas);
+
+	itemToUasRemote.remove(item);
+
+	ui->remoteList->takeItem(ui->remoteList->row(item));
+	delete item;
+
 }
 
 void QGCSwarmControl::ListWidgetClicked(QListWidgetItem* item)
@@ -303,4 +359,103 @@ void QGCSwarmControl::stopButton_clicked()
 	mavlink_message_t msg;
 	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_OVERRIDE_GOTO, 1, MAV_GOTO_DO_HOLD, MAV_GOTO_HOLD_AT_CURRENT_POSITION, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
+}
+
+void QGCSwarmControl::armButton_clicked()
+{
+	if (modeIdx >= 0 && modeIdx < modesNum)
+    {
+        struct full_mode_s mode = modesList[modeIdx];
+
+        mode.baseMode |= MAV_MODE_FLAG_SAFETY_ARMED;
+
+		mavlink_message_t msg;
+		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_COMPONENT_ARM_DISARM, 1, mode.baseMode,0, 0, 0, 0, 0, 0);
+		mavlink->sendMessage(msg);
+	}
+}
+
+void QGCSwarmControl::disarmButton_clicked()
+{
+	if (modeIdx >= 0 && modeIdx < modesNum)
+    {
+        struct full_mode_s mode = modesList[modeIdx];
+
+        mode.baseMode &= ~MAV_MODE_FLAG_SAFETY_ARMED;
+
+		mavlink_message_t msg;
+		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_COMPONENT_ARM_DISARM, 1, mode.baseMode, 0, 0, 0, 0, 0, 0);
+		mavlink->sendMessage(msg);
+	}
+}
+
+void QGCSwarmControl::selectButton_clicked()
+{
+	if (all_selected)
+	{
+		all_selected = false;
+		ui->selectButton->setText(tr("Unselect all"));
+
+		QMap<UASInterface*,QListWidgetItem*>::iterator it;
+		for(it=uasToItemRemote.begin();it!=uasToItemRemote.end();++it)
+		{
+			it.value()->setCheckState(Qt::Checked);
+		}
+	}
+	else
+	{
+		all_selected = true;
+		ui->selectButton->setText(tr("Select all"));
+
+		QMap<UASInterface*,QListWidgetItem*>::iterator it;
+		for(it=uasToItemRemote.begin();it!=uasToItemRemote.end();++it)
+		{
+			it.value()->setCheckState(Qt::Unchecked);
+		}
+	}
+}
+
+void QGCSwarmControl::remoteItem_clicked(QListWidgetItem* item)
+{
+	if (item->checkState() == Qt::Checked)
+	{
+		item->setCheckState(Qt::Unchecked);
+	}
+	else
+	{
+		item->setCheckState(Qt::Checked);
+	}
+	
+}
+
+void QGCSwarmControl::remoteButton_clicked()
+{
+	mavlink_message_t msg;
+	UASInterface* uas;
+	int remoteVal;
+	
+	QMap<UASInterface*,QListWidgetItem*>::iterator it;
+	for(it=uasToItemRemote.begin();it!=uasToItemRemote.end();++it)
+	{
+		uas = it.key();
+		if(it.value()->checkState() == Qt::Checked)
+		{
+			remoteVal = 1;
+		}
+		else
+		{
+			remoteVal = 0;
+		}
+		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, uas->getUASID(), MAV_COMP_ID_SYSTEM_CONTROL, MAV_CMD_DO_PARACHUTE, 1, remoteVal, 0, 0, 0, 0, 0, 0);
+		mavlink->sendMessage(msg);
+	}
+}
+
+void QGCSwarmControl::setMode(int mode)
+{
+    // Adapt context button mode
+    modeIdx = mode;
+    ui->modeComboBox->blockSignals(true);
+    ui->modeComboBox->setCurrentIndex(mode);
+    ui->modeComboBox->blockSignals(false);
 }
