@@ -21,7 +21,7 @@ QGCSwarmRemote::QGCSwarmRemote(QWidget *parent) :
 	connect(ui->listWidget, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(ListWidgetChanged(QListWidgetItem*)));
 
 	// Creates Test item in WidgetList
-	QListWidgetItem* item = new QListWidgetItem("test1");
+	/*QListWidgetItem* item = new QListWidgetItem("test1");
 
 	item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
 	item->setCheckState(Qt::Unchecked);
@@ -34,7 +34,7 @@ QGCSwarmRemote::QGCSwarmRemote(QWidget *parent) :
 	item->setCheckState(Qt::Unchecked);
 
 	ui->listWidget->addItem(item);
-
+	*/
 	//Creates list of connected UAS
 
 	mavlink = MainWindow::instance()->getMAVLink();
@@ -118,5 +118,16 @@ void QGCSwarmRemote::ClearAllButton_clicked()
 
 void QGCSwarmRemote::ListWidgetChanged(QListWidgetItem* item)
 {
-	qDebug() << "ListWidgetItem changed";
+	
+	UASInterface* uas = itemToUasMapping[item];
+
+	//sets the value of bool depending on the item state
+	int arm = (item->checkState() == Qt::Checked) ? 1 : 0;
+
+	//mavlink msg TODO change comp id to uas->getComponentId()
+	mavlink_message_t msg;
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, uas->getUASID(), MAV_COMP_ID_SYSTEM_CONTROL, MAV_CMD_COMPONENT_ARM_DISARM, arm, 0, 0, 0, 0, 0, 0, 0);
+	mavlink->sendMessage(msg);
+
+	printf("arm=%d",arm);
 }
