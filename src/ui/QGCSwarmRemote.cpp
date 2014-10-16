@@ -126,7 +126,7 @@ void QGCSwarmRemote::ListWidgetChanged(QListWidgetItem* item)
 
 	//mavlink msg TODO change comp id to uas->getComponentId()
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, uas->getUASID(), MAV_COMP_ID_SYSTEM_CONTROL, MAV_CMD_COMPONENT_ARM_DISARM, arm, 0, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, uas->getUASID(), MAV_COMP_ID_SYSTEM_CONTROL, MAV_CMD_DO_PARACHUTE, 1, arm, 0, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 
 	printf("arm=%d",arm);
