@@ -73,6 +73,8 @@ This file is part of the QGROUNDCONTROL project
 #include "menuactionhelper.h"
 #include "QGCUASFileViewMulti.h"
 #include <QDesktopWidget>
+#include "QGCSwarmRemote.h"
+
 
 #ifdef QGC_OSG_ENABLED
 #include "Q3DWidgetFactory.h"
@@ -656,6 +658,8 @@ void MainWindow::buildCommonWidgets()
     QGCTabbedInfoView *infoview = new QGCTabbedInfoView(this);
     infoview->addSource(mavlinkDecoder);
     createDockWidget(pilotView,infoview,tr("Info View"),"UAS_INFO_INFOVIEW_DOCKWIDGET",VIEW_FLIGHT,Qt::LeftDockWidgetArea);
+
+    createDockWidget(plannerView,new QGCSwarmRemote(this),tr("Swarm Remote"),"SWARM_REMOTE",VIEW_MISSION,Qt::RightDockWidgetArea);
 
     // Custom widgets, added last to all menus and layouts
     buildCustomWidget();

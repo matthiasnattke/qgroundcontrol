@@ -74,6 +74,7 @@ This file is part of the QGROUNDCONTROL project
 #include "MAVLinkDecoder.h"
 #include "QGCUASFileViewMulti.h"
 
+
 class QGCMapTool;
 class QGCMAVLinkMessageSender;
 class QGCFirmwareUpdate;
