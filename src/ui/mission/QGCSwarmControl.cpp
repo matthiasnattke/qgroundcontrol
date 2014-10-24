@@ -217,13 +217,15 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 	connect(uas,SIGNAL(textMessageReceived(int,int,int,QString)),this,SLOT(textEmit(int,int,int,QString)));
 
 	QListWidgetItem* itemRemote = new QListWidgetItem(idstring);
-	item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-	item->setCheckState(Qt::Checked);
+	itemRemote->setFlags(itemRemote->flags() | Qt::ItemIsUserCheckable);
+	itemRemote->setCheckState(Qt::Checked);
 
 	uasToItemRemote[uas] = itemRemote;
 	itemToUasRemote[itemRemote] = uas;
 
 	ui->remoteList->addItem(itemRemote);
+
+	UASlist = UASManager::instance()->getUASList();
 }
 
 
@@ -246,6 +248,7 @@ void QGCSwarmControl::RemoveUAS(UASInterface* uas)
 	ui->remoteList->takeItem(ui->remoteList->row(item));
 	delete item;
 
+	UASlist = UASManager::instance()->getUASList();
 }
 
 void QGCSwarmControl::ListWidgetClicked(QListWidgetItem* item)
@@ -382,6 +385,11 @@ void QGCSwarmControl::disarmButton_clicked()
         struct full_mode_s mode = modesList[modeIdx];
 
         mode.baseMode &= ~MAV_MODE_FLAG_SAFETY_ARMED;
+
+        if (ui->avoidanceBox->checkState() == Qt::Checked)
+        {
+        	mode.baseMode |= MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+        }
 
 		mavlink_message_t msg;
 		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_COMPONENT_ARM_DISARM, 1, mode.baseMode, 0, 0, 0, 0, 0, 0);
