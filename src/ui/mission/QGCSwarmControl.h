@@ -8,7 +8,7 @@
 #include "LinkManager.h"
 #include <QListWidget>
 #include <QMap>
-
+#include "UASControlWidget.h"
 
 namespace Ui {
 class QGCSwarmControl;
@@ -51,6 +51,16 @@ private slots:
 	void startButton_clicked();
 	void stopButton_clicked();
 
+	void armButton_clicked();
+	void disarmButton_clicked();
+
+	void selectButton_clicked();
+
+	void remoteItem_clicked(QListWidgetItem* item);
+
+	void remoteButton_clicked();
+
+	void setMode(int mode);
 private:
     Ui::QGCSwarmControl *ui;
 
@@ -63,12 +73,21 @@ protected:
 	QMap<UASInterface*,QListWidgetItem*> uasToItemMapping;
 	QMap<QListWidgetItem*,UASInterface*> itemToUasMapping;
 
+	QMap<UASInterface*,QListWidgetItem*> uasToItemRemote;
+	QMap<QListWidgetItem*,UASInterface*> itemToUasRemote;	
+
 	UASInterface *uas_previous;
 
 	QListWidgetItem* scenarioSelected;
 
 	QTimer updateTimer; ///< Only update at 1 Hz to not overload the GUI
 	static const unsigned int updateInterval; ///< The update interval of the refresh function
+
+	bool all_selected;
+
+	struct full_mode_s *modesList;  ///< Modes list for the current UAS
+    int modesNum;                   ///< Number of modes in list for the current UAS
+    int modeIdx;                    ///< Current uas mode index
 
 signals:
 	void uasTextReceived(UASInterface* uas, QString message);
