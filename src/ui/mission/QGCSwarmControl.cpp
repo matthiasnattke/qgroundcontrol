@@ -96,7 +96,7 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
     ui->modeComboBox->setCurrentIndex(modeIdx);
     ui->modeComboBox->update();
 
-    all_selected = true;
+    all_selected = false;
 }
 
 QGCSwarmControl::~QGCSwarmControl()
@@ -372,6 +372,15 @@ void QGCSwarmControl::armButton_clicked()
 
         mode.baseMode |= MAV_MODE_FLAG_SAFETY_ARMED;
 
+        if (ui->avoidanceBox->checkState() == Qt::Checked)
+        {
+        	mode.baseMode |= MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+        }
+        else
+        {
+        	mode.baseMode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+        }
+
 		mavlink_message_t msg;
 		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_COMPONENT_ARM_DISARM, 1, mode.baseMode,0, 0, 0, 0, 0, 0);
 		mavlink->sendMessage(msg);
@@ -389,6 +398,10 @@ void QGCSwarmControl::disarmButton_clicked()
         if (ui->avoidanceBox->checkState() == Qt::Checked)
         {
         	mode.baseMode |= MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+        }
+        else
+        {
+        	mode.baseMode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
         }
 
 		mavlink_message_t msg;

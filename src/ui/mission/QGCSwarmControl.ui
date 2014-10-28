@@ -346,7 +346,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Select all</string>
+    <string>Unselect all</string>
    </property>
   </widget>
   <widget class="QPushButton" name="remoteButton">
