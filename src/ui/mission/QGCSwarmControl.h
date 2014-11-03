@@ -61,6 +61,8 @@ private slots:
 	void remoteButton_clicked();
 
 	void setMode(int mode);
+
+	void sendNewHomePosition();
 private:
     Ui::QGCSwarmControl *ui;
 

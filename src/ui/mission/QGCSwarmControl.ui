@@ -43,9 +43,9 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>370</y>
+     <y>380</y>
      <width>121</width>
-     <height>191</height>
+     <height>181</height>
     </rect>
    </property>
   </widget>
@@ -330,9 +330,9 @@
    <property name="geometry">
     <rect>
      <x>145</x>
-     <y>370</y>
+     <y>380</y>
      <width>111</width>
-     <height>191</height>
+     <height>181</height>
     </rect>
    </property>
   </widget>
@@ -340,7 +340,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>340</y>
+     <y>350</y>
      <width>99</width>
      <height>27</height>
     </rect>
@@ -353,7 +353,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>340</y>
+     <y>350</y>
      <width>99</width>
      <height>27</height>
     </rect>
@@ -395,6 +395,19 @@
    </property>
    <property name="text">
     <string>Collision avoidance</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="setHomeButton">
+   <property name="geometry">
+    <rect>
+     <x>150</x>
+     <y>320</y>
+     <width>99</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Set home</string>
    </property>
   </widget>
  </widget>

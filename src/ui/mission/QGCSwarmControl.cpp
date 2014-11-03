@@ -9,6 +9,7 @@
 #include <QString>
 #include <QListWidget>
 #include "UASView.h"
+#include "UASManager.h"
 
 const unsigned int QGCSwarmControl::updateInterval = 5000U;
 
@@ -45,6 +46,8 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	connect(ui->disarmButton,SIGNAL(clicked()),this,SLOT(disarmButton_clicked()));
 
 	connect(ui->selectButton,SIGNAL(clicked()),this,SLOT(selectButton_clicked()));
+
+	connect(ui->setHomeButton,SIGNAL(clicked()),this,SLOT(sendNewHomePosition()));
 
 	// Get current MAV list => in parameterinterface.cc
     //QList<UASInterface*> systems = UASManager::instance()->getUASList();
@@ -479,4 +482,17 @@ void QGCSwarmControl::setMode(int mode)
     ui->modeComboBox->blockSignals(true);
     ui->modeComboBox->setCurrentIndex(mode);
     ui->modeComboBox->blockSignals(false);
+}
+
+void QGCSwarmControl::sendNewHomePosition()
+{
+    mavlink_message_t msg;
+
+    double lat = UASManager::instance()->getHomeLatitude();
+    double lon = UASManager::instance()->getHomeLongitude();
+    double alt = UASManager::instance()->getHomeAltitude();
+
+    mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_HOME, 1, 0, 0, 0, 0, lat, lon, alt);
+    
+    mavlink->sendMessage(msg);
 }
