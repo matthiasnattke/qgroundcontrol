@@ -163,32 +163,33 @@ void PX4RCCalibration::_setInternalCalibrationValuesFromParameters(void)
         QVariant value;
         bool paramFound;
         bool convertOk;
+        int componentId = _paramMgr->getDefaultComponentId();
         
         for (int i = 0; i < _chanMax; ++i) {
             struct ChannelInfo* info = &_rgChannelInfo[i];
             
-            paramFound = _paramMgr->getParameterValue(50, trimTpl.arg(i+1), value);
+            paramFound = _paramMgr->getParameterValue(componentId, trimTpl.arg(i+1), value);
             Q_ASSERT(paramFound);
             if (paramFound) {
                 info->rcTrim = value.toInt(&convertOk);
                 Q_ASSERT(convertOk);
             }
             
-            paramFound = _paramMgr->getParameterValue(50, minTpl.arg(i+1), value);
+            paramFound = _paramMgr->getParameterValue(componentId, minTpl.arg(i+1), value);
             Q_ASSERT(paramFound);
             if (paramFound) {
                 info->rcMin = value.toInt(&convertOk);
                 Q_ASSERT(convertOk);
             }
 
-            paramFound = _paramMgr->getParameterValue(50, maxTpl.arg(i+1), value);
+            paramFound = _paramMgr->getParameterValue(componentId, maxTpl.arg(i+1), value);
             Q_ASSERT(paramFound);
             if (paramFound) {
                 info->rcMax = value.toInt(&convertOk);
                 Q_ASSERT(convertOk);
             }
 
-            paramFound = _paramMgr->getParameterValue(50, revTpl.arg(i+1), value);
+            paramFound = _paramMgr->getParameterValue(componentId, revTpl.arg(i+1), value);
             Q_ASSERT(paramFound);
             if (paramFound) {
                 float floatReversed = value.toFloat(&convertOk);
@@ -201,7 +202,7 @@ void PX4RCCalibration::_setInternalCalibrationValuesFromParameters(void)
         for (int i=0; i<rcCalFunctionMax; i++) {
             int32_t paramChannel;
             
-            paramFound = _paramMgr->getParameterValue(50, _rgFunctionInfo[i].parameterName, value);
+            paramFound = _paramMgr->getParameterValue(componentId, _rgFunctionInfo[i].parameterName, value);
             Q_ASSERT(paramFound);
             if (paramFound) {
                 paramChannel = value.toInt(&convertOk);
@@ -360,6 +361,7 @@ void PX4RCCalibration::_remoteControlChannelRawChanged(int chan, float fval)
 
     // We always update raw values
     _rcRawValue[chan] = fval;
+	//qDebug() << "Raw value" << chan << fval;
     
     // Update state machine
     switch (_rcCalState) {
@@ -392,7 +394,7 @@ void PX4RCCalibration::_remoteControlChannelRawChanged(int chan, float fval)
                     _updateView();
                     
                     // Confirm found channel
-                    QString msg = tr("Found %1 [Channel %2]").arg(_rgFunctionInfo[_rcCalStateCurrentChannel].functionName).arg(chan);
+                    QString msg = tr("Found %1 [Channel %2]").arg(_rgFunctionInfo[_rcCalStateCurrentChannel].functionName).arg(chan + 1);
                     _ui->rcCalFound->setText(msg);
                     //qDebug() << msg;
                     _ui->rcCalTryAgain->setEnabled(true);
@@ -429,11 +431,12 @@ void PX4RCCalibration::_remoteControlChannelRawChanged(int chan, float fval)
                 Q_ASSERT(_rcCalStateCurrentChannel >= 0 && _rcCalStateCurrentChannel < rcCalFunctionMax);
                 if (chan == _rgFunctionChannelMapping[_rcCalStateCurrentChannel]) {
                     // If the channel moved considerably use it to determine inversion
+					//qDebug() << "Detect inversion" << chan << _rcValueSave[chan] << fval << _rcCalMoveDelta;
                     if (fabsf(_rcValueSave[chan] - fval) > _rcCalMoveDelta) {
                         // Request was made to move channel to a lower value. If value goes up the channel is reversed.
                         bool reversed = fval > _rcValueSave[chan];
                         
-                        _rgChannelInfo[_rcCalStateCurrentChannel].reversed = reversed;
+                        _rgChannelInfo[chan].reversed = reversed;
                         _updateView();
                         
                         // Confirm inversion detection
@@ -510,7 +513,13 @@ void PX4RCCalibration::_updateView()
         if (info->function == rcCalFunctionMax) {
             name = tr("Channel %1").arg(oneBasedChannel);
         } else {
-            name = tr("%1 [Channel %2]").arg(_rgFunctionInfo[info->function].functionName).arg(oneBasedChannel);
+			QString label;
+			if (info->reversed) {
+				label = tr("%1 [Channel %2,Rev]");
+			} else {
+				label = tr("%1 [Channel %2]");
+			}
+			name = label.arg(_rgFunctionInfo[info->function].functionName).arg(oneBasedChannel);
         }
         _rgRadioWidget[chan]->setTitle(name);
     }
@@ -650,6 +659,7 @@ void PX4RCCalibration::_rcCalBegin(void)
 /// @brief Saves the current channel values, so that we can detect when the use moves an input.
 void PX4RCCalibration::_rcCalSaveCurrentValues(void)
 {
+	//qDebug() << "_rcCalSaveCurrentValues";
     for (unsigned i = 0; i < _chanMax; i++) {
         _rcValueSave[i] = _rcRawValue[i];
     }

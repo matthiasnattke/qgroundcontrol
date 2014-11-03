@@ -64,9 +64,6 @@ This file is part of the QGROUNDCONTROL project
 #include "QGCTabbedInfoView.h"
 #include "UASRawStatusView.h"
 #include "PrimaryFlightDisplay.h"
-#include <apmtoolbar.h>
-#include <ApmHardwareConfig.h>
-#include <ApmSoftwareConfig.h>
 #include <QGCConfigView.h>
 #include "SerialSettingsDialog.h"
 #include "terminalconsole.h"
@@ -206,7 +203,6 @@ void MainWindow::init()
 
 
     // Load Toolbar
-    if (!(getCustomMode() == CUSTOM_MODE_APM)) {
         toolBar = new QGCToolBar(this);
         this->addToolBar(toolBar);
 
@@ -228,9 +224,6 @@ void MainWindow::init()
         advancedActions << ui.actionSimulationView;
 
         toolBar->setPerspectiveChangeAdvancedActions(advancedActions);
-    } else {
-        ui.actionHardwareConfig->setText(tr("Hardware"));
-    }
 
     customStatusBar = new QGCStatusBar(this);
     setStatusBar(customStatusBar);
@@ -255,28 +248,6 @@ void MainWindow::init()
     }
 
     connect(LinkManager::instance(), SIGNAL(newLink(LinkInterface*)), this, SLOT(addLink(LinkInterface*)));
-
-    if (getCustomMode() == CUSTOM_MODE_APM) {
-        // Add the APM 'toolbar'
-
-        APMToolBar *apmToolBar = new APMToolBar();
-        apmToolBar->setFlightViewAction(ui.actionFlightView);
-        apmToolBar->setFlightPlanViewAction(ui.actionMissionView);
-        apmToolBar->setHardwareViewAction(ui.actionHardwareConfig);
-        apmToolBar->setSoftwareViewAction(ui.actionSoftwareConfig);
-        apmToolBar->setSimulationViewAction(ui.actionSimulationView);
-        apmToolBar->setTerminalViewAction(ui.actionTerminalView);
-
-        QDockWidget *widget = new QDockWidget(tr("APM Tool Bar"),this);
-        QWidget *toolbarWidget = QWidget::createWindowContainer(apmToolBar, this);
-        widget->setWidget(toolbarWidget);
-        widget->setMinimumHeight(72);
-        widget->setMaximumHeight(72);
-        widget->setMinimumWidth(1024);
-        widget->setFeatures(QDockWidget::NoDockWidgetFeatures);
-        widget->setTitleBarWidget(new QWidget(this)); // Disables the title bar
-        this->addDockWidget(Qt::TopDockWidgetArea, widget);
-    }
 
     // Connect user interface devices
     emit initStatusChanged(tr("Initializing joystick interface"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
@@ -560,24 +531,6 @@ void MainWindow::buildCommonWidgets()
         addToCentralStackedWidget(terminalView, VIEW_TERMINAL, tr("Terminal View"));
     }
 
-    if (getCustomMode() == CUSTOM_MODE_APM) {
-        if (!configView)
-        {
-            configView = new SubMainWindow(this);
-            configView->setObjectName("VIEW_HARDWARE_CONFIG");
-            configView->setCentralWidget(new ApmHardwareConfig(this));
-            addToCentralStackedWidget(configView, VIEW_HARDWARE_CONFIG, "Hardware");
-
-        }
-        if (!softwareConfigView)
-        {
-            softwareConfigView = new SubMainWindow(this);
-            softwareConfigView->setObjectName("VIEW_SOFTWARE_CONFIG");
-            softwareConfigView->setCentralWidget(new ApmSoftwareConfig(this));
-            addToCentralStackedWidget(softwareConfigView, VIEW_SOFTWARE_CONFIG, "Software");
-        }
-
-    } else {
         if (!configView)
         {
             configView = new SubMainWindow(this);
@@ -585,7 +538,6 @@ void MainWindow::buildCommonWidgets()
             configView->setCentralWidget(new QGCConfigView(this));
             addToCentralStackedWidget(configView, VIEW_HARDWARE_CONFIG, "Config");
         }
-    }
 
     if (!engineeringView)
     {
@@ -1212,14 +1164,12 @@ void MainWindow::connectCommonActions()
     perspectives->addAction(ui.actionSimulationView);
     perspectives->addAction(ui.actionMissionView);
     perspectives->addAction(ui.actionHardwareConfig);
-    perspectives->addAction(ui.actionSoftwareConfig);
     perspectives->addAction(ui.actionTerminalView);
     perspectives->addAction(ui.actionGoogleEarthView);
     perspectives->addAction(ui.actionLocal3DView);
     perspectives->setExclusive(true);
 
     /* Hide the actions that are not relevant */
-    ui.actionSoftwareConfig->setVisible(getCustomMode() == CUSTOM_MODE_APM);
 #ifndef QGC_GOOGLE_EARTH_ENABLED
     ui.actionGoogleEarthView->setVisible(false);
 #endif
