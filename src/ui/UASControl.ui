@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>200</width>
+    <width>250</width>
     <height>228</height>
    </rect>
   </property>
@@ -34,24 +34,84 @@
   <property name="toolTip">
    <string>Control widget to send basic control actions to the micro air vehicle</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout" rowstretch="5,1,40,1,40,40,40,1000" columnstretch="5,20,20,25,5">
-   <property name="margin">
+  <layout class="QGridLayout" name="gridLayout" rowstretch="5,0,0,0,0,0,0,0,0,0,0" columnstretch="5,0,0,0,0">
+   <property name="leftMargin">
     <number>4</number>
    </property>
-   <item row="0" column="0" rowspan="7">
-    <spacer name="horizontalSpacer">
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
+    <number>4</number>
+   </property>
+   <item row="4" column="1" colspan="3">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>216</width>
+       <height>17</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="7" column="1" colspan="2">
+    <widget class="QComboBox" name="modeComboBox">
+     <property name="minimumSize">
+      <size>
+       <width>25</width>
+       <height>16</height>
+      </size>
+     </property>
+     <property name="toolTip">
+      <string>Select MAV operation mode</string>
+     </property>
+     <property name="statusTip">
+      <string>Select MAV operation mode</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1" colspan="3">
+    <widget class="QLabel" name="lastActionLabel">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>10</height>
+      </size>
+     </property>
+     <property name="toolTip">
+      <string>Status label</string>
+     </property>
+     <property name="statusTip">
+      <string>Status label</string>
+     </property>
+     <property name="text">
+      <string>No actions executed so far</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="4" rowspan="8">
+    <spacer name="horizontalSpacer_2">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
-       <width>31</width>
+       <width>30</width>
        <height>159</height>
       </size>
      </property>
     </spacer>
    </item>
-   <item row="0" column="1" rowspan="2" colspan="3">
+   <item row="1" column="1" rowspan="2" colspan="3">
     <widget class="QLabel" name="controlStatusLabel">
      <property name="minimumSize">
       <size>
@@ -76,20 +136,43 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="1" colspan="3">
-    <spacer name="verticalSpacer">
+   <item row="7" column="3">
+    <widget class="QPushButton" name="setModeButton">
+     <property name="minimumSize">
+      <size>
+       <width>25</width>
+       <height>16</height>
+      </size>
+     </property>
+     <property name="toolTip">
+      <string>Transmit and enable mode on MAV</string>
+     </property>
+     <property name="statusTip">
+      <string>Transmit and enable mode on MAV</string>
+     </property>
+     <property name="text">
+      <string>Set</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../../qgroundcontrol.qrc">
+       <normaloff>:/files/images/devices/network-wireless.svg</normaloff>:/files/images/devices/network-wireless.svg</iconset>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0" rowspan="9">
+    <spacer name="horizontalSpacer">
      <property name="orientation">
-      <enum>Qt::Vertical</enum>
+      <enum>Qt::Horizontal</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
-       <width>216</width>
-       <height>17</height>
+       <width>31</width>
+       <height>159</height>
       </size>
      </property>
     </spacer>
    </item>
-   <item row="4" column="1" colspan="3">
+   <item row="5" column="1" colspan="3">
     <layout class="QHBoxLayout" name="horizontalLayout">
      <property name="spacing">
       <number>6</number>
@@ -165,81 +248,7 @@
      </item>
     </layout>
    </item>
-   <item row="5" column="1" colspan="2">
-    <widget class="QComboBox" name="modeComboBox">
-     <property name="minimumSize">
-      <size>
-       <width>25</width>
-       <height>16</height>
-      </size>
-     </property>
-     <property name="toolTip">
-      <string>Select MAV operation mode</string>
-     </property>
-     <property name="statusTip">
-      <string>Select MAV operation mode</string>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="3">
-    <widget class="QPushButton" name="setModeButton">
-     <property name="minimumSize">
-      <size>
-       <width>25</width>
-       <height>16</height>
-      </size>
-     </property>
-     <property name="toolTip">
-      <string>Transmit and enable mode on MAV</string>
-     </property>
-     <property name="statusTip">
-      <string>Transmit and enable mode on MAV</string>
-     </property>
-     <property name="text">
-      <string>Set</string>
-     </property>
-     <property name="icon">
-      <iconset resource="../../qgroundcontrol.qrc">
-       <normaloff>:/files/images/devices/network-wireless.svg</normaloff>:/files/images/devices/network-wireless.svg</iconset>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="1" colspan="3">
-    <widget class="QLabel" name="lastActionLabel">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>10</height>
-      </size>
-     </property>
-     <property name="toolTip">
-      <string>Status label</string>
-     </property>
-     <property name="statusTip">
-      <string>Status label</string>
-     </property>
-     <property name="text">
-      <string>No actions executed so far</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="4" rowspan="6">
-    <spacer name="horizontalSpacer_2">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>30</width>
-       <height>159</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="2" column="1" colspan="3">
+   <item row="3" column="1" colspan="3">
     <widget class="QPushButton" name="controlButton">
      <property name="minimumSize">
       <size>
@@ -258,7 +267,7 @@
      </property>
     </widget>
    </item>
-   <item row="7" column="1" colspan="3">
+   <item row="10" column="1" colspan="3">
     <spacer name="verticalSpacer_2">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -270,6 +279,44 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item row="8" column="1" colspan="3">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QPushButton" name="setNewHomeButton">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Set Home</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="stopButton">
+       <property name="text">
+        <string>Stop</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="startButton">
+       <property name="text">
+        <string>Start</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="nextButton">
+       <property name="text">
+        <string>Next</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>

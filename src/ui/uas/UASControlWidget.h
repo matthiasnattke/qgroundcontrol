@@ -39,6 +39,7 @@ This file is part of the QGROUNDCONTROL project
 #include <ui_UASControl.h>
 #include <UASInterface.h>
 #include <comm/px4_custom_mode.h>
+#include "MAVLinkProtocol.h"
 
 struct full_mode_s {
     uint8_t baseMode;
@@ -74,16 +75,24 @@ public slots:
     /** @brief Update internal state machine */
     void updateArmText();
 
+    void next_clicked();
+    void newHome_clicked();
+    void start_clicked();
+    void stop_clicked();
+
 signals:
     void changedMode(int);
 
 
 protected slots:
+
     /** @brief Set the background color for the widget */
     void setBackgroundColor(QColor color);
 
 protected:
+    MAVLinkProtocol* mavlink;     ///< Reference to the MAVLink instance
     int uasID;                        ///< Reference to the current uas
+    UASInterface* uasActive;
     struct full_mode_s *modesList;  ///< Modes list for the current UAS
     int modesNum;                   ///< Number of modes in list for the current UAS
     int modeIdx;                    ///< Current uas mode index

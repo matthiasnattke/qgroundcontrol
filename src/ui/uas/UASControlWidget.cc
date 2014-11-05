@@ -40,7 +40,8 @@ This file is part of the PIXHAWK project
 #include <UASManager.h>
 #include <UAS.h>
 #include "QGC.h"
-
+#include "MainWindow.h"
+ 
 static struct full_mode_s modes_list_common[] = {
     { MAV_MODE_FLAG_MANUAL_INPUT_ENABLED,
             0 },
@@ -70,6 +71,8 @@ UASControlWidget::UASControlWidget(QWidget *parent) : QWidget(parent),
     connect(ui.setModeButton, SIGNAL(clicked()), this, SLOT(transmitMode()));
 
     ui.gridLayout->setAlignment(Qt::AlignTop);
+
+    mavlink = MainWindow::instance()->getMAVLink();
 }
 
 void UASControlWidget::updateModesList()
@@ -127,7 +130,7 @@ void UASControlWidget::setUAS(UASInterface* uas)
         if (oldUAS) {
             disconnect(ui.controlButton, SIGNAL(clicked()), oldUAS, SLOT(armSystem()));
             disconnect(ui.liftoffButton, SIGNAL(clicked()), oldUAS, SLOT(launch()));
-            disconnect(ui.landButton, SIGNAL(clicked()), oldUAS, SLOT(home()));
+            disconnect(ui.landButton, SIGNAL(clicked()), oldUAS, SLOT(land()));
             disconnect(ui.shutdownButton, SIGNAL(clicked()), oldUAS, SLOT(shutdown()));
             //connect(ui.setHomeButton, SIGNAL(clicked()), uas, SLOT(setLocalOriginAtCurrentGPSPosition()));
             disconnect(oldUAS, SIGNAL(modeChanged(int,QString,QString)), this, SLOT(updateMode(int, QString, QString)));
@@ -137,13 +140,19 @@ void UASControlWidget::setUAS(UASInterface* uas)
 
     // Connect user interface controls
     if (uas) {
+        uasActive = uas;
         connect(ui.controlButton, SIGNAL(clicked()), this, SLOT(cycleContextButton()));
         connect(ui.liftoffButton, SIGNAL(clicked()), uas, SLOT(launch()));
-        connect(ui.landButton, SIGNAL(clicked()), uas, SLOT(home()));
+        connect(ui.landButton, SIGNAL(clicked()), uas, SLOT(land()));
         connect(ui.shutdownButton, SIGNAL(clicked()), uas, SLOT(shutdown()));
         //connect(ui.setHomeButton, SIGNAL(clicked()), uas, SLOT(setLocalOriginAtCurrentGPSPosition()));
         connect(uas, SIGNAL(modeChanged(int, QString, QString)), this, SLOT(updateMode(int, QString, QString)));
         connect(uas, SIGNAL(statusChanged(int)), this, SLOT(updateState(int)));
+
+        connect(ui.nextButton,SIGNAL(clicked()),this,SLOT(next_clicked()));
+        connect(ui.setNewHomeButton,SIGNAL(clicked()),this,SLOT(newHome_clicked()));
+        connect(ui.startButton,SIGNAL(clicked()),this,SLOT(start_clicked()));
+        connect(ui.stopButton,SIGNAL(clicked()),this,SLOT(stop_clicked()));
 
         ui.controlStatusLabel->setText(tr("Connected to ") + uas->getUASName());
 
@@ -271,3 +280,51 @@ void UASControlWidget::cycleContextButton()
     }
 }
 
+void UASControlWidget::next_clicked()
+{
+    if(uasActive)
+    {
+        mavlink_message_t msg;
+
+        mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, uasID, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_MISSION_START, 1, 1, 1, 0, 0, 0, 0, 0);
+        uasActive->sendMessage(msg);
+
+    }
+}
+
+void UASControlWidget::newHome_clicked()
+{
+    if(uasActive)
+    {
+        mavlink_message_t msg;
+
+        double lat = UASManager::instance()->getHomeLatitude();
+        double lon = UASManager::instance()->getHomeLongitude();
+        double alt = UASManager::instance()->getHomeAltitude();
+
+        mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, uasID, 0, MAV_CMD_DO_SET_HOME, 1, 0, 0, 0, 0, lat, lon, alt);
+        
+        mavlink->sendMessage(msg);
+    }
+}
+
+void UASControlWidget::start_clicked()
+{
+    if(uasActive)
+    {
+        mavlink_message_t msg;
+        mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, uasID, 0, MAV_CMD_OVERRIDE_GOTO, 1, MAV_GOTO_DO_CONTINUE, 0, 0, 0, 0, 0, 0);
+        uasActive->sendMessage(msg);
+    }
+    
+}
+
+void UASControlWidget::stop_clicked()
+{
+    if(uasActive)
+    {
+        mavlink_message_t msg;
+        mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, uasID, 0, MAV_CMD_OVERRIDE_GOTO, 1, MAV_GOTO_DO_HOLD, MAV_GOTO_HOLD_AT_CURRENT_POSITION, 0, 0, 0, 0, 0);
+        uasActive->sendMessage(msg);
+    }
+}
