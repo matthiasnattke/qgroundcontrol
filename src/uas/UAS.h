@@ -1028,6 +1028,7 @@ protected:
     quint64 lastSendTimeOpticalFlow; ///< Last HIL Optical Flow message sent
     QList<QAction*> actions; ///< A list of actions that this UAS can perform.
 
+    QColor getColor() const;
 
 protected slots:
     /** @brief Write settings to disk */
