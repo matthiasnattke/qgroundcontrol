@@ -194,6 +194,8 @@ ReleaseBuild {
     }
 }
 
+include(libs/qextserialport/src/qextserialport.pri)
+
 #
 # External library configuration
 #
@@ -310,7 +312,6 @@ FORMS += \
     src/ui/mission/QGCMissionNavSweep.ui \
     src/ui/mission/QGCMissionDoStartSearch.ui \
     src/ui/mission/QGCMissionDoFinishSearch.ui \
-    src/ui/QGCVehicleConfig.ui \
     src/ui/QGCPX4VehicleConfig.ui \
     src/ui/QGCHilConfiguration.ui \
     src/ui/QGCHilFlightGearConfiguration.ui \
@@ -325,8 +326,6 @@ FORMS += \
     src/ui/JoystickButton.ui \
     src/ui/JoystickAxis.ui \
     src/ui/QGCConfigView.ui \
-    src/ui/main/QGCViewModeSelection.ui \
-    src/ui/main/QGCWelcomeMainWindow.ui \
     src/ui/configuration/terminalconsole.ui \
     src/ui/configuration/SerialSettingsDialog.ui \
     src/ui/px4_configuration/QGCPX4AirframeConfig.ui \
@@ -384,7 +383,6 @@ HEADERS += \
     src/ui/QGCSensorSettingsWidget.h \
     src/ui/linechart/Linecharts.h \
     src/uas/PxQuadMAV.h \
-    src/uas/senseSoarMAV.h \
     src/ui/watchdog/WatchdogControl.h \
     src/ui/watchdog/WatchdogProcessView.h \
     src/ui/watchdog/WatchdogView.h \
@@ -454,7 +452,6 @@ HEADERS += \
     src/ui/mission/QGCMissionNavSweep.h \
     src/ui/mission/QGCMissionDoStartSearch.h \
     src/ui/mission/QGCMissionDoFinishSearch.h \
-    src/ui/QGCVehicleConfig.h \
     src/ui/QGCPX4VehicleConfig.h \
     src/comm/QGCHilLink.h \
     src/ui/QGCHilConfiguration.h \
@@ -476,8 +473,6 @@ HEADERS += \
     src/ui/JoystickButton.h \
     src/ui/JoystickAxis.h \
     src/ui/QGCConfigView.h \
-    src/ui/main/QGCViewModeSelection.h \
-    src/ui/main/QGCWelcomeMainWindow.h \
     src/ui/configuration/console.h \
     src/ui/configuration/SerialSettingsDialog.h \
     src/ui/configuration/terminalconsole.h \
@@ -490,6 +485,7 @@ HEADERS += \
     src/ui/px4_configuration/QGCPX4MulticopterConfig.h \
     src/ui/px4_configuration/QGCPX4SensorCalibration.h \
     src/ui/px4_configuration/PX4RCCalibration.h \
+    src/ui/px4_configuration/RCValueWidget.h \
     src/ui/px4_configuration/PX4Bootloader.h \
     src/ui/px4_configuration/PX4FirmwareUpgradeThread.h \
     src/ui/px4_configuration/PX4FirmwareUpgrade.h \
@@ -545,7 +541,6 @@ SOURCES += \
     src/ui/QGCSensorSettingsWidget.cc \
     src/ui/linechart/Linecharts.cc \
     src/uas/PxQuadMAV.cc \
-    src/uas/senseSoarMAV.cpp \
     src/ui/watchdog/WatchdogControl.cc \
     src/ui/watchdog/WatchdogProcessView.cc \
     src/ui/watchdog/WatchdogView.cc \
@@ -613,7 +608,6 @@ SOURCES += \
     src/ui/mission/QGCMissionNavSweep.cc \
     src/ui/mission/QGCMissionDoStartSearch.cc \
     src/ui/mission/QGCMissionDoFinishSearch.cc \
-    src/ui/QGCVehicleConfig.cc \
     src/ui/QGCPX4VehicleConfig.cc \
     src/ui/QGCHilConfiguration.cc \
     src/ui/QGCHilFlightGearConfiguration.cc \
@@ -634,8 +628,6 @@ SOURCES += \
     src/ui/JoystickAxis.cc \
     src/ui/uas/QGCMessageView.cc \
     src/ui/QGCConfigView.cc \
-    src/ui/main/QGCViewModeSelection.cc \
-    src/ui/main/QGCWelcomeMainWindow.cc \
     src/ui/configuration/terminalconsole.cpp \
     src/ui/configuration/console.cpp \
     src/ui/configuration/SerialSettingsDialog.cc \
@@ -648,6 +640,7 @@ SOURCES += \
     src/ui/px4_configuration/QGCPX4MulticopterConfig.cc \
     src/ui/px4_configuration/QGCPX4SensorCalibration.cc \
     src/ui/px4_configuration/PX4RCCalibration.cc \
+    src/ui/px4_configuration/RCValueWidget.cc \
     src/ui/px4_configuration/PX4Bootloader.cc \
     src/ui/px4_configuration/PX4FirmwareUpgradeThread.cc \
     src/ui/px4_configuration/PX4FirmwareUpgrade.cc \
