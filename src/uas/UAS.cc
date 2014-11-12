@@ -3625,7 +3625,7 @@ QColor UAS::getColor() const
 {
     //color map copied form UASInterface
     static QList<QColor> colors = QList<QColor>()
-        //<< QColor(231,72,28) 
+        << QColor(231,72,28) 
         << QColor(104,64,240) 
         << QColor(203,254,121) 
         << QColor(161,252,116)
