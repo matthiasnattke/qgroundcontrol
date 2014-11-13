@@ -70,7 +70,6 @@ This file is part of the QGROUNDCONTROL project
 #include "UASControlParameters.h"
 #include "QGCMAVLinkInspector.h"
 #include "QGCMAVLinkLogPlayer.h"
-#include "QGCVehicleConfig.h"
 #include "MAVLinkDecoder.h"
 #include "QGCUASFileViewMulti.h"
 
@@ -385,7 +384,6 @@ protected:
     void buildCommonWidgets();
     void connectCommonWidgets();
     void connectCommonActions();
-    void connectSenseSoarActions();
 
     void loadSettings();
     void storeSettings();
