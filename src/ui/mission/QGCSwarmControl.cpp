@@ -384,8 +384,11 @@ void QGCSwarmControl::armButton_clicked()
         	mode.baseMode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
         }
 
+        mode.customMode = 0;
+
 		mavlink_message_t msg;
-		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_COMPONENT_ARM_DISARM, 1, mode.baseMode,0, 0, 0, 0, 0, 0);
+		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_MODE, 1, mode.baseMode, mode.customMode, 0, 0, 0, 0, 0);
+
 		mavlink->sendMessage(msg);
 	}
 }
@@ -406,9 +409,10 @@ void QGCSwarmControl::disarmButton_clicked()
         {
         	mode.baseMode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
         }
+        mode.customMode = 0;
 
 		mavlink_message_t msg;
-		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_COMPONENT_ARM_DISARM, 1, mode.baseMode, 0, 0, 0, 0, 0, 0);
+		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_MODE, 1, mode.baseMode, mode.customMode, 0, 0, 0, 0, 0);
 		mavlink->sendMessage(msg);
 	}
 }
