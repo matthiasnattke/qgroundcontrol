@@ -25,11 +25,11 @@
 ///     @brief PX4 RC Calibration Widget
 ///     @author Don Gagne <don@thegagnes.com
 
-#include <QMessageBox>
 #include <QSettings>
 
 #include "PX4RCCalibration.h"
 #include "UASManager.h"
+#include "QGCMessageBox.h"
 
 const int PX4RCCalibration::_updateInterval = 150;              ///< Interval for timer which updates radio channel widgets
 const int PX4RCCalibration::_rcCalPWMCenterPoint = ((PX4RCCalibration::_rcCalPWMValidMaxValue - PX4RCCalibration::_rcCalPWMValidMinValue) / 2.0f) + PX4RCCalibration::_rcCalPWMValidMinValue;
@@ -133,7 +133,6 @@ PX4RCCalibration::PX4RCCalibration(QWidget *parent) :
     
     _updateTimer.setInterval(150);
     _updateTimer.start();
-    connect(&_updateTimer, &QTimer::timeout, this, &PX4RCCalibration::_updateView);
 
     connect(_ui->rcCalCancel, &QPushButton::clicked, this, &PX4RCCalibration::_stopCalibration);
     connect(_ui->rcCalSkip, &QPushButton::clicked, this, &PX4RCCalibration::_skipButton);
@@ -298,7 +297,7 @@ void PX4RCCalibration::_nextButton(void)
             if (_unitTestMode) {
                 emit nextButtonMessageBoxDisplayed();
             } else {
-                QMessageBox::warning(this, tr("Receiver"), tr("Detected %1 radio channels. To operate PX4, you need at least %2 channels.").arg(_chanCount).arg(_chanMinimum));
+                QGCMessageBox::warning(tr("Receiver"), tr("Detected %1 radio channels. To operate PX4, you need at least %2 channels.").arg(_chanCount).arg(_chanMinimum));
             }
             return;
         }
@@ -323,7 +322,7 @@ void PX4RCCalibration::_skipButton(void)
 
 void PX4RCCalibration::_trimNYI(void)
 {
-    QMessageBox::warning(this, tr("Set Trim"), tr("Setting individual trims is not yet implemented. You will need to go through full calibration to set trims."));
+    QGCMessageBox::warning(tr("Set Trim"), tr("Setting individual trims is not yet implemented. You will need to go through full calibration to set trims."));
 }
 
 void PX4RCCalibration::_saveAllTrims(void)
@@ -560,7 +559,7 @@ void PX4RCCalibration::_saveFlapsDown(void)
         if (_unitTestMode) {
             emit nextButtonMessageBoxDisplayed();
         } else {
-            QMessageBox::warning(this, tr("Flaps switch"), tr("Flaps switch has not yet been detected."));
+            QGCMessageBox::warning(tr("Flaps switch"), tr("Flaps switch has not yet been detected."));
         }
         return;
     }
@@ -835,6 +834,10 @@ void PX4RCCalibration::_setActiveUAS(UASInterface* active)
 
         fSucceeded = connect(_paramMgr, SIGNAL(parameterListUpToDate()), this, SLOT(_parameterListUpToDate()));
         Q_ASSERT(fSucceeded);
+        
+        if (_paramMgr->parametersReady()) {
+            _parameterListUpToDate();
+        }
     }
 
     setEnabled(_mav ? true : false);
@@ -1074,6 +1077,9 @@ void PX4RCCalibration::_parameterListUpToDate(void)
 {
     _parameterListUpToDateSignalled = true;
     
+    // Don't start updating the view until we have parameters
+    connect(&_updateTimer, &QTimer::timeout, this, &PX4RCCalibration::_updateView);
+
     if (_currentStep == -1) {
         _setInternalCalibrationValuesFromParameters();
     }

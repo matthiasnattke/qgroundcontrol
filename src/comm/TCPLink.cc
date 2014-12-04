@@ -55,14 +55,12 @@ TCPLink::TCPLink(QHostAddress hostAddress, quint16 socketPort) :
 
 TCPLink::~TCPLink()
 {
-    disconnect();
+    _disconnect();
 
     // Tell the thread to exit
     quit();
     // Wait for it to exit
     wait();
-
-	deleteLater();
 }
 
 void TCPLink::run()
@@ -77,7 +75,7 @@ void TCPLink::setHostAddress(QHostAddress hostAddress)
     bool reconnect = false;
     
 	if (this->isConnected()) {
-		disconnect();
+		_disconnect();
 		reconnect = true;
 	}
     
@@ -85,7 +83,7 @@ void TCPLink::setHostAddress(QHostAddress hostAddress)
     _resetName();
     
 	if (reconnect) {
-		connect();
+		_connect();
 	}
 }
 
@@ -99,7 +97,7 @@ void TCPLink::setPort(int port)
     bool reconnect = false;
     
 	if (this->isConnected()) {
-		disconnect();
+		_disconnect();
 		reconnect = true;
 	}
     
@@ -107,7 +105,7 @@ void TCPLink::setPort(int port)
     _resetName();
     
 	if (reconnect) {
-		connect();
+		_connect();
 	}
 }
 
@@ -181,7 +179,7 @@ void TCPLink::readBytes()
  *
  * @return True if connection has been disconnected, false if connection couldn't be disconnected.
  **/
-bool TCPLink::disconnect()
+bool TCPLink::_disconnect(void)
 {
 	quit();
 	wait();
@@ -204,7 +202,7 @@ bool TCPLink::disconnect()
  *
  * @return True if connection has been established, false if connection couldn't be established.
  **/
-bool TCPLink::connect()
+bool TCPLink::_connect(void)
 {
 	if (isRunning())
 	{

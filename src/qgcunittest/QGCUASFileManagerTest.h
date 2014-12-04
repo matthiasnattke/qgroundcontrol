@@ -27,7 +27,7 @@
 #include <QObject>
 #include <QtTest/QtTest>
 
-#include "AutoTest.h"
+#include "UnitTest.h"
 #include "MockUAS.h"
 #include "MockMavlinkFileServer.h"
 #include "QGCUASFileManager.h"
@@ -38,7 +38,7 @@
 ///
 ///     @author Don Gagne <don@thegagnes.com>
 
-class QGCUASFileManagerUnitTest : public QObject
+class QGCUASFileManagerUnitTest : public UnitTest
 {
     Q_OBJECT
     
@@ -99,7 +99,5 @@ private:
     
     QStringList _fileListReceived;
 };
-
-DECLARE_TEST(QGCUASFileManagerUnitTest)
 
 #endif

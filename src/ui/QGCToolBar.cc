@@ -219,7 +219,7 @@ void QGCToolBar::createUI()
     }
 
     connect(LinkManager::instance(), SIGNAL(newLink(LinkInterface*)), this, SLOT(addLink(LinkInterface*)));
-    connect(LinkManager::instance(), SIGNAL(linkRemoved(LinkInterface*)), this, SLOT(removeLink(LinkInterface*)));
+    connect(LinkManager::instance(), SIGNAL(linkDeleted(LinkInterface*)), this, SLOT(removeLink(LinkInterface*)));
 
     loadSettings();
 
@@ -279,7 +279,7 @@ void QGCToolBar::setPerspectiveChangeActions(const QList<QAction*> &actions)
 
         // Add the first button.
         QToolButton *first = new QToolButton(this);
-        first->setIcon(actions.first()->icon());
+        //first->setIcon(actions.first()->icon());
         first->setText(actions.first()->text());
         first->setToolTip(actions.first()->toolTip());
         first->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -298,7 +298,7 @@ void QGCToolBar::setPerspectiveChangeActions(const QList<QAction*> &actions)
         for (int i = 1; i < actions.count(); i++)
         {
             QToolButton *btn = new QToolButton(this);
-            btn->setIcon(actions.at(i)->icon());
+            //btn->setIcon(actions.at(i)->icon());
             btn->setText(actions.at(i)->text());
             btn->setToolTip(actions.at(i)->toolTip());
             btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -312,12 +312,12 @@ void QGCToolBar::setPerspectiveChangeActions(const QList<QAction*> &actions)
         // Add last button
         advancedButton = new QToolButton(this);
         advancedButton->setIcon(QIcon(":/files/images/apps/utilities-system-monitor.svg"));
-        advancedButton->setText(tr("Pro"));
+        advancedButton->setText(tr("More"));
         advancedButton->setToolTip(tr("Options for advanced users"));
         advancedButton->setCheckable(true);
         advancedButton->setObjectName("advancedButton");
         advancedButton->setPopupMode(QToolButton::InstantPopup);
-        advancedButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        advancedButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
         addWidget(advancedButton);
         group->addButton(advancedButton);
     } else {
@@ -769,24 +769,25 @@ void QGCToolBar::updateLinkState(bool connected)
 
 void QGCToolBar::connectLink(bool connect)
 {
+    LinkManager* linkMgr = LinkManager::instance();
+    Q_ASSERT(linkMgr);
+    
     // No serial port yet present
-    if (connect && LinkManager::instance()->getSerialLinks().count() == 0)
-    {
+    if (connect && linkMgr->getSerialLinks().count() == 0) {
         MainWindow::instance()->addLink();
-        currentLink = LinkManager::instance()->getLinks().last();
+        currentLink = linkMgr->getLinks().last();
     } else if (connect) {
         SerialLink *link = qobject_cast<SerialLink*>(currentLink);
-        if (link)
-        {
+        
+        if (link) {
             link->setPortName(portComboBox->itemData(portComboBox->currentIndex()).toString().trimmed());
             int baud = baudcomboBox->currentText().toInt();
             link->setBaudRate(baud);
             QObject::connect(link, SIGNAL(connected(bool)), this, SLOT(updateLinkState(bool)));
-            link->connect();
+            linkMgr->connectLink(link);
         }
-
     } else if (!connect && currentLink) {
-        currentLink->disconnect();
+        linkMgr->disconnectLink(currentLink);
         QObject::disconnect(currentLink, SIGNAL(connected(bool)), this, SLOT(updateLinkState(bool)));
     }
 
@@ -808,7 +809,6 @@ void QGCToolBar::storeSettings()
     QSettings settings;
     settings.beginGroup("QGC_TOOLBAR");
     settings.endGroup();
-    settings.sync();
 }
 
 void QGCToolBar::clearStatusString()

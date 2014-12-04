@@ -138,7 +138,6 @@ void DebugConsole::loadSettings()
 {
     // Load defaults from settings
     QSettings settings;
-    settings.sync();
     settings.beginGroup("QGC_DEBUG_CONSOLE");
     m_ui->specialComboBox->setCurrentIndex(settings.value("SPECIAL_SYMBOL", m_ui->specialComboBox->currentIndex()).toInt());
     m_ui->specialCheckBox->setChecked(settings.value("SPECIAL_SYMBOL_CHECKBOX_STATE", m_ui->specialCheckBox->isChecked()).toBool());
@@ -159,7 +158,6 @@ void DebugConsole::storeSettings()
     settings.setValue("MAVLINK_FILTER_ENABLED", filterMAVLINK);
     settings.setValue("AUTO_HOLD_ENABLED", autoHold);
     settings.endGroup();
-    settings.sync();
 }
 
 void DebugConsole::uasCreated(UASInterface* uas)
@@ -183,7 +181,7 @@ void DebugConsole::addLink(LinkInterface* link)
 
     // Register for name changes
     connect(link, SIGNAL(nameChanged(QString)), this, SLOT(updateLinkName(QString)), Qt::UniqueConnection);
-    connect(link, SIGNAL(deleteLink(LinkInterface* const)), this, SLOT(removeLink(LinkInterface* const)), Qt::UniqueConnection);
+    connect(LinkManager::instance(), &LinkManager::linkDeleted, this, &DebugConsole::removeLink, Qt::UniqueConnection);
 }
 
 void DebugConsole::removeLink(LinkInterface* const linkInterface)
@@ -782,9 +780,9 @@ void DebugConsole::handleConnectButton()
 {
     if (currLink) {
         if (currLink->isConnected()) {
-            currLink->disconnect();
+            LinkManager::instance()->disconnect(currLink);
         } else {
-            currLink->connect();
+            LinkManager::instance()->connectLink(currLink);
         }
     }
 }
