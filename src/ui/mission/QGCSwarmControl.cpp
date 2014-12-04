@@ -68,7 +68,7 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	connect(&updateTimer, SIGNAL(timesout()), this, SLOT(refreshView()));
     updateTimer.start(updateInterval);
 
-    connect(ui->setComfortSlider,SIGNAL(clicked()),this,SLOT(setComfort_clicked()));
+    connect(ui->setParameters,SIGNAL(clicked()),this,SLOT(setParameters_clicked()));
 
     connect(ui->remoteButton,SIGNAL(clicked()),this,SLOT(remoteButton_clicked()));
 
@@ -172,17 +172,17 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 	if (uas)
 	{
 		QString idstring;
+		QStringList idstringList;
 		if (uas->getUASName() == "")
 	    {
 	        idstring = tr("UAS ") + QString::number(uas->getUASID());
+	        idstringList << tr("UAS ") + QString::number(uas->getUASID());
 	    }
 	    else
 	    {
 	        idstring = uas->getUASName();
+	        idstringList << uas->getUASName();
 	    }
-
-		//QListWidgetItem* item = new QListWidgetItem(ui->listWidget);
-		//ui->listWidget->setItemWidget(item,new QRadioButton(idstring));
 
 		QListWidgetItem* item = new QListWidgetItem(idstring);
 
@@ -347,12 +347,18 @@ void QGCSwarmControl::refreshView()
 		item->setBackground(Qt::transparent);
 	}
 }
-void QGCSwarmControl::setComfort_clicked()
+void QGCSwarmControl::setParameters_clicked()
 {
-	float comfortValue = ui->comfortSpinBox->value();
+	float param1 = ui->spinBoxParam1->value();
+	float param2 = ui->spinBoxParam2->value();
+	float param3 = ui->spinBoxParam3->value();
+	float param4 = ui->spinBoxParam4->value();
+	float param5 = ui->spinBoxParam5->value();
+	float param6 = ui->spinBoxParam6->value();
+	float param7 = ui->spinBoxParam7->value();
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_PATHPLANNING, 1, comfortValue, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_PATHPLANNING, 1, param1, param2, param3, param4, param5, param6, param7);
 	mavlink->sendMessage(msg);
 }
 

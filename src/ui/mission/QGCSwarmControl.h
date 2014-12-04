@@ -46,7 +46,7 @@ private slots:
 
 	void refreshView();
 
-	void setComfort_clicked();
+	void setParameters_clicked();
 
 	void startButton_clicked();
 	void stopButton_clicked();
@@ -63,6 +63,7 @@ private slots:
 	void setMode(int mode);
 
 	void sendNewHomePosition();
+
 private:
     Ui::QGCSwarmControl *ui;
 
