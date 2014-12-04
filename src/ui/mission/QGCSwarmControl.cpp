@@ -392,7 +392,6 @@ void QGCSwarmControl::armButton_clicked()
 
 		mavlink_message_t msg;
 		mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_MODE, 1, fullMode.baseMode, fullMode.customMode, 0, 0, 0, 0, 0);
-
 		mavlink->sendMessage(msg);
 	}
 }
