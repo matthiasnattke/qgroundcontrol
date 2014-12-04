@@ -30,6 +30,8 @@
 ///
 ///     @author Don Gagne <don@thegagnes.com>
 
+UT_REGISTER_TEST(PX4RCCalibrationTest)
+
 // This will check for the wizard buttons being enabled of disabled according to the mask you pass in.
 // We use a macro instead of a method so that we get better line number reporting on failure.
 #define CHK_BUTTONS(mask) \
@@ -149,6 +151,8 @@ void PX4RCCalibrationTest::initTestCase(void)
 
 void PX4RCCalibrationTest::init(void)
 {
+    UnitTest::init();
+    
     _mockUASManager = new MockUASManager();
     Q_ASSERT(_mockUASManager);
     
@@ -196,6 +200,8 @@ void PX4RCCalibrationTest::init(void)
 
 void PX4RCCalibrationTest::cleanup(void)
 {
+    UnitTest::cleanup();
+    
     Q_ASSERT(_calWidget);
     delete _calWidget;
     
@@ -244,12 +250,16 @@ void PX4RCCalibrationTest::_minRCChannels_test(void)
         }
         _multiSpyNextButtonMessageBox->clearAllSignals();
 
+        // The following test code no longer works since view update doesn't happens until parameters are received.
+        // Leaving code here because RC Cal could be restructured to handle this case at some point.
+#if 0
         // Only available channels should have visible widget. A ui update cycle needs to have passed so we wait a little.
         QTest::qWait(PX4RCCalibration::_updateInterval * 2);
         for (int chanWidget=0; chanWidget<PX4RCCalibration::_chanMax; chanWidget++) {
             //qDebug() << _rgValueWidget[chanWidget]->objectName() << chanWidget << chan;
             QCOMPARE(_rgValueWidget[chanWidget]->isVisible(), !!(chanWidget <= chan));
         }
+#endif
     }
 }
 

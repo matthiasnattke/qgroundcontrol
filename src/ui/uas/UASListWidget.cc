@@ -31,7 +31,6 @@ This file is part of the PIXHAWK project
 #include <QString>
 #include <QTimer>
 #include <QLabel>
-#include <QFileDialog>
 #include <QDebug>
 #include <QApplication>
 
@@ -64,7 +63,7 @@ UASListWidget::UASListWidget(QWidget *parent) : QWidget(parent),
 
     this->setVisible(false);
 
-    connect(LinkManager::instance(), SIGNAL(linkRemoved(LinkInterface*)), this, SLOT(removeLink(LinkInterface*)));
+    connect(LinkManager::instance(), SIGNAL(linkDeleted(LinkInterface*)), this, SLOT(removeLink(LinkInterface*)));
 
     // Listen for when UASes are added or removed. This does not manage the UASView
     // widgets that are displayed within this widget.

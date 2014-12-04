@@ -92,7 +92,6 @@ void QGCXPlaneLink::loadSettings()
 {
     // Load defaults from settings
     QSettings settings;
-    settings.sync();
     settings.beginGroup("QGC_XPLANE_LINK");
     setRemoteHost(settings.value("REMOTE_HOST", QString("%1:%2").arg(remoteHost.toString()).arg(remotePort)).toString());
     setVersion(settings.value("XPLANE_VERSION", 10).toInt());
@@ -111,7 +110,6 @@ void QGCXPlaneLink::storeSettings()
     settings.setValue("AIRFRAME", airframeName);
     settings.setValue("SENSOR_HIL", _sensorHilEnabled);
     settings.endGroup();
-    settings.sync();
 }
 
 void QGCXPlaneLink::setVersion(const QString& version)
@@ -624,7 +622,8 @@ void QGCXPlaneLink::readBytes()
 
 				fields_changed |= (1 << 0) | (1 << 1) | (1 << 2);
             }
-            else if (p.index == 6 && xPlaneVersion == 10)
+            // atmospheric pressure aircraft for XPlane 9 and 10
+            else if (p.index == 6)
             {
                 // inHg to hPa (hecto Pascal / millibar)
                 abs_pressure = p.f[0] * 33.863886666718317f;
@@ -735,7 +734,7 @@ void QGCXPlaneLink::readBytes()
 				alt = p.f[2] * 0.3048f; // convert feet (MSL) to meters
 				alt_agl = p.f[3] * 0.3048f; //convert feet (AGL) to meters
             }
-            else if (p.index == 21 && xPlaneVersion == 10)
+            else if (p.index == 21)
             {
                 vy = p.f[3];
                 vx = -p.f[5];

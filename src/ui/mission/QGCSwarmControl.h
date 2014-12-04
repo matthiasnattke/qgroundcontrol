@@ -66,6 +66,8 @@ private slots:
 private:
     Ui::QGCSwarmControl *ui;
 
+    void updateModesList(UASInterface* uas);
+
 protected:
 	MAVLinkProtocol* mavlink;     ///< Reference to the MAVLink instance
 	UASInterface *uas;
@@ -87,9 +89,8 @@ protected:
 
 	bool all_selected;
 
-	struct full_mode_s *modesList;  ///< Modes list for the current UAS
-    int modesNum;                   ///< Number of modes in list for the current UAS
     int modeIdx;                    ///< Current uas mode index
+ 	QList<AutoPilotPlugin::FullMode_t>  _modeList;  ///< Mode list for the current UAS
 
 signals:
 	void uasTextReceived(UASInterface* uas, QString message);

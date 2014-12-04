@@ -38,6 +38,8 @@ along with PIXHAWK. If not, see <http://www.gnu.org/licenses/>.
 #include <QMutexLocker>
 #include <QMetaType>
 
+class LinkManager;
+
 /**
 * The link interface defines the interface for all links used to communicate
 * with the groundstation application.
@@ -46,9 +48,15 @@ along with PIXHAWK. If not, see <http://www.gnu.org/licenses/>.
 class LinkInterface : public QThread
 {
     Q_OBJECT
+    
+    // Only LinkManager is allowed to _connect, _disconnect or delete a link
+    friend class LinkManager;
+    
 public:
     LinkInterface() :
-        QThread(0)
+        QThread(0),
+        _ownedByLinkManager(false),
+        _deletedByLinkManager(false)
     {
         // Initialize everything for the data rate calculation buffers.
         inDataIndex = 0;
@@ -67,7 +75,9 @@ public:
     }
 
     virtual ~LinkInterface() {
-        emit this->deleteLink(this);
+        // LinkManager take ownership of Links once they are added to it. Once added to LinkManager
+        // user LinkManager::deleteLink to remove if necessary/
+        Q_ASSERT(!_ownedByLinkManager || _deletedByLinkManager);
     }
 
     /* Connection management */
@@ -132,20 +142,11 @@ public:
     {
         return getCurrentDataRate(outDataIndex, outDataWriteTimes, outDataWriteAmounts);
     }
-
-    /**
-     * @brief Connect this interface logically
-     *
-     * @return True if connection could be established, false otherwise
-     **/
-    virtual bool connect() = 0;
-
-    /**
-     * @brief Disconnect this interface logically
-     *
-     * @return True if connection could be terminated, false otherwise
-     **/
-    virtual bool disconnect() = 0;
+    
+    // These are left unimplemented in order to cause linker errors which indicate incorrect usage of
+    // connect/disconnect on link directly. All connect/disconnect calls should be made through LinkManager.
+    bool connect(void);
+    bool disconnect(void);
 
 public slots:
 
@@ -199,9 +200,6 @@ signals:
     void communicationError(const QString& linkname, const QString& error);
 
     void communicationUpdate(const QString& linkname, const QString& text);
-
-    /** @brief destroying element */
-    void deleteLink(LinkInterface* const link);
 
 protected:
 
@@ -323,6 +321,23 @@ protected slots:
      **/
     virtual void readBytes() = 0;
 
+private:
+    /**
+     * @brief Connect this interface logically
+     *
+     * @return True if connection could be established, false otherwise
+     **/
+    virtual bool _connect(void) = 0;
+    
+    /**
+     * @brief Disconnect this interface logically
+     *
+     * @return True if connection could be terminated, false otherwise
+     **/
+    virtual bool _disconnect(void) = 0;
+    
+    bool _ownedByLinkManager;   ///< true: This link has been added to LinkManager, false: Link not added to LinkManager
+    bool _deletedByLinkManager; ///< true: Link being deleted from LinkManager, false: error, Links should only be deleted from LinkManager
 };
 
 #endif // _LINKINTERFACE_H_
