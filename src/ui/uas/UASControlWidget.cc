@@ -40,7 +40,7 @@ This file is part of the PIXHAWK project
 #include <UAS.h>
 #include "QGC.h"
 #include "AutoPilotPluginManager.h"
-#include "MainWindow.h"
+#include "LinkManager.h"
 
 UASControlWidget::UASControlWidget(QWidget *parent) : QWidget(parent),
     uasID(-1),
@@ -57,7 +57,7 @@ UASControlWidget::UASControlWidget(QWidget *parent) : QWidget(parent),
 
     ui.gridLayout->setAlignment(Qt::AlignTop);
 
-    mavlink = MainWindow::instance()->getMAVLink();
+    mavlink = LinkManager::instance()->mavlink();
 }
 
 void UASControlWidget::updateModesList()

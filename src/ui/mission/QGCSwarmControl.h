@@ -5,7 +5,6 @@
 #include "MAVLinkProtocol.h"
 #include "UASManager.h"
 #include "UASInterface.h"
-#include "LinkManager.h"
 #include <QListWidget>
 #include <QMap>
 #include "UASControlWidget.h"
@@ -73,7 +72,6 @@ protected:
 	MAVLinkProtocol* mavlink;     ///< Reference to the MAVLink instance
 	UASInterface *uas;
 	QList<UASInterface*> UASlist;
-	QList<LinkInterface*> links; ///< List of links this UAS can be reached by
 
 	QMap<UASInterface*,QListWidgetItem*> uasToItemMapping;
 	QMap<QListWidgetItem*,UASInterface*> itemToUasMapping;
