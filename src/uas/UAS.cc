@@ -333,7 +333,7 @@ void UAS::updateState()
         connectionLost = true;
         receivedMode = false;
         QString audiostring = QString("Link lost to system %1").arg(this->getUASID());
-        GAudioOutput::instance()->say(audiostring.toLower());
+        GAudioOutput::instance()->say(audiostring.toLower(), GAudioOutput::AUDIO_SEVERITY_ALERT);
     }
 
     // Update connection loss time on each iteration
@@ -347,7 +347,7 @@ void UAS::updateState()
     if (connectionLost && (heartbeatInterval < timeoutIntervalHeartbeat))
     {
         QString audiostring = QString("Link regained to system %1").arg(this->getUASID());
-        GAudioOutput::instance()->say(audiostring.toLower());
+        GAudioOutput::instance()->say(audiostring.toLower(), GAudioOutput::AUDIO_SEVERITY_NOTICE);
         connectionLost = false;
         connectionLossTime = 0;
         emit heartbeatTimeout(false, 0);
@@ -574,7 +574,7 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
 
             if (statechanged && ((int)state.system_status == (int)MAV_STATE_CRITICAL || state.system_status == (int)MAV_STATE_EMERGENCY))
             {
-                GAudioOutput::instance()->say(QString("emergency for system %1").arg(this->getUASID()));
+                GAudioOutput::instance()->say(QString("emergency for system %1").arg(this->getUASID()), GAudioOutput::AUDIO_SEVERITY_EMERGENCY);
                 QTimer::singleShot(3000, GAudioOutput::instance(), SLOT(startEmergency()));
             }
             else if (modechanged || statechanged)
@@ -1765,7 +1765,7 @@ void UAS::sendMessage(mavlink_message_t message)
 void UAS::forwardMessage(mavlink_message_t message)
 {
     // Emit message on all links that are currently connected
-    QList<LinkInterface*>link_list = LinkManager::instance()->getLinksForProtocol(mavlink);
+    QList<LinkInterface*>link_list = LinkManager::instance()->getLinks();
 
     foreach(LinkInterface* link, link_list)
     {
@@ -1966,16 +1966,6 @@ quint64 UAS::getUptime() const
 int UAS::getCommunicationStatus() const
 {
     return commStatus;
-}
-
-void UAS::requestParameters()
-{
-    mavlink_message_t msg;
-    mavlink_msg_param_request_list_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, this->getUASID(), MAV_COMP_ID_ALL);
-    sendMessage(msg);
-
-    QDateTime time = QDateTime::currentDateTime();
-    qDebug() << __FILE__ << ":" << __LINE__ << time.toString() << "LOADING PARAM LIST";
 }
 
 void UAS::writeParametersToStorage()

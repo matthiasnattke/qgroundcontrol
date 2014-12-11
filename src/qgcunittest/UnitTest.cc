@@ -28,6 +28,7 @@
 
 #include "UnitTest.h"
 #include "QGCApplication.h"
+#include "MAVLinkProtocol.h"
 
 bool UnitTest::_messageBoxRespondedTo = false;
 bool UnitTest::_badResponseButton = false;
@@ -113,8 +114,10 @@ void UnitTest::init(void)
     _expectMissedMessageBox = false;
     
     // Each test gets a clean global state
-    qgcApp()->destroySingletonsForUnitTest();
-    qgcApp()->createSingletonsForUnitTest();
+    qgcApp()->_destroySingletons();
+    qgcApp()->_createSingletons();
+    
+    MAVLinkProtocol::deleteTempLogFiles();
 }
 
 /// @brief Called after each test.
@@ -132,6 +135,8 @@ void UnitTest::cleanup(void)
         QEXPECT_FAIL("", "Expecting failure due internal testing", Continue);
     }
     QCOMPARE(_missedFileDialogCount, 0);
+    
+    qgcApp()->_destroySingletons();
 }
 
 void UnitTest::setExpectedMessageBox(QMessageBox::StandardButton response)

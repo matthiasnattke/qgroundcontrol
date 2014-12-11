@@ -37,12 +37,13 @@ This file is part of the QGROUNDCONTROL project
 #include <QFile>
 #include <QMap>
 #include <QByteArray>
-#include <QTemporaryFile>
 
-#include "ProtocolInterface.h"
 #include "LinkInterface.h"
 #include "QGCMAVLink.h"
 #include "QGC.h"
+#include "QGCTemporaryFile.h"
+
+class LinkManager;
 
 /**
  * @brief MAVLink micro air vehicle protocol reference implementation.
@@ -51,12 +52,12 @@ This file is part of the QGROUNDCONTROL project
  * for more information, please see the official website.
  * @ref http://pixhawk.ethz.ch/software/mavlink/
  **/
-class MAVLinkProtocol : public ProtocolInterface
+class MAVLinkProtocol : public QThread
 {
     Q_OBJECT
-
+    
 public:
-    MAVLinkProtocol();
+    MAVLinkProtocol(LinkManager *linkMgr);
     ~MAVLinkProtocol();
 
     /** @brief Get the human-friendly name of this protocol */
@@ -143,7 +144,10 @@ public:
 public slots:
     /** @brief Receive bytes from a communication interface */
     void receiveBytes(LinkInterface* link, QByteArray b);
-    void linkStatusChanged(bool connected);
+    
+    void linkConnected(void);
+    void linkDisconnected(void);
+    
     /** @brief Send MAVLink message through serial interface */
     void sendMessage(mavlink_message_t message);
     /** @brief Send MAVLink message */
@@ -199,6 +203,9 @@ public slots:
     ///         and not called directly in order to synchronize with the bytesReady signal
     ///         which may be ahead of it in the signal queue.
     void suspendLogForReplay(bool suspend);
+    
+    /// @brief Deletes any log files which are in the temp directory
+    static void deleteTempLogFiles(void);
 
 protected:    
     // Override from QObject
@@ -254,6 +261,9 @@ signals:
     void actionGuardChanged(bool enabled);
     /** @brief Emitted if actiion request timeout changed */
     void actionRetransmissionTimeoutChanged(int ms);
+    /** @brief Update the packet loss from one system */
+    void receiveLossChanged(int uasId, float loss);
+
     /**
      * @brief Emitted if a new radio status packet received
      *
@@ -272,6 +282,7 @@ signals:
     void saveTempFlightDataLog(QString tempLogfile);
     
 private:
+    void _linkStatusChanged(LinkInterface* link, bool connected);
     bool _closeLogFile(void);
     void _startLogging(void);
     void _stopLogging(void);
@@ -282,12 +293,14 @@ private:
     bool _logSuspendError;      ///< true: Logging suspended due to error
     bool _logSuspendReplay;     ///< true: Logging suspended due to replay
     
-    QTemporaryFile _tempLogFile;                ///< File to log to
-    static const char* _tempLogFileTemplate;    ///< Template for temporary log file
-    static const char* _logFileExtension;       ///< Extension for log files
+    QGCTemporaryFile    _tempLogFile;            ///< File to log to
+    static const char*  _tempLogFileTemplate;    ///< Template for temporary log file
+    static const char*  _logFileExtension;       ///< Extension for log files
     
     bool _protocolStatusMessageConnected;   ///< true: protocolStatusMessage signal has been connected
     bool _saveTempFlightDataLogConnected;   ///< true: saveTempFlightDataLog signal has been connected
+    
+    LinkManager* _linkMgr;
 };
 
 #endif // MAVLINKPROTOCOL_H_

@@ -19,6 +19,12 @@
 
 message(Qt version $$[QT_VERSION])
 
+# Load additional config flags from user_config.pri
+exists(user_config.pri):infile(user_config.pri, CONFIG) {
+    CONFIG += $$fromfile(user_config.pri, CONFIG)
+    message($$sprintf("Using user-supplied additional config: '%1' specified in user_config.pri", $$fromfile(user_config.pri, CONFIG)))
+}
+
 # Setup our supported build types. We do this once here and then use the defined config scopes
 # to allow us to easily modify suported build types in one place instead of duplicated throughout
 # the project file.
@@ -111,7 +117,12 @@ QT += network \
     serialport \
     sql \
     printsupport \
-    quick
+    quick \
+    quickwidgets
+
+contains(DEFINES, QGC_NOTIFY_TUNES_ENABLED) {
+    QT += multimedia
+}
 
 !contains(DEFINES, DISABLE_GOOGLE_EARTH) {
     QT += webkit webkitwidgets
@@ -243,6 +254,7 @@ INCLUDEPATH += \
     src/ui/map \
     src/uas \
     src/comm \
+    src/audio \
     include/ui \
     src/input \
     src/lib/qmapcontrol \
@@ -282,7 +294,7 @@ FORMS += \
     src/ui/designer/QGCParamSlider.ui \
     src/ui/designer/QGCActionButton.ui \
     src/ui/designer/QGCCommandButton.ui \
-    src/ui/designer/QGCComboBox.ui \
+    src/ui/designer/QGCToolWidgetComboBox.ui \
     src/ui/designer/QGCTextLabel.ui \
     src/ui/designer/QGCXYPlot.ui \
     src/ui/QGCMAVLinkLogPlayer.ui \
@@ -393,7 +405,7 @@ HEADERS += \
     src/ui/designer/QGCParamSlider.h \
     src/ui/designer/QGCCommandButton.h \
     src/ui/designer/QGCToolWidgetItem.h \
-    src/ui/designer/QGCComboBox.h \
+    src/ui/designer/QGCToolWidgetComboBox.h \
     src/ui/designer/QGCTextLabel.h \
     src/ui/designer/QGCRadioChannelDisplay.h \
     src/ui/designer/QGCXYPlot.h \
@@ -415,7 +427,6 @@ HEADERS += \
     src/ui/map/QGCMapToolBar.h \
     src/QGCGeo.h \
     src/ui/QGCToolBar.h \
-    src/ui/QGCStatusBar.h \
     src/ui/QGCMAVLinkInspector.h \
     src/ui/MAVLinkDecoder.h \
     src/ui/WaypointViewOnlyView.h \
@@ -481,7 +492,11 @@ HEADERS += \
     src/CmdLineOptParser.h \
     src/uas/QGXPX4UAS.h \
     src/QGCFileDialog.h \
-    src/QGCMessageBox.h
+    src/QGCMessageBox.h \
+    src/QGCComboBox.h \
+    src/QGCTemporaryFile.h \
+    src/audio/QGCAudioWorker.h \
+    src/QGCQuickWidget.h
 
 SOURCES += \
     src/main.cc \
@@ -537,7 +552,7 @@ SOURCES += \
     src/ui/designer/QGCParamSlider.cc \
     src/ui/designer/QGCCommandButton.cc \
     src/ui/designer/QGCToolWidgetItem.cc \
-    src/ui/designer/QGCComboBox.cc \
+    src/ui/designer/QGCToolWidgetComboBox.cc \
     src/ui/designer/QGCTextLabel.cc \
     src/ui/designer/QGCRadioChannelDisplay.cpp \
     src/ui/designer/QGCXYPlot.cc \
@@ -558,7 +573,6 @@ SOURCES += \
     src/ui/map/QGCMapTool.cc \
     src/ui/map/QGCMapToolBar.cc \
     src/ui/QGCToolBar.cc \
-    src/ui/QGCStatusBar.cc \
     src/ui/QGCMAVLinkInspector.cc \
     src/ui/MAVLinkDecoder.cc \
     src/ui/WaypointViewOnlyView.cc \
@@ -620,8 +634,11 @@ SOURCES += \
     src/uas/QGCUASWorker.cc \
     src/CmdLineOptParser.cc \
     src/uas/QGXPX4UAS.cc \
-    src/QGCFileDialog.cc
-
+    src/QGCFileDialog.cc \
+    src/QGCComboBox.cc \
+    src/QGCTemporaryFile.cc \
+    src/audio/QGCAudioWorker.cpp \
+    src/QGCQuickWidget.cc
 
 #
 # Unit Test specific configuration goes here
@@ -643,7 +660,6 @@ HEADERS += \
     src/qgcunittest/UnitTest.h \
     src/qgcunittest/MessageBoxTest.h \
     src/qgcunittest/FileDialogTest.h \
-	src/qgcunittest/UASUnitTest.h \
     src/qgcunittest/MockLink.h \
     src/qgcunittest/MockLinkMissionItemHandler.h \
 	src/qgcunittest/MockUASManager.h \
@@ -658,13 +674,14 @@ HEADERS += \
 	src/qgcunittest/QGCUASFileManagerTest.h \
     src/qgcunittest/PX4RCCalibrationTest.h \
     src/qgcunittest/LinkManagerTest.h \
-    src/qgcunittest/MainWindowTest.h
+    src/qgcunittest/MainWindowTest.h \
+    src/AutoPilotPlugins/PX4/Tests/FlightModeConfigTest.h \
+    src/qgcunittest/MavlinkLogTest.h
 
 SOURCES += \
     src/qgcunittest/UnitTest.cc \
     src/qgcunittest/MessageBoxTest.cc \
     src/qgcunittest/FileDialogTest.cc \
-	src/qgcunittest/UASUnitTest.cc \
     src/qgcunittest/MockLink.cc \
     src/qgcunittest/MockLinkMissionItemHandler.cc \
 	src/qgcunittest/MockUASManager.cc \
@@ -678,7 +695,9 @@ SOURCES += \
 	src/qgcunittest/QGCUASFileManagerTest.cc \
     src/qgcunittest/PX4RCCalibrationTest.cc \
     src/qgcunittest/LinkManagerTest.cc \
-    src/qgcunittest/MainWindowTest.cc
+    src/qgcunittest/MainWindowTest.cc \
+    src/AutoPilotPlugins/PX4/Tests/FlightModeConfigTest.cc \
+    src/qgcunittest/MavlinkLogTest.cc
 }
 
 #
@@ -688,7 +707,8 @@ FORMS += \
     src/VehicleSetup/SetupView.ui \
     src/VehicleSetup/SummaryPage.ui \
     src/VehicleSetup/ParameterEditor.ui \
-    src/ui/QGCPX4VehicleConfig.ui
+    src/ui/QGCPX4VehicleConfig.ui \
+    src/AutoPilotPlugins/PX4/FlightModeConfig.ui
 
 HEADERS+= \
     src/VehicleSetup/SetupView.h \
@@ -704,8 +724,10 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/PX4Component.h \
     src/AutoPilotPlugins/PX4/RadioComponent.h \
     src/AutoPilotPlugins/PX4/FlightModesComponent.h \
+    src/AutoPilotPlugins/PX4/FlightModeConfig.h \
     src/AutoPilotPlugins/PX4/AirframeComponent.h \
-    src/AutoPilotPlugins/PX4/SensorsComponent.h
+    src/AutoPilotPlugins/PX4/SensorsComponent.h \
+    src/AutoPilotPlugins/PX4/PX4ParameterFacts.h \
 
 SOURCES += \
     src/VehicleSetup/SetupView.cc \
@@ -718,5 +740,24 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/PX4Component.cc \
     src/AutoPilotPlugins/PX4/RadioComponent.cc \
     src/AutoPilotPlugins/PX4/FlightModesComponent.cc \
+    src/AutoPilotPlugins/PX4/FlightModeConfig.cc \
     src/AutoPilotPlugins/PX4/AirframeComponent.cc \
-    src/AutoPilotPlugins/PX4/SensorsComponent.cc
+    src/AutoPilotPlugins/PX4/SensorsComponent.cc \
+    src/AutoPilotPlugins/PX4/PX4ParameterFacts.cc \
+
+# Fact System code
+
+INCLUDEPATH += \
+    src/FactSystem
+
+HEADERS += \
+    src/FactSystem/FactSystem.h \
+    src/FactSystem/Fact.h \
+    src/FactSystem/FactMetaData.h \
+    src/FactSystem/FactValidator.h \
+
+SOURCES += \
+    src/FactSystem/FactSystem.cc \
+    src/FactSystem/Fact.cc \
+    src/FactSystem/FactMetaData.cc \
+    src/FactSystem/FactValidator.cc \
