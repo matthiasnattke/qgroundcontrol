@@ -10,13 +10,14 @@
  */
 
 #include <QList>
-#include <QMessageBox>
 #include <QTimer>
 #include <QSettings>
 #include <iostream>
 #include <QDebug>
+
 #include <cmath>
 #include <qmath.h>
+
 #include "UAS.h"
 #include "LinkInterface.h"
 #include "UASManager.h"
@@ -28,7 +29,8 @@
 #include "SerialLink.h"
 #include "UASParameterCommsMgr.h"
 #include <Eigen/Geometry>
-#include <comm/px4_custom_mode.h>
+#include "AutoPilotPluginManager.h"
+#include "QGCMessageBox.h"
 
 /**
 * Gets the settings from the previous UAS (name, airframe, autopilot, battery specs)
@@ -251,7 +253,6 @@ UAS::~UAS()
     writeSettings();
 
     _thread->quit();
-    _thread->wait();
 
     delete links;
     delete simulation;
@@ -270,7 +271,6 @@ void UAS::writeSettings()
     settings.setValue("AP_TYPE", this->autopilot);
     settings.setValue("BATTERY_SPECS", getBatterySpecs());
     settings.endGroup();
-    settings.sync();
 }
 
 /**
@@ -333,7 +333,7 @@ void UAS::updateState()
         connectionLost = true;
         receivedMode = false;
         QString audiostring = QString("Link lost to system %1").arg(this->getUASID());
-        GAudioOutput::instance()->say(audiostring.toLower());
+        GAudioOutput::instance()->say(audiostring.toLower(), GAudioOutput::AUDIO_SEVERITY_ALERT);
     }
 
     // Update connection loss time on each iteration
@@ -347,7 +347,7 @@ void UAS::updateState()
     if (connectionLost && (heartbeatInterval < timeoutIntervalHeartbeat))
     {
         QString audiostring = QString("Link regained to system %1").arg(this->getUASID());
-        GAudioOutput::instance()->say(audiostring.toLower());
+        GAudioOutput::instance()->say(audiostring.toLower(), GAudioOutput::AUDIO_SEVERITY_NOTICE);
         connectionLost = false;
         connectionLossTime = 0;
         emit heartbeatTimeout(false, 0);
@@ -574,7 +574,7 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
 
             if (statechanged && ((int)state.system_status == (int)MAV_STATE_CRITICAL || state.system_status == (int)MAV_STATE_EMERGENCY))
             {
-                GAudioOutput::instance()->say(QString("emergency for system %1").arg(this->getUASID()));
+                GAudioOutput::instance()->say(QString("emergency for system %1").arg(this->getUASID()), GAudioOutput::AUDIO_SEVERITY_EMERGENCY);
                 QTimer::singleShot(3000, GAudioOutput::instance(), SLOT(startEmergency()));
             }
             else if (modechanged || statechanged)
@@ -1404,19 +1404,11 @@ void UAS::setHomePosition(double lat, double lon, double alt)
                 tr("UAS") + QString::number(getUASID())
               : getUASName();
 
-    QMessageBox msgBox;
-    msgBox.setIcon(QMessageBox::Warning);
-    msgBox.setText(tr("Set a new home position for vehicle %1").arg(uasName));
-    msgBox.setInformativeText("Do you want to set a new origin? Waypoints defined in the local frame will be shifted in their physical location");
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
-    msgBox.setDefaultButton(QMessageBox::Cancel);
-    int ret = msgBox.exec();
-
-    // Close the message box shortly after the click to prevent accidental clicks
-    QTimer::singleShot(5000, &msgBox, SLOT(reject()));
-
-
-    if (ret == QMessageBox::Yes)
+    QMessageBox::StandardButton button = QGCMessageBox::question(tr("Set a new home position for vehicle %1").arg(uasName),
+                                                                 tr("Do you want to set a new origin? Waypoints defined in the local frame will be shifted in their physical location"),
+                                                                 QMessageBox::Yes | QMessageBox::Cancel,
+                                                                 QMessageBox::Cancel);
+    if (button == QMessageBox::Yes)
     {
         mavlink_message_t msg;
         mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, this->getUASID(), 0, MAV_CMD_DO_SET_HOME, 1, 0, 0, 0, 0, lat, lon, alt);
@@ -1442,19 +1434,11 @@ void UAS::setHomePosition(double lat, double lon, double alt)
 **/
 void UAS::setLocalOriginAtCurrentGPSPosition()
 {
-    QMessageBox msgBox;
-    msgBox.setIcon(QMessageBox::Warning);
-    msgBox.setText("Set the home position at the current GPS position?");
-    msgBox.setInformativeText("Do you want to set a new origin? Waypoints defined in the local frame will be shifted in their physical location");
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
-    msgBox.setDefaultButton(QMessageBox::Cancel);
-    int ret = msgBox.exec();
-
-    // Close the message box shortly after the click to prevent accidental clicks
-    QTimer::singleShot(5000, &msgBox, SLOT(reject()));
-
-
-    if (ret == QMessageBox::Yes)
+    QMessageBox::StandardButton button = QGCMessageBox::question(tr("Set the home position at the current GPS position?"),
+                                                                 tr("Do you want to set a new origin? Waypoints defined in the local frame will be shifted in their physical location"),
+                                                                 QMessageBox::Yes | QMessageBox::Cancel,
+                                                                 QMessageBox::Cancel);
+    if (button == QMessageBox::Yes)
     {
         mavlink_message_t msg;
         mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, this->getUASID(), 0, MAV_CMD_DO_SET_HOME, 1, 1, 0, 0, 0, 0, 0, 0);
@@ -1781,7 +1765,7 @@ void UAS::sendMessage(mavlink_message_t message)
 void UAS::forwardMessage(mavlink_message_t message)
 {
     // Emit message on all links that are currently connected
-    QList<LinkInterface*>link_list = LinkManager::instance()->getLinksForProtocol(mavlink);
+    QList<LinkInterface*>link_list = LinkManager::instance()->getLinks();
 
     foreach(LinkInterface* link, link_list)
     {
@@ -1982,16 +1966,6 @@ quint64 UAS::getUptime() const
 int UAS::getCommunicationStatus() const
 {
     return commStatus;
-}
-
-void UAS::requestParameters()
-{
-    mavlink_message_t msg;
-    mavlink_msg_param_request_list_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, this->getUASID(), MAV_COMP_ID_ALL);
-    sendMessage(msg);
-
-    QDateTime time = QDateTime::currentDateTime();
-    qDebug() << __FILE__ << ":" << __LINE__ << time.toString() << "LOADING PARAM LIST";
 }
 
 void UAS::writeParametersToStorage()
@@ -2905,7 +2879,7 @@ bool UAS::emergencyKILL()
 void UAS::enableHilFlightGear(bool enable, QString options, bool sensorHil, QObject * configuration)
 {
     Q_UNUSED(configuration);
-    
+
     QGCFlightGearLink* link = dynamic_cast<QGCFlightGearLink*>(simulation);
     if (!link || !simulation) {
         // Delete wrong sim
@@ -3115,7 +3089,7 @@ void UAS::sendHilOpticalFlow(quint64 time_us, qint16 flow_x, qint16 flow_y, floa
                     float flow_comp_m_y, quint8 quality, float ground_distance)
 {
     // FIXME: This needs to be updated for new mavlink_msg_hil_optical_flow_pack api
-    
+
     Q_UNUSED(time_us);
     Q_UNUSED(flow_x);
     Q_UNUSED(flow_y);
@@ -3123,14 +3097,14 @@ void UAS::sendHilOpticalFlow(quint64 time_us, qint16 flow_x, qint16 flow_y, floa
     Q_UNUSED(flow_comp_m_y);
     Q_UNUSED(quality);
     Q_UNUSED(ground_distance);
-    
+
     if (this->base_mode & MAV_MODE_FLAG_HIL_ENABLED)
     {
 #if 0
         mavlink_message_t msg;
         mavlink_msg_hil_optical_flow_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg,
                                    time_us, 0, 0 /* hack */, flow_x, flow_y, 0.0f /* hack */, 0.0f /* hack */, 0.0f /* hack */, 0 /* hack */, quality, ground_distance);
-        
+
         sendMessage(msg);
         lastSendTimeOpticalFlow = QGC::groundTimeMilliseconds();
 #endif
@@ -3204,19 +3178,11 @@ void UAS::stopHil()
 
 void UAS::shutdown()
 {
-    QMessageBox msgBox;
-    msgBox.setIcon(QMessageBox::Critical);
-    msgBox.setText("Shutting down the UAS");
-    msgBox.setInformativeText("Do you want to shut down the onboard computer?");
-
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
-    msgBox.setDefaultButton(QMessageBox::Cancel);
-    int ret = msgBox.exec();
-
-    // Close the message box shortly after the click to prevent accidental clicks
-    QTimer::singleShot(5000, &msgBox, SLOT(reject()));
-
-    if (ret == QMessageBox::Yes)
+    QMessageBox::StandardButton button = QGCMessageBox::question(tr("Shutting down the UAS"),
+                                                                 tr("Do you want to shut down the onboard computer?"),
+                                                                 QMessageBox::Yes | QMessageBox::Cancel,
+                                                                 QMessageBox::Cancel);
+    if (button == QMessageBox::Yes)
     {
         // If the active UAS is set, execute command
         mavlink_message_t msg;
@@ -3326,54 +3292,7 @@ QString UAS::getAudioModeTextFor(int id)
 */
 QString UAS::getShortModeTextFor(uint8_t base_mode, uint32_t custom_mode, int autopilot)
 {
-    QString mode = "";
-
-    if (base_mode & MAV_MODE_FLAG_CUSTOM_MODE_ENABLED) {
-        // use custom_mode - autopilot-specific
-        if (autopilot == MAV_AUTOPILOT_PX4) {
-            union px4_custom_mode px4_mode;
-            px4_mode.data = custom_mode;
-            if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_MANUAL) {
-                mode += "|MANUAL";
-            } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_ALTCTL) {
-                mode += "|ALTCTL";
-            } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_POSCTL) {
-                mode += "|POSCTL";
-            } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_AUTO) {
-                mode += "|AUTO";
-                if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_READY) {
-                    mode += "|READY";
-                } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_TAKEOFF) {
-                    mode += "|TAKEOFF";
-                } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_LOITER) {
-                    mode += "|LOITER";
-                } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_MISSION) {
-                    mode += "|MISSION";
-                } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_RTL) {
-                    mode += "|RTL";
-                } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_LAND) {
-                    mode += "|LAND";
-                }
-            }
-        }
-    }
-
-    // fallback to using base_mode
-    if (mode.length() == 0) {
-        // use base_mode - not autopilot-specific
-        if (base_mode == 0) {
-            mode += "|PREFLIGHT";
-        } else if (base_mode & MAV_MODE_FLAG_DECODE_POSITION_AUTO) {
-            mode += "|AUTO";
-        } else if (base_mode & MAV_MODE_FLAG_DECODE_POSITION_MANUAL) {
-            mode += "|MANUAL";
-            if (base_mode & MAV_MODE_FLAG_DECODE_POSITION_GUIDED) {
-                mode += "|GUIDED";
-            } else if (base_mode & MAV_MODE_FLAG_DECODE_POSITION_STABILIZE) {
-                mode += "|STABILIZED";
-            }
-        }
-    }
+    QString mode = AutoPilotPluginManager::instance()->getInstanceForAutoPilotPlugin(autopilot)->getShortModeText(base_mode, custom_mode);
 
     if (mode.length() == 0)
     {
@@ -3421,11 +3340,14 @@ void UAS::addLink(LinkInterface* link)
 
 void UAS::removeLink(QObject* object)
 {
-    LinkInterface* link = dynamic_cast<LinkInterface*>(object);
-    if (link)
-    {
-        links->removeAt(links->indexOf(link));
-    }
+    // Do not dynamic cast or de-reference QObject, since object is either in destructor or may have already
+    // been destroyed.
+    
+    LinkInterface* link = (LinkInterface*)object;
+    
+    int index = links->indexOf(link);
+    Q_ASSERT(index != -1);
+    links->removeAt(index);
 }
 
 /**

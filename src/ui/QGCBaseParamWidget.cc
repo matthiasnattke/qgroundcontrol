@@ -1,13 +1,13 @@
 #include "QGCBaseParamWidget.h"
 
-#include <QFileDialog>
 #include <QFile>
 #include <QVariant>
 #include <QTextStream>
 
 #include "QGCUASParamManagerInterface.h"
 #include "UASInterface.h"
-
+#include "QGCApplication.h"
+#include "QGCFileDialog.h"
 
 QGCBaseParamWidget::QGCBaseParamWidget(QWidget *parent) :
     QWidget(parent),
@@ -40,8 +40,6 @@ void QGCBaseParamWidget::setUAS(UASInterface* uas)
             connectToParamManager();
             connectViewSignalsAndSlots();
             layoutWidget();
-
-            paramMgr->requestParameterListIfEmpty();
         }
     }
 
@@ -62,6 +60,9 @@ void QGCBaseParamWidget::connectToParamManager()
     // Listen for param list reload finished
     connect(paramMgr, SIGNAL(parameterListUpToDate()),
             this, SLOT(handleOnboardParameterListUpToDate()));
+    if (paramMgr->parametersReady()) {
+        handleOnboardParameterListUpToDate();
+    }
 
     // Listen to communications status messages so we can display them
     connect(paramMgr, SIGNAL(parameterStatusMsgUpdated(QString,int)),
@@ -99,7 +100,7 @@ void QGCBaseParamWidget::saveParametersToFile()
 {
     if (!mav)
         return;
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"), "./parameters.txt", tr("Parameter File (*.txt)"));
+    QString fileName = QGCFileDialog::getSaveFileName(this, tr("Save File"), qgcApp()->savedParameterFilesLocation(), tr("Parameter File (*.txt)"));
     QFile file(fileName);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         return;
@@ -116,7 +117,7 @@ void QGCBaseParamWidget::loadParametersFromFile()
     if (!mav)
         return;
 
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Load File"), ".", tr("Parameter file (*.txt)"));
+    QString fileName = QGCFileDialog::getOpenFileName(this, tr("Load File"), qgcApp()->savedParameterFilesLocation(), tr("Parameter file (*.txt)"));
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return;

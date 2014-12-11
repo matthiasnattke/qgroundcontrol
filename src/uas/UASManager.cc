@@ -10,41 +10,43 @@
 
 #include <QList>
 #include <QApplication>
-#include <QMessageBox>
 #include <QTimer>
 #include <QSettings>
+
 #include "UAS.h"
 #include "UASInterface.h"
 #include "UASManager.h"
 #include "QGC.h"
+#include "QGCMessageBox.h"
+#include "QGCApplication.h"
 
 #define PI 3.1415926535897932384626433832795
 #define MEAN_EARTH_DIAMETER	12756274.0
 #define UMR	0.017453292519943295769236907684886
 
-UASManagerInterface* UASManager::_mockUASManager = NULL;
+IMPLEMENT_QGC_SINGLETON(UASManager, UASManagerInterface)
 
-
-void UASManager::setMockUASManager(UASManagerInterface* mockUASManager)
+UASManager::UASManager(QObject* parent) :
+    UASManagerInterface(parent),
+    activeUAS(NULL),
+    offlineUASWaypointManager(NULL),
+    homeLat(47.3769),
+    homeLon(8.549444),
+    homeAlt(470.0),
+    homeFrame(MAV_FRAME_GLOBAL)
 {
-    _mockUASManager = mockUASManager;
+    loadSettings();
+    setLocalNEDSafetyBorders(1, -1, 0, -1, 1, -1);
 }
 
-UASManagerInterface* UASManager::instance()
+UASManager::~UASManager()
 {
-    if (_mockUASManager) {
-        return _mockUASManager;
+    storeSettings();
+    // Delete all systems
+    foreach (UASInterface* mav, systems) {
+        // deleteLater so it ends up on correct thread
+        mav->deleteLater();
     }
-    
-    static UASManager* _instance = 0;
-    if(_instance == 0) {
-        _instance = new UASManager();
-
-        // Set the application as parent to ensure that this object
-        // will be destroyed when the main application exits
-        _instance->setParent(qApp);
-    }
-    return _instance;
 }
 
 void UASManager::storeSettings()
@@ -55,13 +57,11 @@ void UASManager::storeSettings()
     settings.setValue("HOMELON", homeLon);
     settings.setValue("HOMEALT", homeAlt);
     settings.endGroup();
-    settings.sync();
 }
 
 void UASManager::loadSettings()
 {
     QSettings settings;
-    settings.sync();
     settings.beginGroup("QGC_UASMANAGER");
     bool changed =  setHomePosition(settings.value("HOMELAT", homeLat).toDouble(),
                                     settings.value("HOMELON", homeLon).toDouble(),
@@ -250,32 +250,6 @@ void UASManager::uavChangedHomePosition(int uav, double lat, double lon, double 
     }
 }
 
-/**
- * @brief Private singleton constructor
- *
- * This class implements the singleton design pattern and has therefore only a private constructor.
- **/
-UASManager::UASManager() :
-        activeUAS(NULL),
-        offlineUASWaypointManager(NULL),
-        homeLat(47.3769),
-        homeLon(8.549444),
-        homeAlt(470.0),
-        homeFrame(MAV_FRAME_GLOBAL)
-{
-    loadSettings();
-    setLocalNEDSafetyBorders(1, -1, 0, -1, 1, -1);
-}
-
-UASManager::~UASManager()
-{
-    storeSettings();
-    // Delete all systems
-    foreach (UASInterface* mav, systems) {
-        delete mav;
-    }
-}
-
 void UASManager::addUAS(UASInterface* uas)
 {
     // WARNING: The active uas is set here
@@ -308,7 +282,7 @@ void UASManager::addUAS(UASInterface* uas)
         setActiveUAS(uas);
         if (offlineUASWaypointManager->getWaypointEditableList().size() > 0)
         {
-            if (QMessageBox::question(0,"Question","Do you want to append the offline waypoints to the ones currently on the UAV?",QMessageBox::Yes,QMessageBox::No) == QMessageBox::Yes)
+            if (QGCMessageBox::question(tr("Question"), tr("Do you want to append the offline waypoints to the ones currently on the UAV?"), QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes)
             {
                 //Need to transfer all waypoints from the offline mode WPManager to the online mode.
                 for (int i=0;i<offlineUASWaypointManager->getWaypointEditableList().size();i++)
@@ -436,14 +410,6 @@ bool UASManager::shutdownActiveUAS()
     return (activeUAS);
 }
 
-void UASManager::configureActiveUAS()
-{
-    UASInterface* actUAS = getActiveUAS();
-    if(actUAS) {
-        // Do something
-    }
-}
-
 UASInterface* UASManager::getUASForId(int id)
 {
     UASInterface* system = NULL;
@@ -474,7 +440,6 @@ void UASManager::setActiveUAS(UASInterface* uas)
     if (activeUAS)
     {
         activeUAS->setSelected();
-        emit activeUASSet(activeUAS->getUASID());
         emit activeUASSetListIndex(systems.indexOf(activeUAS));
         emit activeUASStatusChanged(activeUAS, true);
         emit activeUASStatusChanged(activeUAS->getUASID(), true);

@@ -59,7 +59,7 @@ UDPLink::UDPLink(QHostAddress host, quint16 port) :
 
 UDPLink::~UDPLink()
 {
-    disconnect();
+    _disconnect();
 
     // Tell the thread to exit
     quit();
@@ -85,13 +85,13 @@ void UDPLink::setAddress(QHostAddress host)
     bool reconnect(false);
 	if(this->isConnected())
 	{
-		disconnect();
+		_disconnect();
 		reconnect = true;
 	}
 	this->host = host;
 	if(reconnect)
 	{
-		connect();
+		_connect();
 	}
 }
 
@@ -100,7 +100,7 @@ void UDPLink::setPort(int port)
 	bool reconnect(false);
 	if(this->isConnected())
 	{
-		disconnect();
+		_disconnect();
 		reconnect = true;
 	}
     this->port = port;
@@ -108,7 +108,7 @@ void UDPLink::setPort(int port)
 	emit nameChanged(this->name);
 	if(reconnect)
 	{
-		connect();
+		_connect();
 	}
 }
 
@@ -272,7 +272,7 @@ void UDPLink::readBytes()
  *
  * @return True if connection has been disconnected, false if connection couldn't be disconnected.
  **/
-bool UDPLink::disconnect()
+bool UDPLink::_disconnect(void)
 {
 	this->quit();
 	this->wait();
@@ -287,7 +287,6 @@ bool UDPLink::disconnect()
     connectState = false;
 
     emit disconnected();
-    emit connected(false);
     return !connectState;
 }
 
@@ -296,7 +295,7 @@ bool UDPLink::disconnect()
  *
  * @return True if connection has been established, false if connection couldn't be established.
  **/
-bool UDPLink::connect()
+bool UDPLink::_connect(void)
 {
 	if(this->isRunning())
 	{
@@ -352,7 +351,6 @@ bool UDPLink::hardwareConnect(void)
     //QObject::connect(socket, SIGNAL(readyRead()), this, SLOT(readPendingDatagrams()));
     QObject::connect(socket, SIGNAL(readyRead()), this, SLOT(readBytes()));
 
-    emit connected(connectState);
     if (connectState) {
         emit connected();
     }

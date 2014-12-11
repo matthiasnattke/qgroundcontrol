@@ -42,6 +42,9 @@ This file is part of the QGROUNDCONTROL project
 #include "UDPLink.h"
 #include "TCPLink.h"
 #include "MAVLinkSimulationLink.h"
+#ifdef UNITTEST_BUILD
+#include "MockLink.h"
+#endif
 #ifdef QGC_XBEE_ENABLED
 #include "XbeeLink.h"
 #include "XbeeConfigurationWindow.h"
@@ -57,7 +60,7 @@ This file is part of the QGROUNDCONTROL project
 #include "LinkManager.h"
 #include "MainWindow.h"
 
-CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolInterface* protocol, QWidget *parent) : QDialog(parent)
+CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, QWidget *parent) : QDialog(parent)
 {
     this->link = link;
 
@@ -85,10 +88,15 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
     ui.linkType->addItem(tr("Serial"), QGC_LINK_SERIAL);
     ui.linkType->addItem(tr("UDP"), QGC_LINK_UDP);
     ui.linkType->addItem(tr("TCP"), QGC_LINK_TCP);
+    
     if(dynamic_cast<MAVLinkSimulationLink*>(link)) {
         //Only show simulation option if already setup elsewhere as a simulation
         ui.linkType->addItem(tr("Simulation"), QGC_LINK_SIMULATION);
     }
+    
+#ifdef UNITTEST_BUILD
+    ui.linkType->addItem(tr("Mock"), QGC_LINK_MOCK);
+#endif
 
 #ifdef QGC_RTLAB_ENABLED
     ui.linkType->addItem(tr("Opal-RT Link"), QGC_LINK_OPAL);
@@ -104,7 +112,6 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
     // Create configuration action for this link
     // Connect the current UAS
     action = new QAction(QIcon(":/files/images/devices/network-wireless.svg"), "", this);
-    LinkManager::instance()->add(link);
 	action->setData(link->getId());
     action->setEnabled(true);
     action->setVisible(true);
@@ -119,12 +126,11 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
     connect(ui.closeButton, SIGNAL(clicked()), this->window(), SLOT(close()));
     connect(ui.deleteButton, SIGNAL(clicked()), this, SLOT(remove()));
 
-    connect(this->link, SIGNAL(connected(bool)), this, SLOT(connectionState(bool)));
-
+    connect(link, &LinkInterface::connected, this, &CommConfigurationWindow::_linkConnected);
+    connect(link, &LinkInterface::disconnected, this, &CommConfigurationWindow::_linkDisconnected);
 
     // Fill in the current data
     if(this->link->isConnected()) ui.connectButton->setChecked(true);
-    //connect(this->link, SIGNAL(connected(bool)), ui.connectButton, SLOT(setChecked(bool)));
 
     if(this->link->isConnected()) {
         ui.connectionStatusLabel->setText(tr("Connected"));
@@ -144,6 +150,7 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
         ui.linkGroupBox->setTitle(tr("Serial Link"));
         ui.linkType->setCurrentIndex(ui.linkType->findData(QGC_LINK_SERIAL));
     }
+    
     UDPLink* udp = dynamic_cast<UDPLink*>(link);
     if (udp != 0) {
         QWidget* conf = new QGCUDPLinkConfiguration(udp, this);
@@ -151,6 +158,7 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
         ui.linkGroupBox->setTitle(tr("UDP Link"));
         ui.linkType->setCurrentIndex(ui.linkType->findData(QGC_LINK_UDP));
     }
+    
     TCPLink* tcp = dynamic_cast<TCPLink*>(link);
     if (tcp != 0) {
         QWidget* conf = new QGCTCPLinkConfiguration(tcp, this);
@@ -158,12 +166,22 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
         ui.linkGroupBox->setTitle(tr("TCP Link"));
         ui.linkType->setCurrentIndex(ui.linkType->findData(QGC_LINK_TCP));
     }
+    
     MAVLinkSimulationLink* sim = dynamic_cast<MAVLinkSimulationLink*>(link);
     if (sim != 0) {
         ui.linkType->setCurrentIndex(ui.linkType->findData(QGC_LINK_SIMULATION));
         ui.linkType->setEnabled(false); //Don't allow the user to change to a non-simulation
         ui.linkGroupBox->setTitle(tr("MAVLink Simulation Link"));
     }
+    
+#ifdef UNITTEST_BUILD
+    MockLink* mock = dynamic_cast<MockLink*>(link);
+    if (mock != 0) {
+        ui.linkGroupBox->setTitle(tr("Mock Link"));
+        ui.linkType->setCurrentIndex(ui.linkType->findData(QGC_LINK_MOCK));
+    }
+#endif
+    
 #ifdef QGC_RTLAB_ENABLED
     OpalLink* opal = dynamic_cast<OpalLink*>(link);
     if (opal != 0) {
@@ -175,6 +193,7 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
         ui.linkGroupBox->setTitle(tr("Opal-RT Link"));
     }
 #endif
+    
 #ifdef QGC_XBEE_ENABLED
 	XbeeLink* xbee = dynamic_cast<XbeeLink*>(link); // new Konrad
 	if(xbee != 0)
@@ -187,7 +206,11 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
 		connect(xbee,SIGNAL(tryConnectEnd(bool)),ui.actionConnect,SLOT(setEnabled(bool)));
 	}
 #endif // QGC_XBEE_ENABLED
+    
     if (serial == 0 && udp == 0 && sim == 0 && tcp == 0
+#ifdef UNITTEST_BUILD
+            && mock == 0
+#endif
 #ifdef QGC_RTLAB_ENABLED
             && opal == 0
 #endif
@@ -201,14 +224,10 @@ CommConfigurationWindow::CommConfigurationWindow(LinkInterface* link, ProtocolIn
     connect(ui.linkType,SIGNAL(currentIndexChanged(int)),this,SLOT(linkCurrentIndexChanged(int)));
 
     // Open details pane for MAVLink if necessary
-    MAVLinkProtocol* mavlink = dynamic_cast<MAVLinkProtocol*>(protocol);
-    if (mavlink != 0) {
-        QWidget* conf = new MAVLinkSettingsWidget(mavlink, this);
-        ui.protocolScrollArea->setWidget(conf);
-        ui.protocolGroupBox->setTitle(protocol->getName()+" (Global Settings)");
-    } else {
-        qDebug() << "Protocol is NOT MAVLink, can't open configuration window";
-    }
+    MAVLinkProtocol* mavlink = LinkManager::instance()->mavlink();
+    QWidget* conf = new MAVLinkSettingsWidget(mavlink, this);
+    ui.protocolScrollArea->setWidget(conf);
+    ui.protocolGroupBox->setTitle(mavlink->getName()+" (Global Settings)");
 
     // Open details for UDP link if necessary
     // TODO
@@ -254,15 +273,14 @@ void CommConfigurationWindow::setLinkType(qgc_link_t linktype)
 			{
 				XbeeLink *xbee = new XbeeLink();
 				tmpLink = xbee;
-				MainWindow::instance()->addLink(tmpLink);
 				break;
 			}
 #endif // QGC_XBEE_ENABLED
+            
         case QGC_LINK_UDP:
 			{
 				UDPLink *udp = new UDPLink();
 				tmpLink = udp;
-				MainWindow::instance()->addLink(tmpLink);
 				break;
 			}
 			
@@ -270,7 +288,6 @@ void CommConfigurationWindow::setLinkType(qgc_link_t linktype)
             {
             TCPLink *tcp = new TCPLink();
             tmpLink = tcp;
-            MainWindow::instance()->addLink(tmpLink);
             break;
             }
 
@@ -279,21 +296,31 @@ void CommConfigurationWindow::setLinkType(qgc_link_t linktype)
 			{
 				OpalLink* opal = new OpalLink();
 				tmpLink = opal;
-				MainWindow::instance()->addLink(tmpLink);
 				break;
 			}
 #endif // QGC_RTLAB_ENABLED
+            
+#ifdef UNITTEST_BUILD
+        case QGC_LINK_MOCK:
+        {
+            MockLink* mock = new MockLink;
+            tmpLink = mock;
+            break;
+        }
+#endif
+            
 		default:
-			{
-			}
         case QGC_LINK_SERIAL:
 			{
 				SerialLink *serial = new SerialLink();
 				tmpLink = serial;
-				MainWindow::instance()->addLink(tmpLink);
 				break;
 			}
 	}
+    
+    if (tmpLink) {
+        LinkManager::instance()->addLink(tmpLink);
+    }
 	// trigger new window
 
 	const int32_t& linkIndex(LinkManager::instance()->getLinks().indexOf(tmpLink));
@@ -318,13 +345,13 @@ void CommConfigurationWindow::setProtocol(int protocol)
 void CommConfigurationWindow::setConnection()
 {
     if(!link->isConnected()) {
-        link->connect();
+        LinkManager::instance()->connectLink(link);
         QGC::SLEEP::msleep(100);
         if (link->isConnected())
             // Auto-close window on connect
             this->window()->close();
     } else {
-        link->disconnect();
+        LinkManager::instance()->disconnectLink(link);
     }
 }
 
@@ -341,10 +368,7 @@ void CommConfigurationWindow::remove()
     action=NULL;
 
     if(link) {
-        LinkManager::instance()->removeLink(link); //remove link from LinkManager list
-        link->disconnect(); //disconnect port, and also calls terminate() to stop the thread
-        if (link->isRunning()) link->terminate(); // terminate() the serial thread just in case it is still running
-        link->wait(); // wait() until thread is stoped before deleting
+        LinkManager::instance()->disconnectLink(link);  // disconnect connection
         link->deleteLater();
     }
     link=NULL;
@@ -353,7 +377,15 @@ void CommConfigurationWindow::remove()
     this->deleteLater();
 }
 
-void CommConfigurationWindow::connectionState(bool connect)
+void CommConfigurationWindow::_linkConnected(void) {
+    _connectionState(true);
+}
+
+void CommConfigurationWindow::_linkDisconnected(void) {
+    _connectionState(false);
+}
+
+void CommConfigurationWindow::_connectionState(bool connect)
 {
     ui.connectButton->setChecked(connect);
     if(connect) {

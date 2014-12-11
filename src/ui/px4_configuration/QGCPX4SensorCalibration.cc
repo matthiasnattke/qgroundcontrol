@@ -348,6 +348,23 @@ void QGCPX4SensorCalibration::setActiveUAS(UASInterface* uas)
     activeUAS = uas;
 
     updateSystemSpecs(uas->getUASID());
+    
+    // If the parameters are ready, we aren't going to get paramterChanged signals. So fake them in order to make the UI work.
+    if (uas->getParamManager()->parametersReady()) {
+        QVariant value;
+        static const char* rgParams[] = { "SENS_BOARD_ROT", "SENS_EXT_MAG_ROT", "SENS_MAG_XOFF", "SENS_GYRO_XOFF", "SENS_ACC_XOFF", "SENS_DPRES_OFF" };
+        
+        QGCUASParamManagerInterface* paramMgr = uas->getParamManager();
+        
+        for (size_t i=0; i<sizeof(rgParams)/sizeof(rgParams[0]); i++) {
+            QVariant value;
+            
+            QList<int> compIds = paramMgr->getComponentForParam(rgParams[i]);
+            Q_ASSERT(compIds.count() == 1);
+            paramMgr->getParameterValue(compIds[0], rgParams[i], value);
+            parameterChanged(uas->getUASID(), compIds[0], rgParams[i], value);
+        }
+    }
 }
 
 void QGCPX4SensorCalibration::updateSystemSpecs(int id)
@@ -385,13 +402,13 @@ void QGCPX4SensorCalibration::handleTextMessage(int uasid, int compId, int sever
 
     ui->instructionLabel->setText(QString("%1").arg(text));
 
-    if (text.startsWith("accel measurement started: ")) {
-        QString axis = text.split("measurement started: ").last().left(2);
+    if (text.startsWith("Hold still, starting to measure ")) {
+        QString axis = text.section(" ", -2, -2);
         setInstructionImage(QString(":/files/images/px4/calibration/accel_%1.png").arg(axis));
     }
 
-    if (text.startsWith("directions left: ")) {
-        QString axis = text.split("directions left: ").last().left(2);
+    if (text.startsWith("pending: ")) {
+        QString axis = text.section(" ", 1, 1);
         setInstructionImage(QString(":/files/images/px4/calibration/accel_%1.png").arg(axis));
     }
 

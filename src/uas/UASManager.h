@@ -38,6 +38,7 @@ This file is part of the QGROUNDCONTROL project
 #include <UASInterface.h>
 #include "../../libs/eigen/Eigen/Eigen"
 #include "QGCGeo.h"
+#include "QGCSingleton.h"
 
 /**
  * @brief Central manager for all connected aerial vehicles
@@ -48,16 +49,10 @@ This file is part of the QGROUNDCONTROL project
 class UASManager : public UASManagerInterface
 {
     Q_OBJECT
+    
+    DECLARE_QGC_SINGLETON(UASManager, UASManagerInterface)
 
 public:
-    static UASManagerInterface* instance();
-    ~UASManager();
-    
-    /**
-     * @brief Sets a mock UASManager to be returned when a call is made to instance()
-     **/
-    static void setMockUASManager(UASManagerInterface* mockUASManager);
-
     /**
      * @brief Get the currently selected UAS
      *
@@ -227,13 +222,6 @@ public slots:
      */
     bool killActiveUAS();
 
-    /**
-     * @brief Configure the currently active UAS
-     *
-     * This command will bring up the configuration dialog for the particular UAS.
-     */
-    void configureActiveUAS();
-
     /** @brief Shut down the onboard operating system down */
     bool shutdownActiveUAS();
 
@@ -256,7 +244,6 @@ public slots:
 
 
 protected:
-    UASManager();
     QList<UASInterface*> systems;
     UASInterface* activeUAS;
     UASWaypointManager *offlineUASWaypointManager;
@@ -273,7 +260,10 @@ protected:
     void initReference(const double & latitude, const double & longitude, const double & altitude);
     
 private:
-    static UASManagerInterface* _mockUASManager;
+    /// @brief All access to UASManager singleton is through UASManager::instance
+    UASManager(QObject* parent = NULL);
+    
+    ~UASManager();
 
 public:
     /* Need to align struct pointer to prevent a memory assertion:

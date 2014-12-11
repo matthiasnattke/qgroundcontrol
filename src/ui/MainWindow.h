@@ -46,9 +46,7 @@ This file is part of the QGROUNDCONTROL project
 #include "WaypointList.h"
 #include "CameraView.h"
 #include "UASListWidget.h"
-#include "MAVLinkProtocol.h"
 #include "MAVLinkSimulationLink.h"
-#include "ObjectDetectionView.h"
 #include "submainwindow.h"
 #include "input/JoystickInput.h"
 #if (defined QGC_MOUSE_ENABLED_WIN) | (defined QGC_MOUSE_ENABLED_LINUX)
@@ -57,9 +55,7 @@ This file is part of the QGROUNDCONTROL project
 #include "DebugConsole.h"
 #include "ParameterInterface.h"
 #include "HDDisplay.h"
-#include "WatchdogControl.h"
 #include "HSIDisplay.h"
-#include "QGCRemoteControlView.h"
 #include "opmapcontrol.h"
 #ifdef QGC_GOOGLE_EARTH_ENABLED
 #include "QGCGoogleEarthView.h"
@@ -67,11 +63,11 @@ This file is part of the QGROUNDCONTROL project
 #include "QGCToolBar.h"
 #include "LogCompressor.h"
 
-#include "UASControlParameters.h"
 #include "QGCMAVLinkInspector.h"
 #include "QGCMAVLinkLogPlayer.h"
 #include "MAVLinkDecoder.h"
 #include "QGCUASFileViewMulti.h"
+#include "QGCFlightGearLink.h"
 
 class QGCMapTool;
 class QGCMAVLinkMessageSender;
@@ -100,30 +96,20 @@ public:
         CUSTOM_MODE_WIFI
     };
 
-    /**
-     * A static function for obtaining the sole instance of the MainWindow. The screen
-     * argument is only important on the FIRST call to this function. The provided splash
-     * screen is updated with some status messages that are emitted during init(). This
-     * function cannot be used within the MainWindow constructor!
-     */
-    static MainWindow* instance(QSplashScreen* screen = 0);
-    static MainWindow* instance_mode(QSplashScreen* screen = 0, enum MainWindow::CUSTOM_MODE mode = MainWindow::CUSTOM_MODE_NONE);
+    /// @brief Returns the MainWindow singleton. Will not create the MainWindow if it has not already
+    ///         been created.
+    static MainWindow* instance(void);
+    
+    /// @brief Deletes the MainWindow singleton
+    void deleteInstance(void);
+    
+    /// @brief Creates the MainWindow singleton. Should only be called once by QGCApplication.
+    static MainWindow* _create(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE mode);
+    
+    /// @brief Called to indicate that splash screen is no longer being displayed.
+    void splashScreenFinished(void) { _splashScreen = NULL; }
 
-    /**
-     * Initializes the MainWindow. Some variables are initialized and the widget is hidden.
-     * Initialization of the MainWindow class really occurs in init(), which loads the UI
-     * and does everything important. The constructor is split in two like this so that
-     * the instance() is available for all classes.
-     */
-    MainWindow(QWidget *parent = NULL);
     ~MainWindow();
-
-    /**
-     * This function actually performs the non-trivial initialization of the MainWindow
-     * class. This is separate from the constructor because instance() won't work within
-     * code executed in the MainWindow constructor.
-     */
-    void init();
 
     enum QGC_MAINWINDOW_STYLE
     {
@@ -142,17 +128,6 @@ public:
         return currentStyle;
     }
 
-    /** @brief Get current light visual stylesheet */
-    QString getLightStyleSheet() const
-    {
-        return lightStyleFileName;
-    }
-
-    /** @brief Get current dark visual stylesheet */
-    QString getDarkStyleSheet() const
-    {
-        return darkStyleFileName;
-    }
     /** @brief Get auto link reconnect setting */
     bool autoReconnectEnabled() const
     {
@@ -182,6 +157,8 @@ public:
     }
 
     QList<QAction*> listLinkMenuActions();
+    
+    void hideSplashScreen(void);
 
 public slots:
     /** @brief Shows a status message on the bottom status bar */
@@ -197,7 +174,6 @@ public slots:
     void showSettings();
     /** @brief Add a communication link */
     LinkInterface* addLink();
-    void addLink(LinkInterface* link);
     bool configLink(LinkInterface *link);
     /** @brief Simulate a link */
     void simulateLink(bool simulate);
@@ -218,8 +194,7 @@ public slots:
     void setAdvancedMode(bool isAdvancedMode);
     void handleMisconfiguration(UASInterface* uas);
     /** @brief Load configuration views */
-    void loadHardwareConfigView();
-    void loadSoftwareConfigView();
+    void loadSetupView();
     /** @brief Load view for pilot */
     void loadPilotView();
     /** @brief Load view for simulation */
@@ -249,15 +224,13 @@ public slots:
 
     /** @brief Save power by reducing update rates */
     void enableLowPowerMode(bool enabled) { lowPowerMode = enabled; }
-    /** @brief Load a specific style.
-      * If it's a custom style, load the file indicated by the cssFile path.
-      */
-    bool loadStyle(QGC_MAINWINDOW_STYLE style, QString cssFile);
+    /** @brief Load the specified style. */
+    bool loadStyle(QGC_MAINWINDOW_STYLE style);
 
     /** @brief Add a custom tool widget */
     void createCustomWidget();
 
-    /** @brief Load a custom tool widget from a file chosen by user (QFileDialog) */
+    /** @brief Load a custom tool widget from a file chosen by user (QGCFileDialog) */
     void loadCustomWidget();
 
     /** @brief Load a custom tool widget from a file */
@@ -285,7 +258,7 @@ public slots:
     void configureWindowName();
 
     void commsWidgetDestroyed(QObject *obj);
-
+    
 protected slots:
     void showDockWidget(const QString &name, bool show);
     /**
@@ -318,26 +291,20 @@ public:
         return logPlayer;
     }
 
-    MAVLinkProtocol* getMAVLink()
-    {
-        return mavlink;
-    }
-
 protected:
 
     typedef enum _VIEW_SECTIONS
     {
-        VIEW_ENGINEER,
-        VIEW_MISSION,
-        VIEW_FLIGHT,
-        VIEW_SIMULATION,
-        VIEW_FIRMWAREUPDATE,
-        VIEW_HARDWARE_CONFIG,
-        VIEW_SOFTWARE_CONFIG,
-        VIEW_TERMINAL,
-        VIEW_LOCAL3D,
-        VIEW_GOOGLEEARTH,
-        VIEW_DEFAULT
+        VIEW_ENGINEER,         // Engineering/Analyze view mode. Used for analyzing data and modifying onboard parameters
+        VIEW_MISSION,          // Mission/Map/Plan view mode. Used for setting mission waypoints and high-level system commands.
+        VIEW_FLIGHT,           // Flight/Fly/Operate view mode. Used for 1st-person observation of the vehicle.
+        VIEW_SIMULATION,       // HIL Simulation view. Useful overview of the entire system when doing hardware-in-the-loop simulations.
+        UNUSED1,               // Unused spacer for backwards compatibility with older settings files.
+        VIEW_SETUP,            // Setup view. Used for initializing the system for operation. Includes UI for calibration, firmware updating/checking, and parameter modifcation.
+        UNUSED2,               // Unused spacer for backwards compatibility with older settings files.
+        VIEW_TERMINAL,         // Terminal interface. Used for communicating with the remote system, usually in a special configuration input mode.
+        VIEW_LOCAL3D,          // A local 3D view. Provides a local 3D view that makes visualizing 3D attitude/orientation/pose easy while in operation.
+        VIEW_GOOGLEEARTH       // 3D Google Earth view. A 3D terrain view, though the vehicle is still 2D.
     } VIEW_SECTIONS;
 
     /**
@@ -374,8 +341,6 @@ protected:
     /** @brief Keeps track of the current view */
     VIEW_SECTIONS currentView;
     QGC_MAINWINDOW_STYLE currentStyle;
-    bool aboutToCloseFlag;
-    bool changingViewsFlag;
 
     void storeViewState();
     void loadViewState();
@@ -388,8 +353,6 @@ protected:
     void loadSettings();
     void storeSettings();
 
-    // TODO Should be moved elsewhere, as the protocol does not belong to the UI
-    QPointer<MAVLinkProtocol> mavlink;
 
     LinkInterface* udpLink;
 
@@ -400,7 +363,7 @@ protected:
     // Center widgets
     QPointer<SubMainWindow> plannerView;
     QPointer<SubMainWindow> pilotView;
-    QPointer<SubMainWindow> configView;
+    QPointer<SubMainWindow> setupView;
     QPointer<SubMainWindow> softwareConfigView;
     QPointer<SubMainWindow> engineeringView;
     QPointer<SubMainWindow> simView;
@@ -444,7 +407,6 @@ protected:
     QPointer<QDockWidget> hudDockWidget;
 
     QPointer<QGCToolBar> toolBar;
-    QPointer<QGCStatusBar> customStatusBar;
 
     QPointer<QDockWidget> mavlinkInspectorWidget;
     QPointer<MAVLinkDecoder> mavlinkDecoder;
@@ -481,8 +443,6 @@ protected:
     LogCompressor* comp;
     QString screenFileName;
     QTimer* videoTimer;
-    QString darkStyleFileName;
-    QString lightStyleFileName;
     bool autoReconnect;
     MAVLinkSimulationLink* simulationLink;
     Qt::WindowStates windowStateVal;
@@ -490,8 +450,17 @@ protected:
     QGCFlightGearLink* fgLink;
     QTimer windowNameUpdateTimer;
     CUSTOM_MODE customMode;
+    
+private slots:
+    void _saveTempFlightDataLog(QString tempLogfile);
+    void _addLinkMenu(LinkInterface* link);
 
 private:
+    /// Constructor is private since all creation should be through MainWindow::_create
+    MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE mode);
+    
+    void _openUrl(const QString& url, const QString& errorMessage);
+    
     QList<QObject*> commsWidgetList;
     QMap<QString,QString> customWidgetNameToFilenameMap;
     MenuActionHelper *menuActionHelper;
@@ -504,6 +473,8 @@ private:
 
     QString getWindowStateKey();
     QString getWindowGeometryKey();
+    
+    QSplashScreen* _splashScreen;   ///< Splash screen, NULL is splash screen not currently being shown
 
     friend class MenuActionHelper; //For VIEW_SECTIONS
 };

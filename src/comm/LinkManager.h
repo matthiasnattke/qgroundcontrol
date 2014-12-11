@@ -21,13 +21,8 @@ This file is part of the PIXHAWK project
 
 ======================================================================*/
 
-/**
- * @file
- *   @brief Manage communication links
- *
- *   @author Lorenz Meier <mavteam@student.ethz.ch>
- *
- */
+/// @file
+///     @author Lorenz Meier <mavteam@student.ethz.ch>
 
 #ifndef _LINKMANAGER_H_
 #define _LINKMANAGER_H_
@@ -36,71 +31,86 @@ This file is part of the PIXHAWK project
 #include <QList>
 #include <QMultiMap>
 #include <QMutex>
-#include <LinkInterface.h>
-#include <SerialLink.h>
-#include <ProtocolInterface.h>
 
-/**
- * The Link Manager organizes the physical Links. It can manage arbitrary
- * links and takes care of connecting them as well assigning the correct
- * protocol instance to transport the link data into the application.
- *
- **/
-class LinkManager : public QObject
+#include "LinkInterface.h"
+#include "SerialLink.h"
+#include "ProtocolInterface.h"
+#include "QGCSingleton.h"
+#include "MAVLinkProtocol.h"
+
+class LinkManagerTest;
+
+/// Manage communication links
+///
+/// The Link Manager organizes the physical Links. It can manage arbitrary
+/// links and takes care of connecting them as well assigning the correct
+/// protocol instance to transport the link data into the application.
+
+class LinkManager : public QGCSingleton
 {
     Q_OBJECT
-
+    
+    DECLARE_QGC_SINGLETON(LinkManager, LinkManager)
+    
+    /// Unit Test has access to private constructor/destructor
+    friend class LinkManagerTest;
+    
 public:
-    static LinkManager* instance();
-    ~LinkManager();
 
-    void run();
-
-    QList<LinkInterface*> getLinksForProtocol(ProtocolInterface* protocol);
-
-    ProtocolInterface* getProtocolForLink(LinkInterface* link);
-
-    /** @brief Get the link for this id */
-    LinkInterface* getLinkForId(int id);
-
-    /** @brief Get a list of all links */
+    /// Returns list of all links
     const QList<LinkInterface*> getLinks();
 
-    /** @brief Get a list of all serial links */
+    // Returns list of all serial links
     const QList<SerialLink*> getSerialLinks();
 
-    /** @brief Get a list of all protocols */
-    const QList<ProtocolInterface*> getProtocols() {
-        return protocolLinks.uniqueKeys();
-    }
-
-public slots:
-
-    void add(LinkInterface* link);
-    void addProtocol(LinkInterface* link, ProtocolInterface* protocol);
-
-    void removeObj(QObject* obj);
-    bool removeLink(LinkInterface* link);
-
+    /// Sets the flag to suspend the all new connections
+    ///     @param reason User visible reason to suspend connections
+    void setConnectionsSuspended(QString reason);
+    
+    /// Sets the flag to allow new connections to be made
+    void setConnectionsAllowed(void) { _connectionsSuspended = false; }
+    
+    /// Adds the link to the LinkManager. LinkManager takes ownership of this object. To delete
+    /// it, call LinkManager::deleteLink.
+    void addLink(LinkInterface* link);
+    
+    /// Deletes the specified link. Will disconnect if connected.
+    void deleteLink(LinkInterface* link);
+    
+    /// Re-connects all existing links
     bool connectAll();
-    bool connectLink(LinkInterface* link);
-
+    
+    /// Disconnects all existing links
     bool disconnectAll();
+    
+    /// Connect the specified link
+    bool connectLink(LinkInterface* link);
+    
+    /// Disconnect the specified link
     bool disconnectLink(LinkInterface* link);
-
-protected:
-    LinkManager();
-    QList<LinkInterface*> links;
-    QMultiMap<ProtocolInterface*,LinkInterface*> protocolLinks;
-    QMutex dataMutex;
-
-private:
-    static LinkManager* _instance;
-
+    
+    /// Returns the one mavlink protocol object in the system
+    MAVLinkProtocol* mavlink(void) { return _mavlink; }
+    
 signals:
     void newLink(LinkInterface* link);
-    void linkRemoved(LinkInterface* link);
+    void linkDeleted(LinkInterface* link);
+    
+private:
+    /// All access to LinkManager is through LinkManager::instance
+    LinkManager(QObject* parent = NULL);
+    
+    ~LinkManager();
 
+    bool _connectionsSuspendedMsg(void);
+    
+    QList<LinkInterface*>   _links;         ///< List of available links
+    QMutex                  _linkListMutex; ///< Mutex for thread safe access to _links list
+    
+    bool    _connectionsSuspended;          ///< true: all new connections should not be allowed
+    QString _connectionsSuspendedReason;    ///< User visible reason for suspension
+    
+    MAVLinkProtocol* _mavlink;  ///< The one and only mavlink protocol
 };
 
-#endif // _LINKMANAGER_H_
+#endif

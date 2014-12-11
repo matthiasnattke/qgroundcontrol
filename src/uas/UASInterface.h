@@ -43,7 +43,6 @@ This file is part of the QGROUNDCONTROL project
 #include "UASParameterDataModel.h"
 #include "UASWaypointManager.h"
 #include "QGCUASParamManagerInterface.h"
-#include "RadioCalibration/RadioCalibrationData.h"
 
 class QGCUASFileManager;
 
@@ -316,8 +315,6 @@ public slots:
     virtual void setLocalOriginAtCurrentGPSPosition() = 0;
     /** @brief Set world frame origin / home position at this GPS position */
     virtual void setHomePosition(double lat, double lon, double alt) = 0;
-    /** @brief Request all onboard parameters of all components */
-    virtual void requestParameters() = 0;
     /** @brief Request one specific onboard parameter */
     virtual void requestParameter(int component, const QString& parameter) = 0;
     /** @brief Write parameter to permanent storage */
@@ -584,8 +581,6 @@ signals:
     void remoteControlChannelScaledChanged(int channelId, float normalized);
     /** @brief Remote control RSSI changed */
     void remoteControlRSSIChanged(float rssi);
-    /** @brief Radio Calibration Data has been received from the MAV*/
-    void radioCalibrationReceived(const QPointer<RadioCalibrationData>&);
 
     /**
      * @brief Localization quality changed

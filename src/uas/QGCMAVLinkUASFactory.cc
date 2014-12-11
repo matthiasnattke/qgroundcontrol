@@ -39,20 +39,6 @@ UASInterface* QGCMAVLinkUASFactory::createUAS(MAVLinkProtocol* mavlink, LinkInte
         uas = mav;
     }
     break;
-    case MAV_AUTOPILOT_PIXHAWK:
-    {
-        PxQuadMAV* mav = new PxQuadMAV(mavlink, worker, sysid);
-        // Set the system type
-        mav->setSystemType((int)heartbeat->type);
-
-        // Connect this robot to the UAS object
-        // it is IMPORTANT here to use the right object type,
-        // else the slot of the parent object is called (and thus the special
-        // packets never reach their goal)
-        connect(mavlink, SIGNAL(messageReceived(LinkInterface*, mavlink_message_t)), mav, SLOT(receiveMessage(LinkInterface*, mavlink_message_t)));
-        uas = mav;
-    }
-    break;
     case MAV_AUTOPILOT_PX4:
     {
         QGXPX4UAS* px4 = new QGXPX4UAS(mavlink, worker, sysid);
@@ -92,8 +78,11 @@ UASInterface* QGCMAVLinkUASFactory::createUAS(MAVLinkProtocol* mavlink, LinkInte
     // Make UAS aware that this link can be used to communicate with the actual robot
     uas->addLink(link);
 
+    // First thing we do with a new UAS is get the parameters
+    uas->getParamManager()->requestParameterList();
+    
     // Now add UAS to "official" list, which makes the whole application aware of it
     UASManager::instance()->addUAS(uas);
-
+    
     return uas;
 }

@@ -34,9 +34,11 @@
 #include <QThread>
 #include <QList>
 #include <QMutex>
-#include <UASInterface.h>
+
+#include "UASInterface.h"
 #include "../../libs/eigen/Eigen/Eigen"
 #include "QGCGeo.h"
+#include "QGCSingleton.h"
 
 /**
  * @brief Central manager for all connected aerial vehicles
@@ -50,7 +52,7 @@
  *
  * See UASManager.h for method documentation
  **/
-class UASManagerInterface : public QObject
+class UASManagerInterface : public QGCSingleton
 {
     Q_OBJECT
     
@@ -82,7 +84,6 @@ public slots:
     virtual bool returnActiveUAS() = 0;
     virtual bool stopActiveUAS() = 0;
     virtual bool killActiveUAS() = 0;
-    virtual void configureActiveUAS() = 0;
     virtual bool shutdownActiveUAS() = 0;
     virtual bool setHomePosition(double lat, double lon, double alt) = 0;
     virtual bool setHomePositionAndNotify(double lat, double lon, double alt) = 0;
@@ -99,8 +100,6 @@ signals:
     /** @brief The UAS currently under main operator control changed */
     void activeUASSet(UASInterface* UAS);
     /** @brief The UAS currently under main operator control changed */
-    void activeUASSet(int systemId);
-    /** @brief The UAS currently under main operator control changed */
     void activeUASSetListIndex(int listIndex);
     /** @brief The UAS currently under main operator control changed */
     void activeUASStatusChanged(UASInterface* UAS, bool active);
@@ -108,6 +107,11 @@ signals:
     void activeUASStatusChanged(int systemId, bool active);
     /** @brief Current home position changed */
     void homePositionChanged(double lat, double lon, double alt);
+    
+protected:
+    // FIXME: Do we need this here?
+    UASManagerInterface(QObject* parent = NULL) :
+        QGCSingleton(parent) { }
 };
 
 #endif // _UASMANAGERINTERFACE_H_

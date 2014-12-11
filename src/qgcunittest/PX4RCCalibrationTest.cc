@@ -30,6 +30,8 @@
 ///
 ///     @author Don Gagne <don@thegagnes.com>
 
+UT_REGISTER_TEST(PX4RCCalibrationTest)
+
 // This will check for the wizard buttons being enabled of disabled according to the mask you pass in.
 // We use a macro instead of a method so that we get better line number reporting on failure.
 #define CHK_BUTTONS(mask) \
@@ -149,21 +151,24 @@ void PX4RCCalibrationTest::initTestCase(void)
 
 void PX4RCCalibrationTest::init(void)
 {
+    UnitTest::init();
+    
     _mockUASManager = new MockUASManager();
     Q_ASSERT(_mockUASManager);
     
-    UASManager::setMockUASManager(_mockUASManager);
+    UASManager::setMockInstance(_mockUASManager);
     
     _mockUAS = new MockUAS();
     Q_CHECK_PTR(_mockUAS);
     
-    // This will instatiate the widget with no active UAS set
+    _mockUASManager->setMockActiveUAS(_mockUAS);
+    
+    // This will instatiate the widget with an active uas with ready parameters
     _calWidget = new PX4RCCalibration();
     Q_CHECK_PTR(_calWidget);
     _calWidget->_setUnitTestMode();
     _calWidget->setVisible(true);
     
-    _mockUASManager->setMockActiveUAS(_mockUAS);
 
     // Get pointers to the push buttons
     _cancelButton = _calWidget->findChild<QPushButton*>("rcCalCancel");
@@ -202,22 +207,12 @@ void PX4RCCalibrationTest::cleanup(void)
     Q_ASSERT(_mockUAS);
     delete _mockUAS;
     
-    UASManager::setMockUASManager(NULL);
+    UASManager::setMockInstance(NULL);
     
     Q_ASSERT(_mockUASManager);
     delete _mockUASManager;
     
-}
-
-/// @brief Tests for correct behavior when active UAS is set into widget.
-void PX4RCCalibrationTest::_setUAS_test(void)
-{
-    // Widget is initialized with UAS, so it should be enabled
-    QCOMPARE(_calWidget->isEnabled(), true);
-
-    // Take away the UAS and widget should disable
-    _mockUASManager->setMockActiveUAS(NULL);
-    QCOMPARE(_calWidget->isEnabled(), false);
+    UnitTest::cleanup();
 }
 
 /// @brief Test for correct behavior in determining minimum numbers of channels for flight.
@@ -244,12 +239,16 @@ void PX4RCCalibrationTest::_minRCChannels_test(void)
         }
         _multiSpyNextButtonMessageBox->clearAllSignals();
 
+        // The following test code no longer works since view update doesn't happens until parameters are received.
+        // Leaving code here because RC Cal could be restructured to handle this case at some point.
+#if 0
         // Only available channels should have visible widget. A ui update cycle needs to have passed so we wait a little.
         QTest::qWait(PX4RCCalibration::_updateInterval * 2);
         for (int chanWidget=0; chanWidget<PX4RCCalibration::_chanMax; chanWidget++) {
             //qDebug() << _rgValueWidget[chanWidget]->objectName() << chanWidget << chan;
             QCOMPARE(_rgValueWidget[chanWidget]->isVisible(), !!(chanWidget <= chan));
         }
+#endif
     }
 }
 

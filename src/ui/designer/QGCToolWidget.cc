@@ -7,15 +7,15 @@
 #include <QDockWidget>
 #include <QContextMenuEvent>
 #include <QSettings>
-#include <QFileDialog>
 #include <QStandardPaths>
 
 #include "QGCParamSlider.h"
-#include "QGCComboBox.h"
+#include "QGCToolWidgetComboBox.h"
 #include "QGCTextLabel.h"
 #include "QGCXYPlot.h"
 #include "QGCCommandButton.h"
 #include "UASManager.h"
+#include "QGCFileDialog.h"
 
 QGCToolWidget::QGCToolWidget(const QString& objectName, const QString& title, QWidget *parent, QSettings* settings) :
         QWidget(parent),
@@ -230,7 +230,7 @@ void QGCToolWidget::setParameterValue(int uas, int component, QString parameterN
             QString checkparam = settingsMap.value(widgetName + "\\" + QString::number(j) + "\\" + "QGC_PARAM_COMBOBOX_PARAMID").toString();
             if (checkparam == parameterName)
             {
-                item = new QGCComboBox(this);
+                item = new QGCToolWidgetComboBox(this);
                 addToolWidget(item);
                 item->readSettings(widgetName + "\\" + QString::number(j) + "\\",settingsMap);
                 paramToItemMap[parameterName] = item;
@@ -274,7 +274,7 @@ void QGCToolWidget::loadSettings(QVariantMap& settings)
             }
             else if (type == "COMBO")
             {
-                item = new QGCComboBox(this);
+                item = new QGCToolWidgetComboBox(this);
                 //qDebug() << "CREATED COMBOBOX";
             }
             else if (type == "XYPLOT")
@@ -330,7 +330,7 @@ void QGCToolWidget::loadSettings(QSettings& settings)
             }
             else if (type == "COMBO")
             {
-                item = new QGCComboBox(this);
+                item = new QGCToolWidgetComboBox(this);
                 item->setActiveUAS(mav);
                 qDebug() << "CREATED PARAM COMBOBOX";
             }
@@ -561,8 +561,9 @@ void QGCToolWidget::addToolWidget(QGCToolWidgetItem* widget)
 
 void QGCToolWidget::widgetRemoved()
 {
-    //Must static cast and not dynamic cast since the object is in the destructor
-    //and we only want to use it as a pointer value
+    // Do not dynamic cast or de-reference QObject, since object is either in destructor or may have already
+    // been destroyed.
+    
     QGCToolWidgetItem *widget = static_cast<QGCToolWidgetItem *>(QObject::sender());
     toolItemList.removeAll(widget);
     storeWidgetsToSettings();
@@ -571,7 +572,7 @@ void QGCToolWidget::widgetRemoved()
 void QGCToolWidget::exportWidget()
 {
     const QString widgetFileExtension(".qgw");
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Specify File Name"), QStandardPaths::writableLocation(QStandardPaths::DesktopLocation), tr("QGroundControl Widget (*%1);;").arg(widgetFileExtension));
+    QString fileName = QGCFileDialog::getSaveFileName(this, tr("Specify File Name"), QStandardPaths::writableLocation(QStandardPaths::DesktopLocation), tr("QGroundControl Widget (*%1);;").arg(widgetFileExtension));
     if (!fileName.endsWith(widgetFileExtension))
     {
         fileName = fileName.append(widgetFileExtension);
@@ -583,7 +584,7 @@ void QGCToolWidget::exportWidget()
 void QGCToolWidget::importWidget()
 {
     const QString widgetFileExtension(".qgw");
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Specify File Name"), QStandardPaths::writableLocation(QStandardPaths::DesktopLocation), tr("QGroundControl Widget (*%1);;").arg(widgetFileExtension));
+    QString fileName = QGCFileDialog::getOpenFileName(this, tr("Specify File Name"), QStandardPaths::writableLocation(QStandardPaths::DesktopLocation), tr("QGroundControl Widget (*%1);;").arg(widgetFileExtension));
     loadSettings(fileName);
 }
 
