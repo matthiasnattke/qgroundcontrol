@@ -231,7 +231,7 @@ UAS::UAS(MAVLinkProtocol* protocol, QThread* thread, int id) : UASInterface(),
     connect(newAction, SIGNAL(triggered()), this, SLOT(toggleAutonomy()));
     actions.append(newAction);
 
-    color = UASInterface::getNextColor();
+    color = getColor();
     setBatterySpecs(QString(""));
     connect(&statusTimeout, SIGNAL(timeout()), this, SLOT(updateState()));
     connect(this, SIGNAL(systemSpecsChanged(int)), this, SLOT(writeSettings()));
@@ -3515,4 +3515,55 @@ void UAS::stopLowBattAlarm()
         GAudioOutput::instance()->stopEmergency();
         lowBattAlarm = false;
     }
+}
+
+QColor UAS::getColor() const
+{
+    //color map copied form UASInterface
+    // static QList<QColor> colors = QList<QColor>()
+    //     << QColor(231,72,28) 
+    //     << QColor(104,64,240) 
+    //     << QColor(203,254,121) 
+    //     << QColor(161,252,116)
+    //     << QColor(232,33,47) 
+    //     << QColor(116,251,110) 
+    //     << QColor(234,38,107) 
+    //     << QColor(104,250,138)
+    //     << QColor(235,43,165) 
+    //     << QColor(98,248,176) 
+    //     << QColor(236,48,221) 
+    //     << QColor(92,247,217)
+    //     << QColor(200,54,238) 
+    //     << QColor(87,231,246) 
+    //     << QColor(151,59,239) 
+    //     << QColor(81,183,244)
+    //     << QColor(75,133,243) 
+    //     << QColor(242,255,128) 
+    //     << QColor(230,126,23);
+
+    static QList<QColor> colors = QList<QColor>()
+        << QColor(255,122,0)
+        << Qt::red
+        << Qt::blue
+        << Qt::green
+        << Qt::yellow
+        << QColor(253,108,158)
+        << Qt::gray
+        << Qt::white
+        << Qt::darkYellow
+        << QColor(91,60,17);
+
+        // ID  1: red
+        // ID  2: blue
+        // ID  3: green
+        // ID  4: yellow
+        // ID  5: pink
+        // ID  6: gray --
+        // ID  7: white
+        // ID  8: darkYellow
+        // ID  9: braun
+        // ID 10: orange
+
+
+    return colors[abs(getUASID())%colors.length()];
 }
