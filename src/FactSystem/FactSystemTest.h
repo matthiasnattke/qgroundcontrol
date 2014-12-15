@@ -21,33 +21,38 @@
  
  ======================================================================*/
 
-#ifndef GENERICAUTOPILOT_H
-#define GENERICAUTOPILOT_H
-
-#include "AutoPilotPlugin.h"
-#include "AutoPilotPluginManager.h"
-
 /// @file
-///     @brief This is the generic implementation of the AutoPilotPlugin class for mavs
-///             we do not have a specific AutoPilotPlugin implementation.
 ///     @author Don Gagne <don@thegagnes.com>
 
-class GenericAutoPilotPlugin : public AutoPilotPlugin
+#ifndef FactSystemTest_H
+#define FactSystemTest_H
+
+#include "UnitTest.h"
+#include "UASInterface.h"
+#include "AutoPilotPlugin.h"
+
+// Unit Test for Fact System
+class FactSystemTest : public UnitTest
 {
     Q_OBJECT
-
-public:
-    GenericAutoPilotPlugin(UASInterface* uas, QObject* parent = NULL);
     
-    // Overrides from AutoPilotPlugin
-    virtual QList<VehicleComponent*> getVehicleComponents(void) const ;
-    virtual void addFactsToQmlContext(QQmlContext* context) const;
-    virtual const QVariantMap& parameterFacts(void) const;
-    virtual bool pluginIsReady(void) const { return true; }
-
-    static QList<AutoPilotPluginManager::FullMode_t> getModes(void);
-    static QString getShortModeText(uint8_t baseMode, uint32_t customMode);
-    static void clearStaticData(void);
+public:
+    FactSystemTest(void);
+    
+private slots:
+    void init(void);
+    void cleanup(void);
+    
+    void _parameter_test(void);
+    void _qml_test(void);
+    void _paramMgrSignal_test(void);
+    void _qmlUpdate_test(void);
+    
+private:
+    UASInterface*                   _uas;
+    QGCUASParamManagerInterface*    _paramMgr;
+    AutoPilotPlugin*                _plugin;
+    LinkManager*                    _linkMgr;
 };
 
 #endif
