@@ -8,6 +8,7 @@
 #include <QListWidget>
 #include <QMap>
 #include "UASControlWidget.h"
+#include "AutoPilotPluginManager.h"
 
 namespace Ui {
 class QGCSwarmControl;
@@ -88,8 +89,9 @@ protected:
 
 	bool all_selected;
 
+	bool mode_init;
     int modeIdx;                    ///< Current uas mode index
- 	QList<AutoPilotPlugin::FullMode_t>  _modeList;  ///< Mode list for the current UAS
+ 	QList<AutoPilotPluginManager::FullMode_t>  _modeList;  ///< Mode list for the current UAS
 
 signals:
 	void uasTextReceived(UASInterface* uas, QString message);

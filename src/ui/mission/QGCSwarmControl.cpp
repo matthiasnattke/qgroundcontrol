@@ -10,7 +10,6 @@
 #include <QListWidget>
 #include "UASView.h"
 #include "UASManager.h"
-#include "AutoPilotPluginManager.h"
 
 const unsigned int QGCSwarmControl::updateInterval = 5000U;
 
@@ -41,7 +40,7 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 
 	// Get current MAV list => in parameterinterface.cc
     //QList<UASInterface*> systems = UASManager::instance()->getUASList();
-	mavlink = LinkManager::instance()->mavlink();
+	mavlink = MAVLinkProtocol::instance();
 
 	uas =  UASManager::instance()->getActiveUAS();
 	uas_previous = UASManager::instance()->getActiveUAS();
@@ -73,6 +72,8 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
     connect(ui->modeComboBox, SIGNAL(activated(int)), this, SLOT(setMode(int)));
 
     all_selected = false;
+
+    mode_init = false;
 }
 
 QGCSwarmControl::~QGCSwarmControl()
@@ -205,27 +206,30 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 
 		UASlist = UASManager::instance()->getUASList();
 
-		updateModesList(uas);
+		if(!mode_init)
+		{
+			updateModesList(uas);
+			mode_init = true;
+		}
+		
 	}
 }
 
 void QGCSwarmControl::updateModesList(UASInterface* uas)
 {
-    // Detect autopilot type
-    int autopilot = MAV_AUTOPILOT_GENERIC;
     
-    if (uas) {
-        autopilot = uas->getAutopilotType();
+    if (!uas)
+    {
+    	return;
     }
     
-    AutoPilotPlugin* autopilotPlugin = AutoPilotPluginManager::instance()->getInstanceForAutoPilotPlugin(autopilot);
-    
-    _modeList = autopilotPlugin->getModes();
+    _modeList = AutoPilotPluginManager::instance()->getModes(uas->getAutopilotType());
 
     // Set combobox items
     ui->modeComboBox->clear();
-    foreach (AutoPilotPlugin::FullMode_t fullMode, _modeList) {
-        ui->modeComboBox->addItem(UAS::getShortModeTextFor(fullMode.baseMode, fullMode.customMode, autopilot).remove(0, 2));
+    foreach (AutoPilotPluginManager::FullMode_t fullMode, _modeList)
+    {
+        ui->modeComboBox->addItem(uas->getShortModeTextFor(fullMode.baseMode, fullMode.customMode).remove(0, 2));
     }
 
     // Select first mode in list
@@ -379,7 +383,7 @@ void QGCSwarmControl::armButton_clicked()
 {
 	if (modeIdx >= 0 && modeIdx < _modeList.count())
     {
-        AutoPilotPlugin::FullMode_t fullMode = _modeList[modeIdx];
+        AutoPilotPluginManager::FullMode_t fullMode = _modeList[modeIdx];
 
         fullMode.baseMode |= MAV_MODE_FLAG_SAFETY_ARMED;
 
@@ -404,7 +408,7 @@ void QGCSwarmControl::disarmButton_clicked()
 {
 	if (modeIdx >= 0 && modeIdx < _modeList.count())
     {
-        AutoPilotPlugin::FullMode_t fullMode = _modeList[modeIdx];
+        AutoPilotPluginManager::FullMode_t fullMode = _modeList[modeIdx];
 
         fullMode.baseMode &= ~MAV_MODE_FLAG_SAFETY_ARMED;
 
