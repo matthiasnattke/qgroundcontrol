@@ -62,7 +62,7 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 
 	connect(this,SIGNAL(uasTextReceived(UASInterface*, QString)),this,SLOT(textMessageReceived(UASInterface*, QString)));
 
-	connect(&updateTimer, SIGNAL(timesout()), this, SLOT(refreshView()));
+	connect(&updateTimer, SIGNAL(timeout()), this, SLOT(refreshView()));
     updateTimer.start(updateInterval);
 
     connect(ui->setParameters,SIGNAL(clicked()),this,SLOT(setParameters_clicked()));
