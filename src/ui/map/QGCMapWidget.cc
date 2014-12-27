@@ -365,7 +365,7 @@ void QGCMapWidget::addUAS(UASInterface* uas)
     }
 }
 
-void removeUAS(UASInterface* uas)
+void QGCMapWidget::removeUAS(UASInterface* uas)
 {
     //Disconnects signals from addUAS()
     disconnect(uas, SIGNAL(globalPositionChanged(UASInterface*,double,double,double,double,quint64)), this, SLOT(updateGlobalPosition(UASInterface*,double,double,double,double,quint64)));
@@ -373,6 +373,7 @@ void removeUAS(UASInterface* uas)
 
     //Deletes graphical element created in updateGlobalPosition()
     DeleteUAV(uas->getUASID());
+
 }
 
 void QGCMapWidget::activeUASSet(UASInterface* uas)
