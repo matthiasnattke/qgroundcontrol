@@ -199,6 +199,7 @@ void QGCMapWidget::showEvent(QShowEvent* event)
     connect(this, SIGNAL(WPValuesChanged(WayPointItem*)), this, SLOT(handleMapWaypointEdit(WayPointItem*)));
 
     connect(UASManager::instance(), SIGNAL(UASCreated(UASInterface*)), this, SLOT(addUAS(UASInterface*)), Qt::UniqueConnection);
+    connect(UASManager::instance(), SIGNAL(UASDeleted(UASInterface*)), this, SLOT(removeUAS (UASInterface*)), Qt::UniqueConnection);
     connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(activeUASSet(UASInterface*)), Qt::UniqueConnection);
     connect(UASManager::instance(), SIGNAL(homePositionChanged(double,double,double)), this, SLOT(updateHomePosition(double,double,double)));
 
@@ -373,7 +374,6 @@ void QGCMapWidget::removeUAS(UASInterface* uas)
 
     //Deletes graphical element created in updateGlobalPosition()
     DeleteUAV(uas->getUASID());
-
 }
 
 void QGCMapWidget::activeUASSet(UASInterface* uas)
