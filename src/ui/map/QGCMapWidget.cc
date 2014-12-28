@@ -822,17 +822,24 @@ void QGCMapWidget::updateWaypointList(int uas)
         {
             foreach (QGraphicsItem* item, group->childItems())
             {
-                delete item;
+               delete item;
             }
         }
 
-        // Delete first all old waypoints
+        // Delete first old waypoints that aren't in any of the uas wps
         // this is suboptimal (quadratic, but wps should stay in the sub-100 range anyway)
-        QList<Waypoint* > wps = currWPManager->getGlobalFrameAndNavTypeWaypointList();
         foreach (Waypoint* wp, waypointsToIcons.keys())
         {
-            if (!wps.contains(wp))
+            bool wpExists = false;
+            foreach (UASInterface* uas, UASManager::instance()->getUASList())
             {
+                QList<Waypoint* > tempWps = uas->getWaypointManager()->getGlobalFrameAndNavTypeWaypointList();
+                if(tempWps.contains(wp)){
+                    wpExists = true;
+                    break;
+                }
+            }
+            if(!wpExists){
                 // Get icon to work on
                 mapcontrol::WayPointItem* icon = waypointsToIcons.value(wp);
                 waypointsToIcons.remove(wp);
@@ -841,7 +848,6 @@ void QGCMapWidget::updateWaypointList(int uas)
             }
         }
 
-        // Update all existing waypoints
         foreach (Waypoint* wp, waypointsToIcons.keys())
         {
             // Update remaining waypoints
@@ -849,6 +855,7 @@ void QGCMapWidget::updateWaypointList(int uas)
         }
 
         // Update all potentially new waypoints
+        QList<Waypoint* > wps = currWPManager->getGlobalFrameAndNavTypeWaypointList();
         foreach (Waypoint* wp, wps)
         {
             qDebug() << "UPDATING NEW WP" << wp->getId();
