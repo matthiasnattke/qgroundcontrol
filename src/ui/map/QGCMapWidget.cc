@@ -634,6 +634,18 @@ void QGCMapWidget::cacheVisibleRegion()
 }
 
 
+void QGCMapWidget::deleteWaypoints()
+{
+    foreach (Waypoint* wp, waypointsToIcons.keys())
+    {
+        // Get icon to work on
+        mapcontrol::WayPointItem* icon = waypointsToIcons.value(wp);
+        waypointsToIcons.remove(wp);
+        iconsToWaypoints.remove(icon);
+        WPDelete(icon);
+    }
+}
+
 // WAYPOINT MAP INTERACTION FUNCTIONS
 
 void QGCMapWidget::handleMapWaypointEdit(mapcontrol::WayPointItem* waypoint)

@@ -83,6 +83,9 @@ public slots:
     void cacheVisibleRegion();
     /** @brief Set follow mode */
     void setFollowUAVEnabled(bool enabled) { followUAVEnabled = enabled; }
+    /** @brief Erases all visible waypoints*/
+    void deleteWaypoints();
+
     /** @brief Set trail to time mode and set time @param seconds The minimum time between trail dots in seconds. If set to a value < 0, trails will be disabled*/
     void setTrailModeTimed(int seconds)
     {
@@ -117,14 +120,6 @@ public slots:
     }
     /** @brief Delete all trails */
     void deleteTrails()
-    {
-        foreach(mapcontrol::UAVItem* uav, GetUAVS())
-        {
-            uav->DeleteTrail();
-        }
-    }
-
-    void deleteWaypoints()
     {
         foreach(mapcontrol::UAVItem* uav, GetUAVS())
         {
