@@ -124,6 +124,14 @@ public slots:
         }
     }
 
+    void deleteWaypoints()
+    {
+        foreach(mapcontrol::UAVItem* uav, GetUAVS())
+        {
+            uav->DeleteTrail();
+        }
+    }
+
     void setZoomBlocked(bool blocked)
     {
         zoomBlocked = blocked;

@@ -2,6 +2,7 @@
 #include "QGCMapWidget.h"
 #include "ui_QGCMapToolBar.h"
 
+
 QGCMapToolBar::QGCMapToolBar(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::QGCMapToolBar),
@@ -28,6 +29,7 @@ void QGCMapToolBar::setMap(QGCMapWidget* map)
         connect(ui->goHomeButton, SIGNAL(clicked()), map, SLOT(goHome()));
         connect(ui->lastPosButton, SIGNAL(clicked()), map, SLOT(loadSettings()));
         connect(ui->clearTrailsButton, SIGNAL(clicked()), map, SLOT(deleteTrails()));
+        connect(ui->clearWaypointsButton, SIGNAL(clicked()), map, SLOT(deleteWaypoints()));
         connect(ui->lockCheckBox, SIGNAL(clicked(bool)), map, SLOT(setZoomBlocked(bool)));
         connect(map, SIGNAL(OnTileLoadStart()), this, SLOT(tileLoadStart()));
         connect(map, SIGNAL(OnTileLoadComplete()), this, SLOT(tileLoadEnd()));
