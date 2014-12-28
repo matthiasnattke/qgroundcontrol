@@ -96,6 +96,8 @@ public slots:
     void showStatusText(int uasid, int componentid, int severity, QString text);
     /** @brief Update the navigation mode state */
     void updateNavMode(int uasid, int mode, const QString& text);
+    /** @brief test function for calling UASManager function*/
+    void testActionFunction();
 
 protected:
     void changeEvent(QEvent *e);
@@ -126,6 +128,7 @@ protected:
     QAction* removeAction;
     QAction* renameAction;
     QAction* selectAction;
+    QAction* testAction;
     QAction* hilAction;
     QAction* hilXAction;
     QAction* selectAirframeAction;

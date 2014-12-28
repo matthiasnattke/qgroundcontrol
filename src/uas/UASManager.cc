@@ -481,3 +481,12 @@ void UASManager::setActiveUAS(UASInterface* uas)
     }
 }
 
+bool UASManager::uasGetWPDisplay(int uasID)
+{
+    return 0;
+}
+
+void UASManager::uasChangeWPDisplay()
+{
+    qDebug() << "TIB uasChangeWPDisplay called";
+}

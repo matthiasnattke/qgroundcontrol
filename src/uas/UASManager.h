@@ -254,6 +254,14 @@ public slots:
     /** @brief Store settings */
     void storeSettings();
 
+    /** @brief Returns for a given uas the waypoint display parameter*/
+    bool uasGetWPDisplay(int uasID);
+
+    /** @brief Changes the waypoint display parameter for a given uas*/
+    void uasChangeWPDisplay();
+
+
+
 
 protected:
     UASManager();
@@ -269,6 +277,8 @@ protected:
     Eigen::Vector3d ecef_ref_point_;
     Eigen::Vector3d nedSafetyLimitPosition1;
     Eigen::Vector3d nedSafetyLimitPosition2;
+    bool displayUasWaypoints;
+
 
     void initReference(const double & latitude, const double & longitude, const double & altitude);
     

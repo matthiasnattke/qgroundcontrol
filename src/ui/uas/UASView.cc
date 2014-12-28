@@ -119,7 +119,7 @@ UASView::UASView(UASInterface* uas, QWidget *parent) :
     connect(removeAction, SIGNAL(triggered()), this, SLOT(triggerUASDeletion()));
     connect(renameAction, SIGNAL(triggered()), this, SLOT(rename()));
     connect(selectAction, SIGNAL(triggered()), uas, SLOT(setSelected()));
-    connect(testAction, SIGNAL(triggered()), uas, SLOT(setSelected()));
+    connect(testAction, SIGNAL(triggered()), this, SLOT(testActionFunction()));
     connect(hilAction, SIGNAL(triggered(bool)), this, SLOT(showHILUi()));
     connect(selectAirframeAction, SIGNAL(triggered()), this, SLOT(selectAirframe()));
     connect(setBatterySpecsAction, SIGNAL(triggered()), this, SLOT(setBatterySpecs()));
@@ -727,4 +727,11 @@ void UASView::paintEvent(QPaintEvent *)
     opt.init(this);
     QPainter p(this);
     style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
+}
+
+void UASView::testActionFunction()
+{
+    UASManager::instance()->uasChangeWPDisplay();
+    qDebug() << "TIB testActionFunction called";
+
 }

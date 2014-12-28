@@ -90,6 +90,7 @@ public slots:
     virtual void uavChangedHomePosition(int uav, double lat, double lon, double alt) = 0;
     virtual void loadSettings() = 0;
     virtual void storeSettings() = 0;
+    virtual void uasChangeWPDisplay() = 0;
     
 signals:
     /** A new system was created */
