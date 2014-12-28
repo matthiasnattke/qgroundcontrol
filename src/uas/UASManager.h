@@ -258,7 +258,7 @@ public slots:
     bool uasGetWPDisplay(int uasID);
 
     /** @brief Changes the waypoint display parameter for a given uas*/
-    void uasChangeWPDisplay();
+    void uasChangeWPDisplay(UASInterface* uas);
 
 
 
@@ -277,7 +277,7 @@ protected:
     Eigen::Vector3d ecef_ref_point_;
     Eigen::Vector3d nedSafetyLimitPosition1;
     Eigen::Vector3d nedSafetyLimitPosition2;
-    bool displayUasWaypoints;
+    QMap<UASInterface*, bool> displayUasWaypoints;
 
 
     void initReference(const double & latitude, const double & longitude, const double & altitude);

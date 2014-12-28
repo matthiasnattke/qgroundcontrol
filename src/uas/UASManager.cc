@@ -295,6 +295,7 @@ void UASManager::addUAS(UASInterface* uas)
     {
         qDebug() << "Add new UAS: " << uas->getUASID();
         systems.append(uas);
+        displayUasWaypoints.insert(uas,1);
         // Set home position on UAV if set in UI
         // - this is done on a per-UAV basis
         // Set home position in UI if UAV chooses a new one (caution! if multiple UAVs are connected, take care!)
@@ -486,7 +487,13 @@ bool UASManager::uasGetWPDisplay(int uasID)
     return 0;
 }
 
-void UASManager::uasChangeWPDisplay()
+void UASManager::uasChangeWPDisplay(UASInterface* uas)
 {
-    qDebug() << "TIB uasChangeWPDisplay called";
+    if(displayUasWaypoints.value(uas))
+        displayUasWaypoints.insert(uas,0);
+    else
+        displayUasWaypoints.insert(uas,1);
+
+    qDebug() << "TIB uasChangeWPDisplay called"<< displayUasWaypoints.value(uas);
+
 }

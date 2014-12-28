@@ -70,7 +70,7 @@ UASView::UASView(UASInterface* uas, QWidget *parent) :
     removeAction(new QAction(tr("Delete this system"), this)),
     renameAction(new QAction(tr("Rename.."), this)),
     selectAction(new QAction(tr("Control this system"), this)),
-    testAction(new QAction(tr("Test Action"), this)),
+    waypointsAction(new QAction(tr("Show/Hide Waypoints"), this)),
     hilAction(new QAction(tr("HIL - Hardware in the Loop"), this)),
     selectAirframeAction(new QAction(tr("Choose Airframe"), this)),
     setBatterySpecsAction(new QAction(tr("Set Battery Options"), this)),
@@ -119,7 +119,7 @@ UASView::UASView(UASInterface* uas, QWidget *parent) :
     connect(removeAction, SIGNAL(triggered()), this, SLOT(triggerUASDeletion()));
     connect(renameAction, SIGNAL(triggered()), this, SLOT(rename()));
     connect(selectAction, SIGNAL(triggered()), uas, SLOT(setSelected()));
-    connect(testAction, SIGNAL(triggered()), this, SLOT(testActionFunction()));
+    connect(waypointsAction, SIGNAL(triggered()), this, SLOT(showHideWaypoints()));
     connect(hilAction, SIGNAL(triggered(bool)), this, SLOT(showHILUi()));
     connect(selectAirframeAction, SIGNAL(triggered()), this, SLOT(selectAirframe()));
     connect(setBatterySpecsAction, SIGNAL(triggered()), this, SLOT(setBatterySpecs()));
@@ -484,7 +484,7 @@ void UASView::contextMenuEvent (QContextMenuEvent* event)
 {
     QMenu menu(this);
     menu.addAction(selectAction);
-    menu.addAction(testAction);
+    menu.addAction(waypointsAction);
     menu.addSeparator();
     menu.addAction(renameAction);
     if (timeout)
@@ -729,9 +729,7 @@ void UASView::paintEvent(QPaintEvent *)
     style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }
 
-void UASView::testActionFunction()
+void UASView::showHideWaypoints()
 {
-    UASManager::instance()->uasChangeWPDisplay();
-    qDebug() << "TIB testActionFunction called";
-
+    UASManager::instance()->uasChangeWPDisplay(uas);
 }
