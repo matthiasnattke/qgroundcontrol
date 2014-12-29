@@ -372,6 +372,10 @@ void QGCMapWidget::removeUAS(UASInterface* uas)
     disconnect(uas, SIGNAL(globalPositionChanged(UASInterface*,double,double,double,double,quint64)), this, SLOT(updateGlobalPosition(UASInterface*,double,double,double,double,quint64)));
     disconnect(uas, SIGNAL(systemSpecsChanged(int)), this, SLOT(updateSystemSpecs(int)));
 
+    //deletes trail points
+    mapcontrol::UAVItem* uav = GetUAV(uas->getUASID());
+    uav->DeleteTrail();
+
     //Deletes graphical element created in updateGlobalPosition()
     DeleteUAV(uas->getUASID());
 }
