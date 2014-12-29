@@ -255,7 +255,7 @@ public slots:
     void storeSettings();
 
     /** @brief Returns for a given uas the waypoint display parameter*/
-    bool uasGetWPDisplay(int uasID);
+    bool uasGetWPDisplay(UASInterface* uas);
 
     /** @brief Changes the waypoint display parameter for a given uas*/
     void uasChangeWPDisplay(UASInterface* uas);

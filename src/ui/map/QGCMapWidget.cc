@@ -827,6 +827,7 @@ void QGCMapWidget::updateWaypointList(int uas)
         }
 
         // Delete first old waypoints that aren't in any of the uas wps
+        // or associated to a uas whose waypoints aren't displayed
         // this is suboptimal (quadratic, but wps should stay in the sub-100 range anyway)
         foreach (Waypoint* wp, waypointsToIcons.keys())
         {
@@ -835,7 +836,8 @@ void QGCMapWidget::updateWaypointList(int uas)
             {
                 QList<Waypoint* > tempWps = uas->getWaypointManager()->getGlobalFrameAndNavTypeWaypointList();
                 if(tempWps.contains(wp)){
-                    wpExists = true;
+                    if(UASManager::instance()->uasGetWPDisplay(uas))
+                        wpExists = true;
                     break;
                 }
             }
