@@ -636,6 +636,13 @@ void QGCMapWidget::cacheVisibleRegion()
 
 void QGCMapWidget::deleteWaypoints()
 {
+    //sets all the uas to hide their waypoints
+    foreach (UASInterface* uas, UASManager::instance()->getUASList())
+    {
+        if(UASManager::instance()->uasGetWPDisplay(uas))
+            UASManager::instance()->uasChangeWPDisplay(uas);
+    }
+
     foreach (Waypoint* wp, waypointsToIcons.keys())
     {
         // Get icon to work on
