@@ -55,6 +55,8 @@ public slots:
     bool setHomeActionTriggered();
     /** @brief Add system to map view */
     void addUAS(UASInterface* uas);
+    /** @brief Remove system to map view */
+    void removeUAS(UASInterface* uas);
     /** @brief Update the global position of a system */
     void updateGlobalPosition(UASInterface* uas, double lat, double lon, double altAMSL, double altWGS84, quint64 usec);
     /** @brief Update the global position of all systems */
