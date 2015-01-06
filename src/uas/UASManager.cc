@@ -494,4 +494,9 @@ void UASManager::uasChangeWPDisplay(UASInterface* uas)
         displayUasWaypoints.insert(uas,0);
     else
         displayUasWaypoints.insert(uas,1);
+
+    //forces program to directly update display
+    UASInterface* prevUAS= getActiveUAS();
+    setActiveUAS(uas);
+    setActiveUAS(prevUAS);
 }

@@ -484,8 +484,8 @@ void UASView::contextMenuEvent (QContextMenuEvent* event)
 {
     QMenu menu(this);
     menu.addAction(selectAction);
-    menu.addAction(waypointsAction);
     menu.addSeparator();
+    menu.addAction(waypointsAction);
     menu.addAction(renameAction);
     if (timeout)
     {
