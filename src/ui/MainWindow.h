@@ -88,14 +88,6 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-
-    enum CUSTOM_MODE {
-        CUSTOM_MODE_UNCHANGED = 0,
-        CUSTOM_MODE_NONE,
-        CUSTOM_MODE_PX4,
-        CUSTOM_MODE_WIFI
-    };
-
     /// @brief Returns the MainWindow singleton. Will not create the MainWindow if it has not already
     ///         been created.
     static MainWindow* instance(void);
@@ -104,29 +96,13 @@ public:
     void deleteInstance(void);
     
     /// @brief Creates the MainWindow singleton. Should only be called once by QGCApplication.
-    static MainWindow* _create(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE mode);
+    static MainWindow* _create(QSplashScreen* splashScreen);
     
     /// @brief Called to indicate that splash screen is no longer being displayed.
     void splashScreenFinished(void) { _splashScreen = NULL; }
 
     ~MainWindow();
 
-    enum QGC_MAINWINDOW_STYLE
-    {
-        QGC_MAINWINDOW_STYLE_DARK,
-        QGC_MAINWINDOW_STYLE_LIGHT
-    };
-
-    // Declare default dark and light stylesheets. These should be file-resource
-    // paths.
-    static const QString defaultDarkStyle;
-    static const QString defaultLightStyle;
-
-    /** @brief Get current visual style */
-    QGC_MAINWINDOW_STYLE getStyle() const
-    {
-        return currentStyle;
-    }
 
     /** @brief Get auto link reconnect setting */
     bool autoReconnectEnabled() const
@@ -143,33 +119,11 @@ public:
         return lowPowerMode;
     }
 
-    void setCustomMode(MainWindow::CUSTOM_MODE mode)
-    {
-        if (mode != CUSTOM_MODE_UNCHANGED)
-        {
-            customMode = mode;
-        }
-    }
-
-    MainWindow::CUSTOM_MODE getCustomMode() const
-    {
-        return customMode;
-    }
-
     QList<QAction*> listLinkMenuActions();
     
     void hideSplashScreen(void);
 
 public slots:
-    /** @brief Shows a status message on the bottom status bar */
-    void showStatusMessage(const QString& status, int timeout);
-    /** @brief Shows a status message on the bottom status bar */
-    void showStatusMessage(const QString& status);
-    /** @brief Shows a critical message as popup or as widget */
-    void showCriticalMessage(const QString& title, const QString& message);
-    /** @brief Shows an info message as popup or as widget */
-    void showInfoMessage(const QString& title, const QString& message);
-
     /** @brief Show the application settings */
     void showSettings();
     /** @brief Add a communication link */
@@ -224,8 +178,6 @@ public slots:
 
     /** @brief Save power by reducing update rates */
     void enableLowPowerMode(bool enabled) { lowPowerMode = enabled; }
-    /** @brief Load the specified style. */
-    bool loadStyle(QGC_MAINWINDOW_STYLE style);
 
     /** @brief Add a custom tool widget */
     void createCustomWidget();
@@ -275,7 +227,6 @@ protected slots:
     void normalActionItemCallback();
 
 signals:
-    void styleChanged(MainWindow::QGC_MAINWINDOW_STYLE newTheme);
     void initStatusChanged(const QString& message, int alignment, const QColor &color);
     /** Emitted when any value changes from any source */
     void valueChanged(const int uasId, const QString& name, const QString& unit, const QVariant& value, const quint64 msec);
@@ -340,7 +291,6 @@ protected:
 
     /** @brief Keeps track of the current view */
     VIEW_SECTIONS currentView;
-    QGC_MAINWINDOW_STYLE currentStyle;
 
     void storeViewState();
     void loadViewState();
@@ -449,15 +399,13 @@ protected:
     bool lowPowerMode; ///< If enabled, QGC reduces the update rates of all widgets
     QGCFlightGearLink* fgLink;
     QTimer windowNameUpdateTimer;
-    CUSTOM_MODE customMode;
     
 private slots:
-    void _saveTempFlightDataLog(QString tempLogfile);
     void _addLinkMenu(LinkInterface* link);
 
 private:
     /// Constructor is private since all creation should be through MainWindow::_create
-    MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE mode);
+    MainWindow(QSplashScreen* splashScreen);
     
     void _openUrl(const QString& url, const QString& errorMessage);
     

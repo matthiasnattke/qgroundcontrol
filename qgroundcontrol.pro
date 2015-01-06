@@ -341,7 +341,8 @@ FORMS += \
     src/ui/px4_configuration/QGCPX4SensorCalibration.ui \
     src/ui/px4_configuration/PX4RCCalibration.ui \
     src/ui/px4_configuration/PX4FirmwareUpgrade.ui \
-    src/ui/QGCUASFileView.ui
+    src/ui/QGCUASFileView.ui \
+    src/QGCQmlWidgetHolder.ui \
 
 HEADERS += \
     src/MG.h \
@@ -491,7 +492,9 @@ HEADERS += \
     src/QGCComboBox.h \
     src/QGCTemporaryFile.h \
     src/audio/QGCAudioWorker.h \
-    src/QGCQuickWidget.h
+    src/QGCQuickWidget.h \
+    src/QGCPalette.h \
+    src/QGCQmlWidgetHolder.h \
 
 SOURCES += \
     src/main.cc \
@@ -630,7 +633,9 @@ SOURCES += \
     src/QGCComboBox.cc \
     src/QGCTemporaryFile.cc \
     src/audio/QGCAudioWorker.cpp \
-    src/QGCQuickWidget.cc
+    src/QGCQuickWidget.cc \
+    src/QGCPalette.cc \
+    src/QGCQmlWidgetHolder.cpp \
 
 #
 # Unit Test specific configuration goes here
@@ -669,7 +674,9 @@ HEADERS += \
     src/qgcunittest/MainWindowTest.h \
     src/AutoPilotPlugins/PX4/Tests/FlightModeConfigTest.h \
     src/qgcunittest/MavlinkLogTest.h \
-    src/FactSystem/FactSystemTest.h
+    src/FactSystem/FactSystemTestBase.h \
+    src/FactSystem/FactSystemTestPX4.h \
+    src/FactSystem/FactSystemTestGeneric.h
 
 SOURCES += \
     src/qgcunittest/UnitTest.cc \
@@ -691,29 +698,29 @@ SOURCES += \
     src/qgcunittest/MainWindowTest.cc \
     src/AutoPilotPlugins/PX4/Tests/FlightModeConfigTest.cc \
     src/qgcunittest/MavlinkLogTest.cc \
-    src/FactSystem/FactSystemTest.cc
+    src/FactSystem/FactSystemTestBase.cc \
+    src/FactSystem/FactSystemTestPX4.cc \
+    src/FactSystem/FactSystemTestGeneric.cc
 }
 
 #
 # AutoPilot Plugin Support
 #
 FORMS += \
-    src/VehicleSetup/SetupView.ui \
-    src/VehicleSetup/SummaryPage.ui \
     src/VehicleSetup/ParameterEditor.ui \
     src/ui/QGCPX4VehicleConfig.ui \
-    src/AutoPilotPlugins/PX4/FlightModeConfig.ui
+    src/AutoPilotPlugins/PX4/FlightModeConfig.ui \
+    src/VehicleSetup/SetupWidgetHolder.ui \
 
 HEADERS+= \
     src/VehicleSetup/SetupView.h \
-    src/VehicleSetup/SummaryPage.h \
     src/VehicleSetup/ParameterEditor.h \
-    src/VehicleSetup/VehicleSetupButton.h \
-    src/VehicleSetup/VehicleComponentButton.h \
     src/VehicleSetup/VehicleComponent.h \
+    src/VehicleSetup/VehicleComponentSummaryItem.h \
     src/AutoPilotPlugins/AutoPilotPluginManager.h \
     src/AutoPilotPlugins/AutoPilotPlugin.h \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.h \
+    src/AutoPilotPlugins/Generic/GenericParameterFacts.h \
     src/AutoPilotPlugins/PX4/PX4AutoPilotPlugin.h \
     src/AutoPilotPlugins/PX4/PX4Component.h \
     src/AutoPilotPlugins/PX4/RadioComponent.h \
@@ -721,15 +728,18 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/FlightModeConfig.h \
     src/AutoPilotPlugins/PX4/AirframeComponent.h \
     src/AutoPilotPlugins/PX4/SensorsComponent.h \
+    src/AutoPilotPlugins/PX4/SafetyComponent.h \
     src/AutoPilotPlugins/PX4/PX4ParameterFacts.h \
+    src/VehicleSetup/SetupWidgetHolder.h \
 
 SOURCES += \
     src/VehicleSetup/SetupView.cc \
-    src/VehicleSetup/SummaryPage.cc \
     src/VehicleSetup/ParameterEditor.cc \
     src/VehicleSetup/VehicleComponent.cc \
+    src/VehicleSetup/VehicleComponentSummaryItem.cc \
     src/AutoPilotPlugins/AutoPilotPluginManager.cc \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.cc \
+    src/AutoPilotPlugins/Generic/GenericParameterFacts.cc \
     src/AutoPilotPlugins/PX4/PX4AutoPilotPlugin.cc \
     src/AutoPilotPlugins/PX4/PX4Component.cc \
     src/AutoPilotPlugins/PX4/RadioComponent.cc \
@@ -737,7 +747,9 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/FlightModeConfig.cc \
     src/AutoPilotPlugins/PX4/AirframeComponent.cc \
     src/AutoPilotPlugins/PX4/SensorsComponent.cc \
+    src/AutoPilotPlugins/PX4/SafetyComponent.cc \
     src/AutoPilotPlugins/PX4/PX4ParameterFacts.cc \
+    src/VehicleSetup/SetupWidgetHolder.cc \
 
 # Fact System code
 
@@ -749,9 +761,11 @@ HEADERS += \
     src/FactSystem/Fact.h \
     src/FactSystem/FactMetaData.h \
     src/FactSystem/FactValidator.h \
+    src/FactSystem/FactLoader.h \
 
 SOURCES += \
     src/FactSystem/FactSystem.cc \
     src/FactSystem/Fact.cc \
     src/FactSystem/FactMetaData.cc \
     src/FactSystem/FactValidator.cc \
+    src/FactSystem/FactLoader.cc \

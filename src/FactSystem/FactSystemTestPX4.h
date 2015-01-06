@@ -21,34 +21,32 @@
  
  ======================================================================*/
 
-#ifndef VEHICLECOMPONENTBUTTON_H
-#define VEHICLECOMPONENTBUTTON_H
-
-#include "VehicleSetupButton.h"
-#include "VehicleComponent.h"
-
 /// @file
-///     @brief This class is used for the push buttons in the Vehicle Setup display.
 ///     @author Don Gagne <don@thegagnes.com>
 
-class VehicleComponentButton : public VehicleSetupButton
+#ifndef FactSystemTestPX4_H
+#define FactSystemTestPX4_H
+
+#include "FactSystemTestBase.h"
+#include "UASInterface.h"
+#include "AutoPilotPlugin.h"
+
+// Unit Test for Fact System on PX4 autopilot
+class FactSystemTestPX4 : public FactSystemTestBase
 {
     Q_OBJECT
     
 public:
-    /// @param component VehicleComponent associated witht this button
-    VehicleComponentButton(VehicleComponent* component, QWidget* parent = NULL) :
-        VehicleSetupButton(parent),
-        _component(component)
-    {
-        Q_ASSERT(component);
-    }
+    FactSystemTestPX4(void);
     
-    /// @brief Returns the component associated with the button
-    VehicleComponent* component(void) { return _component; }
+private slots:
+    void init(void);
+    void cleanup(void) { _cleanup(); }
     
-private:
-    VehicleComponent* _component;
+    void parameter_test(void) { _parameter_test(); }
+    void qml_test(void) { _qml_test(); }
+    void paramMgrSignal_test(void) { _paramMgrSignal_test(); }
+    void qmlUpdate_test(void) { _qmlUpdate_test(); }
 };
 
 #endif

@@ -21,22 +21,15 @@
  
  ======================================================================*/
 
-#ifndef VEHICLESETUPBUTTON_H
-#define VEHICLESETUPBUTTON_H
-
-#include <QPushButton>
-
 /// @file
-///     @brief This class is used for the push button in the Vehicle Setup display. We use a seperate class
-///             so we can assign a seperate style for them.
 ///     @author Don Gagne <don@thegagnes.com>
 
-class VehicleSetupButton : public QPushButton
-{
-    Q_OBJECT
-    
-public:
-    VehicleSetupButton(QWidget* parent = NULL) : QPushButton(parent) { }
-};
+#include "VehicleComponentSummaryItem.h"
 
-#endif
+VehicleComponentSummaryItem::VehicleComponentSummaryItem(const QString& name, const QString& state, QObject* parent) :
+    QObject(parent),
+    _name(name),
+    _state(state)
+{
+    
+}
