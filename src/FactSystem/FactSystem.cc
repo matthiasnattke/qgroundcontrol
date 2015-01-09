@@ -27,6 +27,8 @@
 #include "FactSystem.h"
 #include "UASManager.h"
 #include "QGCApplication.h"
+#include "VehicleComponent.h"
+#include "QGCPalette.h"
 
 #include <QtQml>
 
@@ -39,6 +41,11 @@ FactSystem::FactSystem(QObject* parent) :
 {
     qmlRegisterType<Fact>(_factSystemQmlUri, 1, 0, "Fact");
     qmlRegisterType<FactValidator>(_factSystemQmlUri, 1, 0, "FactValidator");
+    
+    // FIXME: Where should these go?
+    qmlRegisterUncreatableType<VehicleComponent>(_factSystemQmlUri, 1, 0, "VehicleComponent", "Can only reference VehicleComponent");
+    qmlRegisterUncreatableType<VehicleComponent>(_factSystemQmlUri, 1, 0, "VehicleComponentSummaryItem", "Can only reference VehicleComponentSummaryItem");
+    qmlRegisterType<QGCPalette>(_factSystemQmlUri, 1, 0, "QGCPalette");
 }
 
 FactSystem::~FactSystem()

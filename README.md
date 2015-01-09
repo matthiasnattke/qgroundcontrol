@@ -1,6 +1,8 @@
 # QGroundControl
 ## Open Source Micro Air Vehicle Ground Control Station
 
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/mavlink/qgroundcontrol?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 
 * Project:
 <http://qgroundcontrol.org>
@@ -21,10 +23,9 @@ There are three ways to obtain the QGroundControl source code from our GitHub re
 ### Clone the Repository
 This option assumes that you have Git already. To clone (checkout) the QGC repository, run the following command in the directory that you want the qgroundcontrol folder to be created:
 
-git clone git://github.com/mavlink/qgroundcontrol.git
-cd qgroundcontrol
-git submodule init
-git submodule update
+```
+git clone --recursive git://github.com/mavlink/qgroundcontrol.git
+```
 
 ### Fork the Repository
 If you plan to contribute to the development of QGC, you will want this option, which also requires that you have Git set up. To fork the QGC repository, do the following:

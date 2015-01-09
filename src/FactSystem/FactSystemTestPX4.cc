@@ -21,33 +21,29 @@
  
  ======================================================================*/
 
-#ifndef SUMMARYPAGE_H
-#define SUMMARYPAGE_H
-
-#include <QWidget>
-#include <QList>
-
-#include "VehicleComponent.h"
-
 /// @file
-///     @brief This class is used to display the Summary Page portion of the Vehicle Setup UI.
 ///     @author Don Gagne <don@thegagnes.com>
 
-namespace Ui {
-    class SummaryPage;
+#include "FactSystemTestPX4.h"
+#include "LinkManager.h"
+#include "MockLink.h"
+#include "AutoPilotPluginManager.h"
+#include "UASManager.h"
+#include "QGCApplication.h"
+#include "QGCQuickWidget.h"
+
+#include <QQuickItem>
+
+UT_REGISTER_TEST(FactSystemTestPX4)
+
+/// FactSystem Unit Test for PX4 autpilot
+FactSystemTestPX4::FactSystemTestPX4(void)
+{
+    
 }
 
-class SummaryPage : public QWidget
+void FactSystemTestPX4::init(void)
 {
-    Q_OBJECT
-    
-public:
-    explicit SummaryPage(QList<VehicleComponent*>& components, QWidget* parent = 0);
-    ~SummaryPage();
-    
-private:
-    QList<VehicleComponent*>    _components;        ///< VehicleComponents for active UAS
-    Ui::SummaryPage*            _ui;
-};
-
-#endif
+    UnitTest::init();
+    _init(MAV_AUTOPILOT_PX4);
+}
