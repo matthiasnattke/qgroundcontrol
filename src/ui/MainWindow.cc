@@ -148,6 +148,7 @@ MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE
     // Select the proper view. Default to the flight view or load the last one used if it's supported.
     if (!settings.contains("CURRENT_VIEW"))
     {
+        qDebug() << "No current view";
         settings.setValue("CURRENT_VIEW", currentView);
     }
     else

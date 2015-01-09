@@ -728,6 +728,7 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/AirframeComponent.h \
     src/AutoPilotPlugins/PX4/SensorsComponent.h \
     src/AutoPilotPlugins/PX4/PX4ParameterFacts.h \
+    src/AutoPilotPlugins/MAVRIC/MAVRICAutoPilotPlugin.h \
 
 SOURCES += \
     src/VehicleSetup/SetupView.cc \
@@ -744,6 +745,7 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/AirframeComponent.cc \
     src/AutoPilotPlugins/PX4/SensorsComponent.cc \
     src/AutoPilotPlugins/PX4/PX4ParameterFacts.cc \
+    src/AutoPilotPlugins/MAVRIC/MAVRICAutoPilotPlugin.cc \
 
 # Fact System code
 

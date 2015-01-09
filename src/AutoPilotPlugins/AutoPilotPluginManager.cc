@@ -26,6 +26,7 @@
 
 #include "AutoPilotPluginManager.h"
 #include "PX4/PX4AutoPilotPlugin.h"
+#include "MAVRIC/MAVRICAutoPilotPlugin.h"
 #include "Generic/GenericAutoPilotPlugin.h"
 #include "QGCApplication.h"
 #include "UASManager.h"
@@ -76,6 +77,11 @@ void AutoPilotPluginManager::_uasCreated(UASInterface* uas)
             Q_CHECK_PTR(plugin);
             _pluginMap[MAV_AUTOPILOT_PX4][uasId] = plugin;
             break;
+        case MAV_AUTOPILOT_MAVRIC:
+            plugin = new MAVRICAutoPilotPlugin(uas,this);
+            Q_CHECK_PTR(plugin);
+            _pluginMap[MAV_AUTOPILOT_MAVRIC][uasId] = plugin;
+            break;
         case MAV_AUTOPILOT_GENERIC:
         default:
             plugin = new GenericAutoPilotPlugin(uas, this);
@@ -118,6 +124,8 @@ QList<AutoPilotPluginManager::FullMode_t> AutoPilotPluginManager::getModes(int a
     switch (autopilotType) {
         case MAV_AUTOPILOT_PX4:
             return PX4AutoPilotPlugin::getModes();
+        case MAV_AUTOPILOT_MAVRIC:
+            return MAVRICAutoPilotPlugin::getModes();
         case MAV_AUTOPILOT_GENERIC:
         default:
             return GenericAutoPilotPlugin::getModes();
@@ -129,6 +137,8 @@ QString AutoPilotPluginManager::getShortModeText(uint8_t baseMode, uint32_t cust
     switch (autopilotType) {
         case MAV_AUTOPILOT_PX4:
             return PX4AutoPilotPlugin::getShortModeText(baseMode, customMode);
+        case MAV_AUTOPILOT_MAVRIC:
+            return MAVRICAutoPilotPlugin::getShortModeText(baseMode, customMode);
         case MAV_AUTOPILOT_GENERIC:
         default:
             return GenericAutoPilotPlugin::getShortModeText(baseMode, customMode);
