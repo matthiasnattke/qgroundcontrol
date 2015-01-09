@@ -57,7 +57,6 @@ This file is part of the QGROUNDCONTROL project
 #include "MAVLinkDecoder.h"
 #include "QGCMAVLinkMessageSender.h"
 #include "QGCRGBDView.h"
-#include "QGCStatusBar.h"
 #include "UASQuickView.h"
 #include "QGCDataPlot2D.h"
 #include "Linecharts.h"
@@ -81,15 +80,11 @@ This file is part of the QGROUNDCONTROL project
 
 static MainWindow* _instance = NULL;   ///< @brief MainWindow singleton
 
-// Set up some constants
-const QString MainWindow::defaultDarkStyle = ":files/styles/style-dark.css";
-const QString MainWindow::defaultLightStyle = ":files/styles/style-light.css";
-
-MainWindow* MainWindow::_create(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE mode)
+MainWindow* MainWindow::_create(QSplashScreen* splashScreen)
 {
     Q_ASSERT(_instance == NULL);
     
-    new MainWindow(splashScreen, mode);
+    new MainWindow(splashScreen);
     
     // _instance is set in constructor
     Q_ASSERT(_instance);
@@ -110,15 +105,12 @@ void MainWindow::deleteInstance(void)
 /// @brief Private constructor for MainWindow. MainWindow singleton is only ever created
 ///         by MainWindow::_create method. Hence no other code should have access to
 ///         constructor.
-MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE mode) :
+MainWindow::MainWindow(QSplashScreen* splashScreen) :
     currentView(VIEW_FLIGHT),
-    currentStyle(QGC_MAINWINDOW_STYLE_DARK),
-    mavlink(new MAVLinkProtocol()),
     centerStackActionGroup(new QActionGroup(this)),
     autoReconnect(false),
     simulationLink(NULL),
     lowPowerMode(false),
-    customMode(mode),
     menuActionHelper(new MenuActionHelper()),
     _splashScreen(splashScreen)
 {
@@ -129,18 +121,10 @@ MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE
         connect(this, &MainWindow::initStatusChanged, splashScreen, &QSplashScreen::showMessage);
     }
     
-    this->setAttribute(Qt::WA_DeleteOnClose);
     connect(menuActionHelper, SIGNAL(needToShowDockWidget(QString,bool)),SLOT(showDockWidget(QString,bool)));
-    
-    connect(mavlink, SIGNAL(protocolStatusMessage(const QString&, const QString&)), this, SLOT(showCriticalMessage(const QString&, const QString&)));
-    connect(mavlink, SIGNAL(saveTempFlightDataLog(QString)), this, SLOT(_saveTempFlightDataLog(QString)));
-    
+        
     loadSettings();
     
-    emit initStatusChanged(tr("Loading style"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
-    qApp->setStyle("plastique");
-    loadStyle(currentStyle);
-
     if (settings.contains("ADVANCED_MODE"))
     {
         menuActionHelper->setAdvancedMode(settings.value("ADVANCED_MODE").toBool());
@@ -225,8 +209,7 @@ MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE
     advancedActions << ui.actionSimulationView;
     toolBar->setPerspectiveChangeAdvancedActions(advancedActions);
 
-    customStatusBar = new QGCStatusBar(this);
-    setStatusBar(customStatusBar);
+    setStatusBar(new QStatusBar(this));
     statusBar()->setSizeGripEnabled(true);
 
     emit initStatusChanged(tr("Building common widgets."), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
@@ -244,11 +227,11 @@ MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE
     QList<LinkInterface*> links = LinkManager::instance()->getLinks();
     foreach(LinkInterface* link, links)
     {
-        this->addLink(link);
+        _addLinkMenu(link);
     }
 
-    connect(LinkManager::instance(), SIGNAL(newLink(LinkInterface*)), this, SLOT(addLink(LinkInterface*)));
-
+    connect(LinkManager::instance(), &LinkManager::newLink, this, &MainWindow::_addLinkMenu);
+    
     // Connect user interface devices
     emit initStatusChanged(tr("Initializing joystick interface"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
     joystick = new JoystickInput();
@@ -276,8 +259,7 @@ MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE
         SerialLink* link = new SerialLink();
         
         // Add to registry
-        linkMgr->add(link);
-        linkMgr->addProtocol(link, mavlink);
+        linkMgr->addLink(link);
         linkMgr->connectLink(link);
     }
 
@@ -298,7 +280,6 @@ MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE
     {
         // Restore the window geometry
         restoreGeometry(settings.value(getWindowGeometryKey()).toByteArray());
-        show();
     }
     else
     {
@@ -309,12 +290,10 @@ MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE
         if (screenWidth < 1500)
         {
             resize(screenWidth, screenHeight - 80);
-            show();
         }
         else
         {
             resize(screenWidth*0.67f, qMin(screenHeight, (int)(screenWidth*0.67f*0.67f)));
-            show();
         }
 
     }
@@ -362,16 +341,14 @@ MainWindow::MainWindow(QSplashScreen* splashScreen, enum MainWindow::CUSTOM_MODE
     connect(&windowNameUpdateTimer, SIGNAL(timeout()), this, SLOT(configureWindowName()));
     windowNameUpdateTimer.start(15000);
     emit initStatusChanged(tr("Done"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
-    show();
+
+	if (!qgcApp()->runningUnitTests()) {
+		show();
+	}
 }
 
 MainWindow::~MainWindow()
 {
-    if (mavlink)
-    {
-        delete mavlink;
-        mavlink = NULL;
-    }
     if (simulationLink)
     {
         delete simulationLink;
@@ -427,10 +404,10 @@ QString MainWindow::getWindowStateKey()
 {
     if (UASManager::instance()->getActiveUAS())
     {
-        return QString::number(currentView)+"_windowstate_" + QString::number(getCustomMode()) + "_" + UASManager::instance()->getActiveUAS()->getAutopilotTypeName();
+        return QString::number(currentView)+"_windowstate_" + UASManager::instance()->getActiveUAS()->getAutopilotTypeName();
     }
     else
-        return QString::number(currentView)+"_windowstate_" + QString::number(getCustomMode());
+        return QString::number(currentView)+"_windowstate_";
 }
 
 QString MainWindow::getWindowGeometryKey()
@@ -498,13 +475,13 @@ void MainWindow::buildCustomWidget()
 void MainWindow::buildCommonWidgets()
 {
     // Add generic MAVLink decoder
-    mavlinkDecoder = new MAVLinkDecoder(mavlink, this);
+    mavlinkDecoder = new MAVLinkDecoder(MAVLinkProtocol::instance(), this);
     connect(mavlinkDecoder, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)),
                       this, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)));
 
     // Log player
-    logPlayer = new QGCMAVLinkLogPlayer(mavlink, customStatusBar);
-    customStatusBar->setLogPlayer(logPlayer);
+    logPlayer = new QGCMAVLinkLogPlayer(MAVLinkProtocol::instance(), statusBar());
+    statusBar()->addPermanentWidget(logPlayer);
 
     // Initialize all of the views, if they haven't been already, and add their central widgets
     if (!plannerView)
@@ -533,7 +510,7 @@ void MainWindow::buildCommonWidgets()
     {
         setupView = new SubMainWindow(this);
         setupView->setObjectName("VIEW_SETUP");
-        setupView->setCentralWidget(new SetupView(this));
+        setupView->setCentralWidget((QWidget*)new SetupView(this));
         addToCentralStackedWidget(setupView, VIEW_SETUP, "Setup");
     }
     if (!engineeringView)
@@ -590,7 +567,7 @@ void MainWindow::buildCommonWidgets()
     createDockWidget(simView, new PrimaryFlightDisplay(this), tr("Primary Flight Display"), "PRIMARY_FLIGHT_DISPLAY_DOCKWIDGET", VIEW_SIMULATION, Qt::RightDockWidgetArea);
 
     // Add dock widgets for the engineering view
-    createDockWidget(engineeringView, new QGCMAVLinkInspector(mavlink, this), tr("MAVLink Inspector"), "MAVLINK_INSPECTOR_DOCKWIDGET", VIEW_ENGINEER, Qt::RightDockWidgetArea);
+    createDockWidget(engineeringView, new QGCMAVLinkInspector(MAVLinkProtocol::instance(), this), tr("MAVLink Inspector"), "MAVLINK_INSPECTOR_DOCKWIDGET", VIEW_ENGINEER, Qt::RightDockWidgetArea);
     createDockWidget(engineeringView, new ParameterInterface(this), tr("Onboard Parameters"), "PARAMETER_INTERFACE_DOCKWIDGET", VIEW_ENGINEER, Qt::RightDockWidgetArea);
     createDockWidget(engineeringView, new QGCUASFileViewMulti(this), tr("Onboard Files"), "FILE_VIEW_DOCKWIDGET", VIEW_ENGINEER, Qt::RightDockWidgetArea);
     createDockWidget(engineeringView, new HUD(320, 240, this), tr("Video Downlink"), "HEAD_UP_DISPLAY_DOCKWIDGET", VIEW_ENGINEER, Qt::RightDockWidgetArea);
@@ -671,7 +648,7 @@ void MainWindow::loadDockWidget(const QString& name)
     }
     else if (name == "MAVLINK_INSPECTOR_DOCKWIDGET")
     {
-        createDockWidget(centerStack->currentWidget(),new QGCMAVLinkInspector(mavlink,this),tr("MAVLink Inspector"),"MAVLINK_INSPECTOR_DOCKWIDGET",currentView,Qt::RightDockWidgetArea);
+        createDockWidget(centerStack->currentWidget(),new QGCMAVLinkInspector(MAVLinkProtocol::instance(),this),tr("MAVLink Inspector"),"MAVLINK_INSPECTOR_DOCKWIDGET",currentView,Qt::RightDockWidgetArea);
     }
     else if (name == "PARAMETER_INTERFACE_DOCKWIDGET")
     {
@@ -778,9 +755,42 @@ void MainWindow::showHILConfigurationWidget(UASInterface* uas)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    // Disallow window close if there are active connections
+    
+    bool foundConnections = false;
+    foreach(LinkInterface* link, LinkManager::instance()->getLinks()) {
+        if (link->isConnected()) {
+            foundConnections = true;
+            break;
+        }
+    }
+    
+    if (foundConnections) {
+        QGCMessageBox::StandardButton button = QGCMessageBox::warning(tr("QGroundControl close"),
+                                                                      tr("There are still active connections to vehicles. Do you want to disconnect these before closing?"),
+                                                                      QMessageBox::Yes | QMessageBox::Cancel,
+                                                                      QMessageBox::Cancel);
+        if (button == QMessageBox::Yes) {
+            foreach(LinkInterface* link, LinkManager::instance()->getLinks()) {
+                LinkManager::instance()->disconnectLink(link);
+            }
+        } else {
+            event->ignore();
+            return;
+        }
+    }
+
+    // This will process any remaining flight log save dialogs
+    qgcApp()->processEvents(QEventLoop::ExcludeUserInputEvents);
+
+    // Should not be any active connections
+    foreach(LinkInterface* link, LinkManager::instance()->getLinks()) {
+        Q_UNUSED(link);
+        Q_ASSERT(!link->isConnected());
+    }
+
     storeViewState();
     storeSettings();
-    mavlink->storeSettings();
     UASManager::instance()->storeSettings();
     event->accept();
 }
@@ -792,7 +802,7 @@ void MainWindow::connectCommonWidgets()
 {
     if (infoDockWidget && infoDockWidget->widget())
     {
-        connect(mavlink, SIGNAL(receiveLossChanged(int, float)),
+        connect(MAVLinkProtocol::instance(), SIGNAL(receiveLossChanged(int, float)),
                 infoDockWidget->widget(), SLOT(updateSendLoss(int, float)));
     }
 }
@@ -908,7 +918,6 @@ void MainWindow::loadCustomWidgetsFromDefaults(const QString& systemType, const 
     {
         qDebug() << "No default custom widgets for system " << systemType << "autopilot" << autopilotType << " found";
         qDebug() << "Tried with path: " << defaultsDir;
-        showStatusMessage(tr("Did not find any custom widgets in %1").arg(defaultsDir));
     }
 
     // Load all custom widgets found in the AP folder
@@ -920,7 +929,6 @@ void MainWindow::loadCustomWidgetsFromDefaults(const QString& systemType, const 
             // Will only be loaded if not already a custom widget with
             // the same name is present
             loadCustomWidget(defaultsDir+"/"+file, true);
-            showStatusMessage(tr("Loaded custom widget %1").arg(defaultsDir+"/"+file));
         }
     }
 }
@@ -929,11 +937,8 @@ void MainWindow::loadSettings()
 {
     QSettings settings;
 
-    customMode = static_cast<enum MainWindow::CUSTOM_MODE>(settings.value("QGC_CUSTOM_MODE", (unsigned int)MainWindow::CUSTOM_MODE_NONE).toInt());
-
     settings.beginGroup("QGC_MAINWINDOW");
     autoReconnect = settings.value("AUTO_RECONNECT", autoReconnect).toBool();
-    currentStyle = (QGC_MAINWINDOW_STYLE)settings.value("CURRENT_STYLE", currentStyle).toInt();
     lowPowerMode = settings.value("LOW_POWER_MODE", lowPowerMode).toBool();
     bool dockWidgetTitleBarEnabled = settings.value("DOCK_WIDGET_TITLEBARS",menuActionHelper->dockWidgetTitleBarsEnabled()).toBool();
     settings.endGroup();
@@ -945,11 +950,8 @@ void MainWindow::storeSettings()
 {
     QSettings settings;
 
-    settings.setValue("QGC_CUSTOM_MODE", (int)customMode);
-
     settings.beginGroup("QGC_MAINWINDOW");
     settings.setValue("AUTO_RECONNECT", autoReconnect);
-    settings.setValue("CURRENT_STYLE", currentStyle);
     settings.setValue("LOW_POWER_MODE", lowPowerMode);
     settings.endGroup();
 
@@ -1035,85 +1037,6 @@ void MainWindow::enableDockWidgetTitleBars(bool enabled)
 void MainWindow::enableAutoReconnect(bool enabled)
 {
     autoReconnect = enabled;
-}
-
-bool MainWindow::loadStyle(QGC_MAINWINDOW_STYLE style)
-{
-    qDebug() << "LOAD STYLE" << style;
-    bool success = true;
-    QString styles;
-    
-    // Signal to the user that the app will pause to apply a new stylesheet
-    qApp->setOverrideCursor(Qt::WaitCursor);
-    
-    // Store the new style classification.
-    currentStyle = style;
-    
-    // The dark style sheet is the master. Any other selected style sheet just overrides
-    // the colors of the master sheet.
-    QFile masterStyleSheet(defaultDarkStyle);
-    if (masterStyleSheet.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        styles = masterStyleSheet.readAll();
-    } else {
-        qDebug() << "Unable to load master dark style sheet";
-        success = false;
-    }
-
-    if (success && style == QGC_MAINWINDOW_STYLE_LIGHT) {
-        qDebug() << "LOADING LIGHT";
-        // Load the slave light stylesheet.
-        QFile styleSheet(defaultLightStyle);
-        if (styleSheet.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            styles += styleSheet.readAll();
-        } else {
-            qDebug() << "Unable to load slave light sheet:";
-            success = false;
-        }
-    }
-
-    if (!styles.isEmpty()) {
-        qApp->setStyleSheet(styles);
-        emit styleChanged(style);
-    }
-    
-    // Finally restore the cursor before returning.
-    qApp->restoreOverrideCursor();
-    
-    return success;
-}
-
-/**
- * The status message will be overwritten if a new message is posted to this function
- *
- * @param status message text
- * @param timeout how long the status should be displayed
- */
-void MainWindow::showStatusMessage(const QString& status, int timeout)
-{
-    statusBar()->showMessage(status, timeout);
-}
-
-/**
- * The status message will be overwritten if a new message is posted to this function.
- * it will be automatically hidden after 5 seconds.
- *
- * @param status message text
- */
-void MainWindow::showStatusMessage(const QString& status)
-{
-    statusBar()->showMessage(status, 20000);
-}
-
-void MainWindow::showCriticalMessage(const QString& title, const QString& message)
-{
-    qDebug() << "Critical" << title << message;
-    QGCMessageBox::critical(title, message);
-}
-
-void MainWindow::showInfoMessage(const QString& title, const QString& message)
-{
-    qDebug() << "Information" << title << message;
-    QGCMessageBox::information(title, message);
 }
 
 /**
@@ -1270,13 +1193,13 @@ void MainWindow::showSettings()
     settings.exec();
 }
 
+// FIXME: Where is this called from
 LinkInterface* MainWindow::addLink()
 {
     SerialLink* link = new SerialLink();
     // TODO This should be only done in the dialog itself
 
-    LinkManager::instance()->add(link);
-    LinkManager::instance()->addProtocol(link, mavlink);
+    LinkManager::instance()->addLink(link);
 
     // Go fishing for this link's configuration window
     QList<QAction*> actions = ui.menuNetwork->actions();
@@ -1319,41 +1242,29 @@ bool MainWindow::configLink(LinkInterface *link)
     return found;
 }
 
-void MainWindow::addLink(LinkInterface *link)
+void MainWindow::_addLinkMenu(LinkInterface *link)
 {
-    // IMPORTANT! KEEP THESE TWO LINES
-    // THEY MAKE SURE THE LINK IS PROPERLY REGISTERED
-    // BEFORE LINKING THE UI AGAINST IT
-    // Register (does nothing if already registered)
-    LinkManager::instance()->add(link);
-    LinkManager::instance()->addProtocol(link, mavlink);
-
     // Go fishing for this link's configuration window
     QList<QAction*> actions = ui.menuNetwork->actions();
 
-    bool found(false);
+    bool alreadyAdded = false;
 
     const int32_t& linkIndex(LinkManager::instance()->getLinks().indexOf(link));
     const int32_t& linkID(LinkManager::instance()->getLinks()[linkIndex]->getId());
 
-    foreach (QAction* act, actions)
-    {
-        if (act->data().toInt() == linkID)
-        {
-            found = true;
+    foreach (QAction* act, actions) {
+        if (act->data().toInt() == linkID) {
+            alreadyAdded = true;
+            break;
         }
     }
 
-    if (!found)
-    {
-        CommConfigurationWindow* commWidget = new CommConfigurationWindow(link, mavlink, this);
+    if (!alreadyAdded) {
+        CommConfigurationWindow* commWidget = new CommConfigurationWindow(link, this);
         commsWidgetList.append(commWidget);
         connect(commWidget,SIGNAL(destroyed(QObject*)),this,SLOT(commsWidgetDestroyed(QObject*)));
         QAction* action = commWidget->getAction();
         ui.menuNetwork->addAction(action);
-
-        // Error handling
-        connect(link, SIGNAL(communicationError(QString,QString)), this, SLOT(showCriticalMessage(QString,QString)), Qt::QueuedConnection);
     }
 }
 
@@ -1587,7 +1498,7 @@ void MainWindow::loadViewState()
         {
             if (widgetname != "")
             {
-                qDebug() << "Loading widget:" << widgetname;
+                //qDebug() << "Loading widget:" << widgetname;
                 loadDockWidget(widgetname);
             }
         }
@@ -1728,20 +1639,6 @@ QList<QAction*> MainWindow::listLinkMenuActions()
 bool MainWindow::dockWidgetTitleBarsEnabled() const
 {
     return menuActionHelper->dockWidgetTitleBarsEnabled();
-}
-
-void MainWindow::_saveTempFlightDataLog(QString tempLogfile)
-{
-    if (qgcApp()->promptFlightDataSave()) {
-        QString saveFilename = QGCFileDialog::getSaveFileName(this,
-                                                            tr("Select file to save Flight Data Log"),
-                                                            qgcApp()->mavlinkLogFilesLocation(),
-                                                            tr("Flight Data Log (*.mavlink)"));
-        if (!saveFilename.isEmpty()) {
-            QFile::copy(tempLogfile, saveFilename);
-        }
-    }
-    QFile::remove(tempLogfile);
 }
 
 /// @brief Hides the spash screen if it is currently being shown

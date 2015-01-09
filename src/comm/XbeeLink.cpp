@@ -162,7 +162,6 @@ bool XbeeLink::hardwareConnect()
 	emit tryConnectEnd(true);
 	this->m_connected = true;
 	emit connected();
-	emit connected(true);
 	return true;
 }
 
@@ -185,7 +184,6 @@ bool XbeeLink::_disconnect(void)
 	this->m_connected = false;
 
 	emit disconnected();
-	emit connected(false);
 	return true;
 }
 
@@ -206,7 +204,7 @@ void XbeeLink::writeBytes(const char *bytes, qint64 length)  // TO DO: delete th
 	else
 	{
 		_disconnect();
-		emit communicationError(this->getName(), tr("Could not send data - link %1 is disconnected!").arg(this->getName()));
+		emit communicationError(tr("Link Error"), QString("Error on link: %1. Could not send data - link is disconnected!").arg(getName()));
 	}
 }
 

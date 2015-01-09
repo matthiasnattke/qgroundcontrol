@@ -208,7 +208,7 @@ void SerialLink::run()
         if (m_port) {
             err = m_port->errorString();
         }
-        emit communicationError(getName(),"Error connecting: " + err);
+        _emitLinkError("Error connecting: " + err);
         return;
     }
 
@@ -238,9 +238,6 @@ void SerialLink::run()
                 m_port->close();
                 delete m_port;
                 m_port = NULL;
-
-                emit disconnected();
-                emit connected(false);
             }
 
             QGC::SLEEP::msleep(500);
@@ -338,9 +335,6 @@ void SerialLink::run()
         m_port->close();
         delete m_port;
         m_port = NULL;
-
-        emit disconnected();
-        emit connected(false);
     }
 }
 
@@ -354,7 +348,7 @@ void SerialLink::writeBytes(const char* data, qint64 size)
         m_writeMutex.unlock();
     } else {
         // Error occured
-        emit communicationError(getName(), tr("Could not send data - link %1 is disconnected!").arg(getName()));
+        _emitLinkError(tr("Could not send data - link %1 is disconnected!").arg(getName()));
     }
 }
 
@@ -476,7 +470,9 @@ bool SerialLink::hardwareConnect(QString &type)
         return false; // couldn't create serial port.
     }
 
-    QObject::connect(m_port,SIGNAL(aboutToClose()),this,SIGNAL(disconnected()));
+    // We need to catch this signal and then emit disconnected. You can't connect
+    // signal to signal otherwise disonnected will have the wrong QObject::Sender
+    QObject::connect(m_port, SIGNAL(aboutToClose()), this, SLOT(_rerouteDisconnected()));
     QObject::connect(m_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(linkError(QSerialPort::SerialPortError)));
 
     checkIfCDC();
@@ -503,7 +499,6 @@ bool SerialLink::hardwareConnect(QString &type)
     emit communicationUpdate(getName(),"Opened port!");
 
     emit connected();
-    emit connected(true);
 
     qDebug() << "CONNECTING LINK: " << __FILE__ << __LINE__ << "type:" << type << "with settings" << m_port->portName()
              << getBaudRate() << getDataBits() << getParityType() << getStopBits();
@@ -901,4 +896,16 @@ bool SerialLink::setStopBitsType(int stopBits)
         emit updateLink(this);
     }
     return accepted;
+}
+
+void SerialLink::_rerouteDisconnected(void)
+{
+    emit disconnected();
+}
+
+void SerialLink::_emitLinkError(const QString& errorMsg)
+{
+    QString msg("Error on link %1. %2");
+    
+    emit communicationError(tr("Link Error"), msg.arg(getName()).arg(errorMsg));
 }

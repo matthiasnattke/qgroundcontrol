@@ -187,17 +187,12 @@ signals:
     void disconnected();
 
     /**
-     * @brief This signal is emitted instantly when the link status changes
-     **/
-    void connected(bool connected);
-
-    /**
      * @brief This signal is emitted if the human readable name of this link changes
      */
     void nameChanged(QString name);
 
     /** @brief Communication error occured */
-    void communicationError(const QString& linkname, const QString& error);
+    void communicationError(const QString& title, const QString& error);
 
     void communicationUpdate(const QString& linkname, const QString& text);
 

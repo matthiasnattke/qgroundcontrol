@@ -24,35 +24,38 @@
 #define MEAN_EARTH_DIAMETER	12756274.0
 #define UMR	0.017453292519943295769236907684886
 
-UASManager* UASManager::_instance = NULL;
-UASManagerInterface* UASManager::_mockUASManager = NULL;
+IMPLEMENT_QGC_SINGLETON(UASManager, UASManagerInterface)
 
-
-void UASManager::setMockUASManager(UASManagerInterface* mockUASManager)
+UASManager::UASManager(QObject* parent) :
+    UASManagerInterface(parent),
+    activeUAS(NULL),
+    offlineUASWaypointManager(NULL),
+    homeLat(47.3769),
+    homeLon(8.549444),
+    homeAlt(470.0),
+    homeFrame(MAV_FRAME_GLOBAL)
 {
-    _mockUASManager = mockUASManager;
+    loadSettings();
+    setLocalNEDSafetyBorders(1, -1, 0, -1, 1, -1);
 }
 
-UASManagerInterface* UASManager::instance()
+UASManager::~UASManager()
 {
-    if (_mockUASManager) {
-        return _mockUASManager;
-    }
-    
-    if(_instance == NULL) {
-        _instance = new UASManager(qgcApp());
-        Q_CHECK_PTR(_instance);
-    }
-    
-    Q_ASSERT(_instance);
-    
-    return _instance;
+    storeSettings();
+    Q_ASSERT_X(systems.count() == 0, "~UASManager", "_shutdown should have already removed all uas");
 }
 
-void UASManager::deleteInstance(void)
+void UASManager::_shutdown(void)
 {
-    _instance = NULL;
-    delete this;
+    QList<UASInterface*> uasList;
+    
+    foreach(UASInterface* uas, systems) {
+        uasList.append(uas);
+    }
+    
+    foreach(UASInterface* uas, uasList) {
+        removeUAS(uas);
+    }
 }
 
 void UASManager::storeSettings()
@@ -256,33 +259,6 @@ void UASManager::uavChangedHomePosition(int uav, double lat, double lon, double 
     }
 }
 
-/**
- * @brief Private singleton constructor
- *
- * This class implements the singleton design pattern and has therefore only a private constructor.
- **/
-UASManager::UASManager(QObject* parent) :
-    UASManagerInterface(parent),
-    activeUAS(NULL),
-    offlineUASWaypointManager(NULL),
-    homeLat(47.3769),
-    homeLon(8.549444),
-    homeAlt(470.0),
-    homeFrame(MAV_FRAME_GLOBAL)
-{
-    loadSettings();
-    setLocalNEDSafetyBorders(1, -1, 0, -1, 1, -1);
-}
-
-UASManager::~UASManager()
-{
-    storeSettings();
-    // Delete all systems
-    foreach (UASInterface* mav, systems) {
-        delete mav;
-    }
-}
-
 void UASManager::addUAS(UASInterface* uas)
 {
     // WARNING: The active uas is set here
@@ -313,7 +289,8 @@ void UASManager::addUAS(UASInterface* uas)
     if (firstUAS)
     {
         setActiveUAS(uas);
-        if (offlineUASWaypointManager->getWaypointEditableList().size() > 0)
+        // Call getActiveUASWaypointManager instead of referencing variable to make sure of creation
+        if (getActiveUASWaypointManager()->getWaypointEditableList().size() > 0)
         {
             if (QGCMessageBox::question(tr("Question"), tr("Do you want to append the offline waypoints to the ones currently on the UAV?"), QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes)
             {
@@ -473,7 +450,6 @@ void UASManager::setActiveUAS(UASInterface* uas)
     if (activeUAS)
     {
         activeUAS->setSelected();
-        emit activeUASSet(activeUAS->getUASID());
         emit activeUASSetListIndex(systems.indexOf(activeUAS));
         emit activeUASStatusChanged(activeUAS, true);
         emit activeUASStatusChanged(activeUAS->getUASID(), true);

@@ -28,6 +28,8 @@
 
 #include "MainWindowTest.h"
 #include "QGCToolBar.h"
+#include "MockLink.h"
+#include "QGCMessageBox.h"
 
 UT_REGISTER_TEST(MainWindowTest)
 
@@ -40,7 +42,7 @@ void MainWindowTest::init(void)
 {
     UnitTest::init();
 
-    _mainWindow = MainWindow::_create(NULL, MainWindow::CUSTOM_MODE_PX4);
+    _mainWindow = MainWindow::_create(NULL);
     Q_CHECK_PTR(_mainWindow);
 }
 
@@ -65,4 +67,37 @@ void MainWindowTest::_clickThrough_test(void)
         }
     }
     
+}
+
+void MainWindowTest::_connectWindowClose_test(MAV_AUTOPILOT autopilot)
+{
+    LinkManager* linkMgr = LinkManager::instance();
+    Q_CHECK_PTR(linkMgr);
+    
+    MockLink* link = new MockLink();
+    Q_CHECK_PTR(link);
+    link->setAutopilotType(autopilot);
+    LinkManager::instance()->addLink(link);
+    linkMgr->connectLink(link);
+    QTest::qWait(5000); // Give enough time for UI to settle and heartbeats to go through
+    
+    // On MainWindow close we should get a message box telling the user to disconnect first. Cancel should do nothing.
+    setExpectedMessageBox(QGCMessageBox::Cancel);
+    _mainWindow->close();
+    QTest::qWait(1000); // Need to allow signals to move between threads    
+    checkExpectedMessageBox();
+
+    // We are going to disconnect the link which is going to pop a save file dialog
+    setExpectedFileDialog(getSaveFileName, QStringList());
+    linkMgr->disconnectLink(link);
+    QTest::qWait(1000); // Need to allow signals to move between threads
+    checkExpectedFileDialog();
+}
+
+void MainWindowTest::_connectWindowClosePX4_test(void) {
+    _connectWindowClose_test(MAV_AUTOPILOT_PX4);
+}
+
+void MainWindowTest::_connectWindowCloseGeneric_test(void) {
+    _connectWindowClose_test(MAV_AUTOPILOT_ARDUPILOTMEGA);
 }
