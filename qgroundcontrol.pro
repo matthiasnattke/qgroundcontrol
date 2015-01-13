@@ -341,10 +341,10 @@ FORMS += \
     src/ui/px4_configuration/QGCPX4SensorCalibration.ui \
     src/ui/px4_configuration/PX4RCCalibration.ui \
     src/ui/QGCUASFileView.ui \
-    src/ui/QGCSwarmRemote.ui
+    src/ui/QGCSwarmRemote.ui \
     src/ui/px4_configuration/PX4FirmwareUpgrade.ui \
     src/ui/QGCUASFileView.ui \
-    src/QGCQmlWidgetHolder.ui \
+    src/QGCQmlWidgetHolder.ui\
 
 HEADERS += \
     src/MG.h \
@@ -489,7 +489,7 @@ HEADERS += \
     src/ui/QGCUASFileView.h \
     src/CmdLineOptParser.h \
     src/uas/QGXPX4UAS.h \
-    src/ui/QGCSwarmRemote.h
+    src/ui/QGCSwarmRemote.h \
     src/QGCFileDialog.h \
     src/QGCMessageBox.h \
     src/QGCComboBox.h \
@@ -632,7 +632,7 @@ SOURCES += \
     src/ui/QGCUASFileView.cc \
     src/CmdLineOptParser.cc \
     src/uas/QGXPX4UAS.cc \
-    src/ui/QGCSwarmRemote.cpp
+    src/ui/QGCSwarmRemote.cpp \
     src/QGCFileDialog.cc \
     src/QGCComboBox.cc \
     src/QGCTemporaryFile.cc \

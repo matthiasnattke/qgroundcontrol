@@ -4,7 +4,7 @@
 #include <QMessageBox>
 #include "UAS.h"
 #include "QGCMAVLink.h"
-#include "MainWindow.h"
+#include "LinkManager.h"
 #include <QRadioButton>
 #include <QString>
 #include <QListWidget>
@@ -22,14 +22,12 @@ QGCSwarmRemote::QGCSwarmRemote(QWidget *parent) :
 
 	//Creates list of connected UAS
 
-	mavlink = MainWindow::instance()->getMAVLink();
+	mavlink = MAVLinkProtocol::instance();
 
 	uas =  UASManager::instance()->getActiveUAS();
 	uas_previous = UASManager::instance()->getActiveUAS();
 
 	UASlist = UASManager::instance()->getUASList();
-
-	links = LinkManager::instance()->getLinksForProtocol(mavlink);
 
 	connect(UASManager::instance(),SIGNAL(UASCreated(UASInterface*)),this,SLOT(UASCreated(UASInterface*)));
 	connect(UASManager::instance(),SIGNAL(UASDeleted(UASInterface*)),this,SLOT(RemoveUAS(UASInterface*)));

@@ -90,12 +90,9 @@ public slots:
     virtual void uavChangedHomePosition(int uav, double lat, double lon, double alt) = 0;
     virtual void loadSettings() = 0;
     virtual void storeSettings() = 0;
-<<<<<<< HEAD
     virtual bool uasGetWPDisplay(UASInterface* uas) = 0;
     virtual void uasChangeWPDisplay(UASInterface * uas) = 0;
-=======
     virtual void _shutdown(void) = 0;
->>>>>>> master
     
 signals:
     /** A new system was created */
