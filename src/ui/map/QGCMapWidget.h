@@ -55,6 +55,8 @@ public slots:
     bool setHomeActionTriggered();
     /** @brief Add system to map view */
     void addUAS(UASInterface* uas);
+    /** @brief Remove system to map view */
+    void removeUAS(UASInterface* uas);
     /** @brief Update the global position of a system */
     void updateGlobalPosition(UASInterface* uas, double lat, double lon, double altAMSL, double altWGS84, quint64 usec);
     /** @brief Update the global position of all systems */
@@ -83,6 +85,9 @@ public slots:
     void cacheVisibleRegion();
     /** @brief Set follow mode */
     void setFollowUAVEnabled(bool enabled) { followUAVEnabled = enabled; }
+    /** @brief Erases all visible waypoints*/
+    void deleteWaypoints();
+
     /** @brief Set trail to time mode and set time @param seconds The minimum time between trail dots in seconds. If set to a value < 0, trails will be disabled*/
     void setTrailModeTimed(int seconds)
     {

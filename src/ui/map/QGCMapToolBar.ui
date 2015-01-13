@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>809</width>
+    <width>937</width>
     <height>35</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,1,1,1,1,0,1,5,1,30,1">
+  <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,1,1,1,1,0,0,0,0,0,30,1">
    <property name="spacing">
     <number>2</number>
    </property>
@@ -67,7 +67,14 @@
    <item>
     <widget class="QPushButton" name="clearTrailsButton">
      <property name="text">
-      <string>Clear Map</string>
+      <string>Clear Trails</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="clearWaypointsButton">
+     <property name="text">
+      <string>Clear Wp</string>
      </property>
     </widget>
    </item>

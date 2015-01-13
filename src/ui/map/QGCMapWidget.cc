@@ -199,6 +199,7 @@ void QGCMapWidget::showEvent(QShowEvent* event)
     connect(this, SIGNAL(WPValuesChanged(WayPointItem*)), this, SLOT(handleMapWaypointEdit(WayPointItem*)));
 
     connect(UASManager::instance(), SIGNAL(UASCreated(UASInterface*)), this, SLOT(addUAS(UASInterface*)), Qt::UniqueConnection);
+    connect(UASManager::instance(), SIGNAL(UASDeleted(UASInterface*)), this, SLOT(removeUAS (UASInterface*)), Qt::UniqueConnection);
     connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(activeUASSet(UASInterface*)), Qt::UniqueConnection);
     connect(UASManager::instance(), SIGNAL(homePositionChanged(double,double,double)), this, SLOT(updateHomePosition(double,double,double)));
 
@@ -363,6 +364,20 @@ void QGCMapWidget::addUAS(UASInterface* uas)
             delete item;
         }
     }
+}
+
+void QGCMapWidget::removeUAS(UASInterface* uas)
+{
+    //Disconnects signals from addUAS()
+    disconnect(uas, SIGNAL(globalPositionChanged(UASInterface*,double,double,double,double,quint64)), this, SLOT(updateGlobalPosition(UASInterface*,double,double,double,double,quint64)));
+    disconnect(uas, SIGNAL(systemSpecsChanged(int)), this, SLOT(updateSystemSpecs(int)));
+
+    //deletes trail points
+    mapcontrol::UAVItem* uav = GetUAV(uas->getUASID());
+    uav->DeleteTrail();
+
+    //Deletes graphical element created in updateGlobalPosition()
+    DeleteUAV(uas->getUASID());
 }
 
 void QGCMapWidget::activeUASSet(UASInterface* uas)
@@ -634,6 +649,25 @@ void QGCMapWidget::cacheVisibleRegion()
 }
 
 
+void QGCMapWidget::deleteWaypoints()
+{
+    //sets all the uas to hide their waypoints
+    foreach (UASInterface* uas, UASManager::instance()->getUASList())
+    {
+        if(UASManager::instance()->uasGetWPDisplay(uas))
+            UASManager::instance()->uasChangeWPDisplay(uas);
+    }
+
+    foreach (Waypoint* wp, waypointsToIcons.keys())
+    {
+        // Get icon to work on
+        mapcontrol::WayPointItem* icon = waypointsToIcons.value(wp);
+        waypointsToIcons.remove(wp);
+        iconsToWaypoints.remove(icon);
+        WPDelete(icon);
+    }
+}
+
 // WAYPOINT MAP INTERACTION FUNCTIONS
 
 void QGCMapWidget::handleMapWaypointEdit(mapcontrol::WayPointItem* waypoint)
@@ -810,17 +844,26 @@ void QGCMapWidget::updateWaypointList(int uas)
         {
             foreach (QGraphicsItem* item, group->childItems())
             {
-                delete item;
+               delete item;
             }
         }
 
-        // Delete first all old waypoints
+        // Delete first old waypoints that aren't in any of the uas wps
+        // or associated to a uas whose waypoints aren't displayed
         // this is suboptimal (quadratic, but wps should stay in the sub-100 range anyway)
-        QList<Waypoint* > wps = currWPManager->getGlobalFrameAndNavTypeWaypointList();
         foreach (Waypoint* wp, waypointsToIcons.keys())
         {
-            if (!wps.contains(wp))
+            bool wpExists = false;
+            foreach (UASInterface* uas, UASManager::instance()->getUASList())
             {
+                QList<Waypoint* > tempWps = uas->getWaypointManager()->getGlobalFrameAndNavTypeWaypointList();
+                if(tempWps.contains(wp)){
+                    if(UASManager::instance()->uasGetWPDisplay(uas))
+                        wpExists = true;
+                    break;
+                }
+            }
+            if(!wpExists){
                 // Get icon to work on
                 mapcontrol::WayPointItem* icon = waypointsToIcons.value(wp);
                 waypointsToIcons.remove(wp);
@@ -829,7 +872,6 @@ void QGCMapWidget::updateWaypointList(int uas)
             }
         }
 
-        // Update all existing waypoints
         foreach (Waypoint* wp, waypointsToIcons.keys())
         {
             // Update remaining waypoints
@@ -837,6 +879,7 @@ void QGCMapWidget::updateWaypointList(int uas)
         }
 
         // Update all potentially new waypoints
+        QList<Waypoint* > wps = currWPManager->getGlobalFrameAndNavTypeWaypointList();
         foreach (Waypoint* wp, wps)
         {
             qDebug() << "UPDATING NEW WP" << wp->getId();
