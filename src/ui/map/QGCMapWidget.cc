@@ -6,7 +6,7 @@
 #include "MAV2DIcon.h"
 #include "Waypoint2DIcon.h"
 #include "UASWaypointManager.h"
-#include "ArduPilotMegaMAV.h"
+#include "QGCMessageBox.h"
 
 QGCMapWidget::QGCMapWidget(QWidget *parent) :
     mapcontrol::OPMapWidget(parent),
@@ -56,11 +56,6 @@ QGCMapWidget::QGCMapWidget(QWidget *parent) :
     guidedaction->setText("Go To Here Alt (Guided Mode)");
     connect(guidedaction,SIGNAL(triggered()),this,SLOT(guidedAltActionTriggered()));
     this->addAction(guidedaction);
-    // Point camera option
-    QAction *cameraaction = new QAction(this);
-    cameraaction->setText("Point Camera Here");
-    connect(cameraaction,SIGNAL(triggered()),this,SLOT(cameraActionTriggered()));
-    this->addAction(cameraaction);
     // Set home location option
     QAction *sethomeaction = new QAction(this);
     sethomeaction->setText("Set Home Location Here");
@@ -71,7 +66,7 @@ void QGCMapWidget::guidedActionTriggered()
 {
     if (!uas)
     {
-        QMessageBox::information(0,"Error","Please connect first");
+        QGCMessageBox::information(tr("Error"), tr("Please connect first"));
         return;
     }
     if (currWPManager)
@@ -97,7 +92,7 @@ bool QGCMapWidget::guidedAltActionTriggered()
 {
     if (!uas)
     {
-        QMessageBox::information(0,"Error","Please connect first");
+        QGCMessageBox::information(tr("Error"), tr("Please connect first"));
         return false;
     }
     bool ok = false;
@@ -111,21 +106,6 @@ bool QGCMapWidget::guidedAltActionTriggered()
     guidedActionTriggered();
     return true;
 }
-void QGCMapWidget::cameraActionTriggered()
-{
-    if (!uas)
-    {
-        QMessageBox::information(0,"Error","Please connect first");
-        return;
-    }
-    ArduPilotMegaMAV *newmav = qobject_cast<ArduPilotMegaMAV*>(this->uas);
-    if (newmav)
-    {
-        newmav->setMountConfigure(4,true,true,true);
-        internals::PointLatLng pos = map->FromLocalToLatLng(contextMousePressPos.x(), contextMousePressPos.y());
-        newmav->setMountControl(pos.Lat(),pos.Lng(),100,true);
-    }
-}
 
 /**
  * @brief QGCMapWidget::setHomeActionTriggered
@@ -134,7 +114,7 @@ bool QGCMapWidget::setHomeActionTriggered()
 {
     if (!uas)
     {
-        QMessageBox::information(0,"Error","Please connect first");
+        QGCMessageBox::information(tr("Error"), tr("Please connect first"));
         return false;
     }
     UASManagerInterface *uasManager = UASManager::instance();
@@ -196,12 +176,12 @@ void QGCMapWidget::showEvent(QShowEvent* event)
     OPMapWidget::showEvent(event);
 
     // Connect map updates to the adapter slots
-    connect(this, SIGNAL(WPValuesChanged(WayPointItem*)), this, SLOT(handleMapWaypointEdit(WayPointItem*)));
+    connect(this, SIGNAL(WPValuesChanged(WayPointItem*)), this, SLOT(handleMapWaypointEdit(WayPointItem*)), Qt::UniqueConnection);
 
     connect(UASManager::instance(), SIGNAL(UASCreated(UASInterface*)), this, SLOT(addUAS(UASInterface*)), Qt::UniqueConnection);
     connect(UASManager::instance(), SIGNAL(UASDeleted(UASInterface*)), this, SLOT(removeUAS (UASInterface*)), Qt::UniqueConnection);
     connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(activeUASSet(UASInterface*)), Qt::UniqueConnection);
-    connect(UASManager::instance(), SIGNAL(homePositionChanged(double,double,double)), this, SLOT(updateHomePosition(double,double,double)));
+    connect(UASManager::instance(), SIGNAL(homePositionChanged(double,double,double)), this, SLOT(updateHomePosition(double,double,double)), Qt::UniqueConnection);
 
     foreach (UASInterface* uas, UASManager::instance()->getUASList())
     {
@@ -281,6 +261,8 @@ void QGCMapWidget::loadSettings(bool changePosition)
     trailInterval = settings.value("TRAIL_INTERVAL", trailInterval).toFloat();
     settings.endGroup();
 
+#if 0
+    // FIXME: NYI
     // SET CORRECT MENU CHECKBOXES
     // Set the correct trail interval
     if (trailType == mapcontrol::UAVTrailType::ByDistance)
@@ -293,6 +275,7 @@ void QGCMapWidget::loadSettings(bool changePosition)
         // XXX
         qDebug() << "WARNING: Settings loading for trail type (ByTimeElapsed) not implemented";
     }
+#endif
 
     // SET TRAIL TYPE
     foreach (mapcontrol::UAVItem* uav, GetUAVS())
@@ -327,7 +310,6 @@ void QGCMapWidget::storeSettings()
     settings.setValue("TRAIL_TYPE", static_cast<int>(trailType));
     settings.setValue("TRAIL_INTERVAL", trailInterval);
     settings.endGroup();
-    settings.sync();
 }
 
 void QGCMapWidget::mouseDoubleClickEvent(QMouseEvent* event)
@@ -354,8 +336,9 @@ void QGCMapWidget::mouseDoubleClickEvent(QMouseEvent* event)
  */
 void QGCMapWidget::addUAS(UASInterface* uas)
 {
-    connect(uas, SIGNAL(globalPositionChanged(UASInterface*,double,double,double,double,quint64)), this, SLOT(updateGlobalPosition(UASInterface*,double,double,double,double,quint64)));
-    connect(uas, SIGNAL(systemSpecsChanged(int)), this, SLOT(updateSystemSpecs(int)));
+    connect(uas, SIGNAL(globalPositionChanged(UASInterface*,double,double,double,double,quint64)),
+            this, SLOT(updateGlobalPosition(UASInterface*,double,double,double,double,quint64)), Qt::UniqueConnection);
+    connect(uas, SIGNAL(systemSpecsChanged(int)), this, SLOT(updateSystemSpecs(int)), Qt::UniqueConnection);
     if (!waypointLines.value(uas->getUASID(), NULL)) {
         waypointLines.insert(uas->getUASID(), new QGraphicsItemGroup(map));
     } else {
@@ -406,10 +389,10 @@ void QGCMapWidget::activeUASSet(UASInterface* uas)
         updateWaypointList(uas->getUASID());
 
         // Connect the waypoint manager / data storage to the UI
-        connect(currWPManager, SIGNAL(waypointEditableListChanged(int)), this, SLOT(updateWaypointList(int)));
-        connect(currWPManager, SIGNAL(waypointEditableChanged(int, Waypoint*)), this, SLOT(updateWaypoint(int,Waypoint*)));
-        connect(this, SIGNAL(waypointCreated(Waypoint*)), currWPManager, SLOT(addWaypointEditable(Waypoint*)));
-        connect(this, SIGNAL(waypointChanged(Waypoint*)), currWPManager, SLOT(notifyOfChangeEditable(Waypoint*)));
+        connect(currWPManager, SIGNAL(waypointEditableListChanged(int)), this, SLOT(updateWaypointList(int)), Qt::UniqueConnection);
+        connect(currWPManager, SIGNAL(waypointEditableChanged(int, Waypoint*)), this, SLOT(updateWaypoint(int,Waypoint*)), Qt::UniqueConnection);
+        connect(this, SIGNAL(waypointCreated(Waypoint*)), currWPManager, SLOT(addWaypointEditable(Waypoint*)), Qt::UniqueConnection);
+        connect(this, SIGNAL(waypointChanged(Waypoint*)), currWPManager, SLOT(notifyOfChangeEditable(Waypoint*)), Qt::UniqueConnection);
 
         if (!mapPositionInitialized) {
             internals::PointLatLng pos_lat_lon = internals::PointLatLng(uas->getLatitude(), uas->getLongitude());
@@ -632,13 +615,8 @@ void QGCMapWidget::cacheVisibleRegion()
 
     if (rect.IsEmpty())
     {
-        QMessageBox msgBox(this);
-        msgBox.setIcon(QMessageBox::Information);
-        msgBox.setText("Cannot cache tiles for offline use");
-        msgBox.setInformativeText("Please select an area first by holding down SHIFT or ALT and selecting the area with the left mouse button.");
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        msgBox.exec();
+        QGCMessageBox::information(tr("Cannot cache tiles for offline use"),
+                                   tr("Please select an area first by holding down SHIFT or ALT and selecting the area with the left mouse button."));
     }
     else
     {

@@ -51,12 +51,9 @@ public:
     MAVLinkSimulationLink(QString readFile="", QString writeFile="", int rate=5);
     ~MAVLinkSimulationLink();
     bool isConnected() const;
-    qint64 bytesAvailable();
 
     void run();
     void requestReset() { }
-    bool connect();
-    bool disconnect();
 
     // Extensive statistics for scientific purposes
     qint64 getConnectionSpeed() const;
@@ -71,14 +68,17 @@ public:
     int getParityType() const;
     int getDataBitsType() const;
     int getStopBitsType() const;
+    
+    // These are left unimplemented in order to cause linker errors which indicate incorrect usage of
+    // connect/disconnect on link directly. All connect/disconnect calls should be made through LinkManager.
+    bool connect(void);
+    bool disconnect(void);
 
 public slots:
     void writeBytes(const char* data, qint64 size);
     void readBytes();
     /** @brief Mainloop simulating the mainloop of the MAV */
     virtual void mainloop();
-    bool connectLink(bool connect);
-    void connectLink();
     void sendMAVLinkMessage(const mavlink_message_t* msg);
 
 
@@ -130,7 +130,11 @@ protected:
 signals:
     void valueChanged(int uasId, QString curve, double value, quint64 usec);
     void messageReceived(const mavlink_message_t& message);
-
+    
+private:
+    // From LinkInterface
+    virtual bool _connect(void);
+    virtual bool _disconnect(void);
 };
 
 #endif // MAVLINKSIMULATIONLINK_H

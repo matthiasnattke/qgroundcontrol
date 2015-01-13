@@ -1,4 +1,3 @@
-#include <QMessageBox>
 #include <QProgressDialog>
 #include <QDebug>
 #include <QTimer>
@@ -10,6 +9,7 @@
 #include "LinkManager.h"
 #include "UAS.h"
 #include "QGC.h"
+#include "QGCMessageBox.h"
 
 QGCPX4AirframeConfig::QGCPX4AirframeConfig(QWidget *parent) :
     QWidget(parent),
@@ -56,23 +56,24 @@ QGCPX4AirframeConfig::QGCPX4AirframeConfig(QWidget *parent) :
 
     ui->quadXComboBox->addItem(tr("DJI F330 8\" Quad"), 4010);
     ui->quadXComboBox->addItem(tr("DJI F450 10\" Quad"), 4011);
-    ui->quadXComboBox->addItem(tr("Turnigy Talon v2 X550 Quad"), 4012);
+    ui->quadXComboBox->addItem(tr("X frame Quad UAVCAN"), 4012);
     ui->quadXComboBox->addItem(tr("AR.Drone Frame Quad"), 4008);
-    ui->quadXComboBox->addItem(tr("DJI F330 with MK BLCTRL"), 4017);
-    ui->quadXComboBox->addItem(tr("Mikrokopter X frame"), 4019);
+//    ui->quadXComboBox->addItem(tr("DJI F330 with MK BLCTRL"), 4017);
+//    ui->quadXComboBox->addItem(tr("Mikrokopter X frame"), 4019);
 
     connect(ui->quadXPushButton, SIGNAL(clicked()), this, SLOT(quadXSelected()));
     connect(ui->quadXComboBox, SIGNAL(activated(int)), this, SLOT(quadXSelected(int)));
     ui->quadXPushButton->setEnabled(ui->quadXComboBox->count() > 0);
 
     ui->quadPlusComboBox->addItem(tr("Generic 10\" Quad +"), 5001);
-    ui->quadXComboBox->addItem(tr("Mikrokopter + frame"), 5020);
+//    ui->quadXComboBox->addItem(tr("Mikrokopter + frame"), 5020);
 
     connect(ui->quadPlusPushButton, SIGNAL(clicked()), this, SLOT(quadPlusSelected()));
     connect(ui->quadPlusComboBox, SIGNAL(activated(int)), this, SLOT(quadPlusSelected(int)));
     ui->quadPlusPushButton->setEnabled(ui->quadPlusComboBox->count() > 0);
 
-    ui->hexaXComboBox->addItem(tr("Standard 10\" Hexa"), 6001);
+    ui->hexaXComboBox->addItem(tr("Standard 10\" Hexa X"), 6001);
+    ui->hexaXComboBox->addItem(tr("Coaxial 10\" Hexa X"), 11001);
 
     connect(ui->hexaXPushButton, SIGNAL(clicked()), this, SLOT(hexaXSelected()));
     connect(ui->hexaXComboBox, SIGNAL(activated(int)), this, SLOT(hexaXSelected(int)));
@@ -85,6 +86,7 @@ QGCPX4AirframeConfig::QGCPX4AirframeConfig(QWidget *parent) :
     ui->hexaPlusPushButton->setEnabled(ui->hexaPlusComboBox->count() > 0);
 
     ui->octoXComboBox->addItem(tr("Standard 10\" Octo"), 8001);
+    ui->octoXComboBox->addItem(tr("Coaxial 10\" Octo"), 12001);
 
     connect(ui->octoXPushButton, SIGNAL(clicked()), this, SLOT(octoXSelected()));
     connect(ui->octoXComboBox, SIGNAL(activated(int)), this, SLOT(octoXSelected(int)));
@@ -108,9 +110,9 @@ QGCPX4AirframeConfig::QGCPX4AirframeConfig(QWidget *parent) :
 
     connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(setActiveUAS(UASInterface*)));
 
-    setActiveUAS(UASManager::instance()->getActiveUAS());
-
     uncheckAll();
+    
+    setActiveUAS(UASManager::instance()->getActiveUAS());
 }
 
 void QGCPX4AirframeConfig::parameterChanged(int uas, int component, QString parameterName, QVariant value)
@@ -146,6 +148,19 @@ void QGCPX4AirframeConfig::setActiveUAS(UASInterface* uas)
     paramMgr = mav->getParamManager();
 
     connect(mav, SIGNAL(parameterChanged(int,int,QString,QVariant)), this, SLOT(parameterChanged(int,int,QString,QVariant)));
+    
+    // If the parameters are ready, we aren't going to get paramterChanged signals. So fake them in order to make the UI work.
+    if (uas->getParamManager()->parametersReady()) {
+        QVariant value;
+        static const char* param = "SYS_AUTOSTART";
+
+        QGCUASParamManagerInterface* paramMgr = uas->getParamManager();
+        
+        QList<int> compIds = paramMgr->getComponentForParam(param);
+        Q_ASSERT(compIds.count() == 1);
+        paramMgr->getParameterValue(compIds[0], param, value);
+        parameterChanged(uas->getUASID(), compIds[0], param, value);
+    }
 }
 
 void QGCPX4AirframeConfig::uncheckAll()
@@ -236,13 +251,8 @@ void QGCPX4AirframeConfig::applyAndReboot()
     // Guard against the case of an edit where we didn't receive all params yet
     if (selectedId <= 0)
     {
-        QMessageBox msgBox;
-        msgBox.setText(tr("No airframe selected"));
-        msgBox.setInformativeText(tr("Please select an airframe first."));
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        (void)msgBox.exec();
-
+        QGCMessageBox::warning(tr("No airframe selected"),
+                               tr("Please select an airframe first."));
         return;
     }
 
@@ -261,25 +271,15 @@ void QGCPX4AirframeConfig::applyAndReboot()
     // Guard against the case of an edit where we didn't receive all params yet
     if (paramMgr->countPendingParams() > 0 || components.count() == 0)
     {
-        QMessageBox msgBox;
-        msgBox.setText(tr("Parameter sync with UAS not yet complete"));
-        msgBox.setInformativeText(tr("Please wait a few moments and retry"));
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        (void)msgBox.exec();
-
+        QGCMessageBox::information(tr("Parameter sync with UAS not yet complete"),
+                                   tr("Please wait a few moments and retry"));
         return;
     }
 
     // Guard against multiple components responding - this will never show in practice
     if (components.count() != 1) {
-        QMessageBox msgBox;
-        msgBox.setText(tr("Invalid system setup detected"));
-        msgBox.setInformativeText(tr("None or more than one component advertised to provide the main system configuration option. This is an invalid system setup - please check your autopilot."));
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        (void)msgBox.exec();
-
+        QGCMessageBox::warning(tr("Invalid system setup detected"),
+                               tr("None or more than one component advertised to provide the main system configuration option. This is an invalid system setup - please check your autopilot."));
         return;
     }
 

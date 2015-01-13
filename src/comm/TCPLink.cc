@@ -55,14 +55,12 @@ TCPLink::TCPLink(QHostAddress hostAddress, quint16 socketPort) :
 
 TCPLink::~TCPLink()
 {
-    disconnect();
+    _disconnect();
 
     // Tell the thread to exit
     quit();
     // Wait for it to exit
     wait();
-
-	deleteLater();
 }
 
 void TCPLink::run()
@@ -77,7 +75,7 @@ void TCPLink::setHostAddress(QHostAddress hostAddress)
     bool reconnect = false;
     
 	if (this->isConnected()) {
-		disconnect();
+		_disconnect();
 		reconnect = true;
 	}
     
@@ -85,7 +83,7 @@ void TCPLink::setHostAddress(QHostAddress hostAddress)
     _resetName();
     
 	if (reconnect) {
-		connect();
+		_connect();
 	}
 }
 
@@ -99,7 +97,7 @@ void TCPLink::setPort(int port)
     bool reconnect = false;
     
 	if (this->isConnected()) {
-		disconnect();
+		_disconnect();
 		reconnect = true;
 	}
     
@@ -107,7 +105,7 @@ void TCPLink::setPort(int port)
     _resetName();
     
 	if (reconnect) {
-		connect();
+		_connect();
 	}
 }
 
@@ -177,21 +175,11 @@ void TCPLink::readBytes()
 }
 
 /**
- * @brief Get the number of bytes to read.
- *
- * @return The number of bytes to read
- **/
-qint64 TCPLink::bytesAvailable()
-{
-    return _socket->bytesAvailable();
-}
-
-/**
  * @brief Disconnect the connection.
  *
  * @return True if connection has been disconnected, false if connection couldn't be disconnected.
  **/
-bool TCPLink::disconnect()
+bool TCPLink::_disconnect(void)
 {
 	quit();
 	wait();
@@ -203,7 +191,6 @@ bool TCPLink::disconnect()
 		_socket = NULL;
 
         emit disconnected();
-        emit connected(false);
 	}
     
     return true;
@@ -214,7 +201,7 @@ bool TCPLink::disconnect()
  *
  * @return True if connection has been established, false if connection couldn't be established.
  **/
-bool TCPLink::connect()
+bool TCPLink::_connect(void)
 {
 	if (isRunning())
 	{
@@ -245,7 +232,7 @@ bool TCPLink::_hardwareConnect(void)
         // Whether a failed connection emits an error signal or not is platform specific.
         // So in cases where it is not emitted, we emit one ourselves.
         if (errorSpy.count() == 0) {
-            emit communicationError(getName(), "Connection failed");
+            emit communicationError(tr("Link Error"), QString("Error on link %1. Connection failed").arg(getName()));
         }
         delete _socket;
         _socket = NULL;
@@ -253,7 +240,6 @@ bool TCPLink::_hardwareConnect(void)
     }
     
     _socketIsConnected = true;
-    emit connected(true);
     emit connected();
 
     return true;
@@ -262,7 +248,7 @@ bool TCPLink::_hardwareConnect(void)
 void TCPLink::_socketError(QAbstractSocket::SocketError socketError)
 {
     Q_UNUSED(socketError);
-    emit communicationError(getName(), "Error on socket: " + _socket->errorString());
+    emit communicationError(tr("Link Error"), QString("Error on link %1. Error on socket: %2.").arg(getName()).arg(_socket->errorString()));
 }
 
 /**

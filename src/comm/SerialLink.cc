@@ -15,14 +15,13 @@
 #include <QSerialPort>
 #include <QSerialPortInfo>
 #include "SerialLink.h"
-#include "LinkManager.h"
 #include "QGC.h"
 #include <MG.h>
 
 SerialLink::SerialLink(QString portname, int baudRate, bool hardwareFlowControl, bool parity,
                        int dataBits, int stopBits) :
     m_bytesRead(0),
-    m_port(NULL),
+    m_port(Q_NULLPTR),
     type(""),
     m_is_cdc(true),
     m_stopp(false),
@@ -34,9 +33,10 @@ SerialLink::SerialLink(QString portname, int baudRate, bool hardwareFlowControl,
 
     // Get the name of the current port in use.
     m_portName = portname.trimmed();
-    if (m_portName == "" && getCurrentPorts().size() > 0)
+    QList<QString> ports = getCurrentPorts();
+    if (m_portName == "" && ports.size() > 0)
     {
-        m_portName = m_ports.first().trimmed();
+        m_portName = ports.first().trimmed();
     }
 
     checkIfCDC();
@@ -71,9 +71,6 @@ SerialLink::SerialLink(QString portname, int baudRate, bool hardwareFlowControl,
     qDebug() << "create SerialLink " << portname << baudRate << hardwareFlowControl
              << parity << dataBits << stopBits;
     qDebug() << "m_portName " << m_portName;
-
-    LinkManager::instance()->add(this);
-    qDebug() << "link added to link manager";
 }
 
 void SerialLink::requestReset()
@@ -84,7 +81,7 @@ void SerialLink::requestReset()
 
 SerialLink::~SerialLink()
 {
-    disconnect();
+    _disconnect();
     if(m_port) delete m_port;
     m_port = NULL;
 
@@ -96,15 +93,15 @@ SerialLink::~SerialLink()
 
 QList<QString> SerialLink::getCurrentPorts()
 {
-    m_ports.clear();
+    QList<QString> ports;
 
     QList<QSerialPortInfo> portList =  QSerialPortInfo::availablePorts();
     foreach (const QSerialPortInfo &info, portList)
     {
-        m_ports.append(info.portName());
+        ports.append(info.portName());
     }
 
-    return m_ports;
+    return ports;
 }
 
 bool SerialLink::isBootloader()
@@ -117,14 +114,16 @@ bool SerialLink::isBootloader()
 
     foreach (const QSerialPortInfo &info, portList)
     {
+        // XXX debug statements will be removed once we have 100% stable link reports
 //        qDebug() << "PortName    : " << info.portName()
 //                 << "Description : " << info.description();
 //        qDebug() << "Manufacturer: " << info.manufacturer();
 
        if (info.portName().trimmed() == this->m_portName.trimmed() &&
                (info.description().toLower().contains("bootloader") ||
-                info.description().toLower().contains("px4 bl"))) {
-           qDebug() << "BOOTLOADER FOUND";
+                info.description().toLower().contains("px4 bl") ||
+                info.description().toLower().contains("px4 fmu v1.6"))) {
+//           qDebug() << "BOOTLOADER FOUND";
            return true;
        }
     }
@@ -136,8 +135,7 @@ bool SerialLink::isBootloader()
 void SerialLink::loadSettings()
 {
     // Load defaults from settings
-    QSettings settings(QGC::ORG_NAME, QGC::APPNAME);
-    settings.sync();
+    QSettings settings;
     if (settings.contains("SERIALLINK_COMM_PORT"))
     {
         m_portName = settings.value("SERIALLINK_COMM_PORT").toString();
@@ -154,14 +152,13 @@ void SerialLink::loadSettings()
 void SerialLink::writeSettings()
 {
     // Store settings
-    QSettings settings(QGC::ORG_NAME, QGC::APPNAME);
+    QSettings settings;
     settings.setValue("SERIALLINK_COMM_PORT", getPortName());
     settings.setValue("SERIALLINK_COMM_BAUD", getBaudRateType());
     settings.setValue("SERIALLINK_COMM_PARITY", getParityType());
     settings.setValue("SERIALLINK_COMM_STOPBITS", getStopBits());
     settings.setValue("SERIALLINK_COMM_DATABITS", getDataBits());
     settings.setValue("SERIALLINK_COMM_FLOW_CONTROL", getFlowType());
-    settings.sync();
 }
 
 void SerialLink::checkIfCDC()
@@ -211,7 +208,7 @@ void SerialLink::run()
         if (m_port) {
             err = m_port->errorString();
         }
-        emit communicationError(getName(),"Error connecting: " + err);
+        _emitLinkError("Error connecting: " + err);
         return;
     }
 
@@ -232,18 +229,15 @@ void SerialLink::run()
         }
 
         // If there are too many errors on this link, disconnect.
-        if (isConnected() && (linkErrorCount > 100)) {
+        if (isConnected() && (linkErrorCount > 150)) {
             qDebug() << "linkErrorCount too high: re-connecting!";
             linkErrorCount = 0;
-            emit communicationUpdate(getName(), tr("Reconnecting on too many link errors"));
+            emit communicationUpdate(getName(), tr("Link timeout, not receiving any data, attempting reconnect"));
 
             if (m_port) {
                 m_port->close();
                 delete m_port;
                 m_port = NULL;
-
-                emit disconnected();
-                emit connected(false);
             }
 
             QGC::SLEEP::msleep(500);
@@ -266,10 +260,11 @@ void SerialLink::run()
         if (m_transmitBuffer.count() > 0) {
             m_writeMutex.lock();
             int numWritten = m_port->write(m_transmitBuffer);
-            bool txSuccess = m_port->waitForBytesWritten(5);
+            bool txSuccess = m_port->flush();
+            txSuccess |= m_port->waitForBytesWritten(10);
             if (!txSuccess || (numWritten != m_transmitBuffer.count())) {
                 linkErrorCount++;
-                qDebug() << "TX Error! wrote" << numWritten << ", asked for " << m_transmitBuffer.count() << "bytes";
+                qDebug() << "TX Error! written:" << txSuccess << "wrote" << numWritten << ", asked for " << m_transmitBuffer.count() << "bytes";
             }
             else {
 
@@ -290,7 +285,7 @@ void SerialLink::run()
         //wait n msecs for data to be ready
         //[TODO][BB] lower to SerialLink::poll_interval?
         m_dataMutex.lock();
-        bool success = m_port->waitForReadyRead(10);
+        bool success = m_port->waitForReadyRead(20);
 
         if (success) {
             QByteArray readData = m_port->readAll();
@@ -340,9 +335,6 @@ void SerialLink::run()
         m_port->close();
         delete m_port;
         m_port = NULL;
-
-        emit disconnected();
-        emit connected(false);
     }
 }
 
@@ -356,7 +348,7 @@ void SerialLink::writeBytes(const char* data, qint64 size)
         m_writeMutex.unlock();
     } else {
         // Error occured
-        emit communicationError(getName(), tr("Could not send data - link %1 is disconnected!").arg(getName()));
+        _emitLinkError(tr("Could not send data - link %1 is disconnected!").arg(getName()));
     }
 }
 
@@ -386,27 +378,12 @@ void SerialLink::readBytes()
     }
 }
 
-
-/**
- * @brief Get the number of bytes to read.
- *
- * @return The number of bytes to read
- **/
-qint64 SerialLink::bytesAvailable()
-{
-    if (m_port) {
-        return m_port->bytesAvailable();
-    } else {
-        return 0;
-    }
-}
-
 /**
  * @brief Disconnect the connection.
  *
  * @return True if connection has been disconnected, false if connection couldn't be disconnected.
  **/
-bool SerialLink::disconnect()
+bool SerialLink::_disconnect(void)
 {
     if (isRunning())
     {
@@ -430,11 +407,11 @@ bool SerialLink::disconnect()
  *
  * @return True if connection has been established, false if connection couldn't be established.
  **/
-bool SerialLink::connect()
+bool SerialLink::_connect(void)
 {   
     qDebug() << "CONNECT CALLED";
     if (isRunning())
-        disconnect();
+        _disconnect();
     {
         QMutexLocker locker(&this->m_stoppMutex);
         m_stopp = false;
@@ -445,12 +422,12 @@ bool SerialLink::connect()
 }
 
 /**
- * @brief This function is called indirectly by the connect() call.
+ * @brief This function is called indirectly by the _connect() call.
  *
- * The connect() function starts the thread and indirectly calls this method.
+ * The _connect() function starts the thread and indirectly calls this method.
  *
  * @return True if the connection could be established, false otherwise
- * @see connect() For the right function to establish the connection.
+ * @see _connect() For the right function to establish the connection.
  **/
 bool SerialLink::hardwareConnect(QString &type)
 {
@@ -493,7 +470,9 @@ bool SerialLink::hardwareConnect(QString &type)
         return false; // couldn't create serial port.
     }
 
-    QObject::connect(m_port,SIGNAL(aboutToClose()),this,SIGNAL(disconnected()));
+    // We need to catch this signal and then emit disconnected. You can't connect
+    // signal to signal otherwise disonnected will have the wrong QObject::Sender
+    QObject::connect(m_port, SIGNAL(aboutToClose()), this, SLOT(_rerouteDisconnected()));
     QObject::connect(m_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(linkError(QSerialPort::SerialPortError)));
 
     checkIfCDC();
@@ -520,7 +499,6 @@ bool SerialLink::hardwareConnect(QString &type)
     emit communicationUpdate(getName(),"Opened port!");
 
     emit connected();
-    emit connected(true);
 
     qDebug() << "CONNECTING LINK: " << __FILE__ << __LINE__ << "type:" << type << "with settings" << m_port->portName()
              << getBaudRate() << getDataBits() << getParityType() << getStopBits();
@@ -918,4 +896,16 @@ bool SerialLink::setStopBitsType(int stopBits)
         emit updateLink(this);
     }
     return accepted;
+}
+
+void SerialLink::_rerouteDisconnected(void)
+{
+    emit disconnected();
+}
+
+void SerialLink::_emitLinkError(const QString& errorMsg)
+{
+    QString msg("Error on link %1. %2");
+    
+    emit communicationError(tr("Link Error"), msg.arg(getName()).arg(errorMsg));
 }

@@ -19,6 +19,12 @@
 
 message(Qt version $$[QT_VERSION])
 
+# Load additional config flags from user_config.pri
+exists(user_config.pri):infile(user_config.pri, CONFIG) {
+    CONFIG += $$fromfile(user_config.pri, CONFIG)
+    message($$sprintf("Using user-supplied additional config: '%1' specified in user_config.pri", $$fromfile(user_config.pri, CONFIG)))
+}
+
 # Setup our supported build types. We do this once here and then use the defined config scopes
 # to allow us to easily modify suported build types in one place instead of duplicated throughout
 # the project file.
@@ -30,7 +36,7 @@ message(Qt version $$[QT_VERSION])
 linux {
     linux-g++ | linux-g++-64 {
         message("Linux build")
-        CONFIG += LinuxBuild
+        CONFIG += LinuxBuild link_pkgconfig
     } else {
         error("Unsuported Linux toolchain, only GCC 32- or 64-bit is supported")
     }
@@ -105,15 +111,23 @@ QT += network \
     opengl \
     svg \
     xml \
-    webkit \
     concurrent \
     widgets \
     gui \
     serialport \
     sql \
     printsupport \
-    webkitwidgets \
-    quick
+    quick \
+    quickwidgets
+
+contains(DEFINES, QGC_NOTIFY_TUNES_ENABLED) {
+    QT += multimedia
+}
+
+!contains(DEFINES, DISABLE_GOOGLE_EARTH) {
+    QT += webkit webkitwidgets
+}
+
 
 #  testlib is needed even in release flavor for QSignalSpy support
 QT += testlib
@@ -130,12 +144,14 @@ MacBuild {
     CONFIG += x86_64
     CONFIG -= x86
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.6
+    QMAKE_MAC_SDK = macosx10.9
     ICON = $$BASEDIR/files/images/icons/macx.icns
     QT += quickwidgets
 }
 
 LinuxBuild {
 	DEFINES += __STDC_LIMIT_MACROS
+    CONFIG += qesp_linux_udev
 }
 
 WindowsBuild {
@@ -192,6 +208,10 @@ ReleaseBuild {
     }
 }
 
+# qextserialport should not be used by general QGroundControl code. Use QSerialPort instead. This is only
+# here to support special case Firmware Upgrade code.
+include(libs/qextserialport/src/qextserialport.pri)
+
 #
 # External library configuration
 #
@@ -234,17 +254,20 @@ INCLUDEPATH += \
     src/ui/map \
     src/uas \
     src/comm \
+    src/audio \
     include/ui \
     src/input \
     src/lib/qmapcontrol \
     src/ui/mavlink \
     src/ui/param \
-    src/ui/watchdog \
     src/ui/map3D \
     src/ui/mission \
     src/ui/designer \
     src/ui/configuration \
-    src/ui/main
+    src/ui/px4_configuration \
+    src/ui/main \
+    src/VehicleSetup \
+    src/AutoPilotPlugins
 
 FORMS += \
     src/ui/MainWindow.ui \
@@ -257,29 +280,21 @@ FORMS += \
     src/ui/UASView.ui \
     src/ui/ParameterInterface.ui \
     src/ui/WaypointList.ui \
-    src/ui/ObjectDetectionView.ui \
     src/ui/JoystickWidget.ui \
     src/ui/DebugConsole.ui \
     src/ui/HDDisplay.ui \
     src/ui/MAVLinkSettingsWidget.ui \
     src/ui/AudioOutputWidget.ui \
     src/ui/QGCSensorSettingsWidget.ui \
-    src/ui/watchdog/WatchdogControl.ui \
-    src/ui/watchdog/WatchdogProcessView.ui \
-    src/ui/watchdog/WatchdogView.ui \
-    src/ui/QGCFirmwareUpdate.ui \
-    src/ui/QGCPxImuFirmwareUpdate.ui \
     src/ui/QGCDataPlot2D.ui \
-    src/ui/QGCRemoteControlView.ui \
     src/ui/QMap3D.ui \
-    src/ui/QGCWebView.ui \
     src/ui/map3D/QGCGoogleEarthView.ui \
     src/ui/uas/QGCUnconnectedInfoWidget.ui \
     src/ui/designer/QGCToolWidget.ui \
     src/ui/designer/QGCParamSlider.ui \
     src/ui/designer/QGCActionButton.ui \
     src/ui/designer/QGCCommandButton.ui \
-    src/ui/designer/QGCComboBox.ui \
+    src/ui/designer/QGCToolWidgetComboBox.ui \
     src/ui/designer/QGCTextLabel.ui \
     src/ui/designer/QGCXYPlot.ui \
     src/ui/QGCMAVLinkLogPlayer.ui \
@@ -287,17 +302,14 @@ FORMS += \
     src/ui/QGCUASFileViewMulti.ui \
     src/ui/QGCUDPLinkConfiguration.ui \
     src/ui/QGCTCPLinkConfiguration.ui \
-    src/ui/QGCSettingsWidget.ui \
-    src/ui/UASControlParameters.ui \
+    src/ui/SettingsDialog.ui \
     src/ui/map/QGCMapTool.ui \
     src/ui/map/QGCMapToolBar.ui \
     src/ui/QGCMAVLinkInspector.ui \
     src/ui/WaypointViewOnlyView.ui \
     src/ui/WaypointEditableView.ui \
     src/ui/mavlink/QGCMAVLinkMessageSender.ui \
-    src/ui/firmwareupdate/QGCFirmwareUpdateWidget.ui \
     src/ui/QGCPluginHost.ui \
-    src/ui/firmwareupdate/QGCPX4FirmwareUpdate.ui \
     src/ui/mission/QGCMissionOther.ui \
     src/ui/mission/QGCMissionNavWaypoint.ui \
     src/ui/mission/QGCMissionDoJump.ui \
@@ -311,62 +323,33 @@ FORMS += \
     src/ui/mission/QGCMissionNavSweep.ui \
     src/ui/mission/QGCMissionDoStartSearch.ui \
     src/ui/mission/QGCMissionDoFinishSearch.ui \
-    src/ui/QGCVehicleConfig.ui \
-    src/ui/QGCPX4VehicleConfig.ui \
     src/ui/QGCHilConfiguration.ui \
     src/ui/QGCHilFlightGearConfiguration.ui \
     src/ui/QGCHilJSBSimConfiguration.ui \
     src/ui/QGCHilXPlaneConfiguration.ui \
     src/ui/uas/UASQuickView.ui \
     src/ui/uas/UASQuickViewItemSelect.ui \
-    src/ui/uas/UASActionsWidget.ui \
     src/ui/QGCTabbedInfoView.ui \
     src/ui/UASRawStatusView.ui \
     src/ui/uas/QGCMessageView.ui \
     src/ui/JoystickButton.ui \
     src/ui/JoystickAxis.ui \
-    src/ui/configuration/ApmHardwareConfig.ui \
-    src/ui/configuration/ApmSoftwareConfig.ui \
-    src/ui/configuration/FrameTypeConfig.ui \
-    src/ui/configuration/CompassConfig.ui \
-    src/ui/configuration/AccelCalibrationConfig.ui \
-    src/ui/configuration/RadioCalibrationConfig.ui \
-    src/ui/configuration/FlightModeConfig.ui \
-    src/ui/configuration/Radio3DRConfig.ui \
-    src/ui/configuration/BatteryMonitorConfig.ui \
-    src/ui/configuration/SonarConfig.ui \
-    src/ui/configuration/AirspeedConfig.ui \
-    src/ui/configuration/OpticalFlowConfig.ui \
-    src/ui/configuration/OsdConfig.ui \
-    src/ui/configuration/AntennaTrackerConfig.ui \
-    src/ui/configuration/CameraGimbalConfig.ui \
-    src/ui/configuration/BasicPidConfig.ui \
-    src/ui/configuration/StandardParamConfig.ui \
-    src/ui/configuration/GeoFenceConfig.ui \
-    src/ui/configuration/FailSafeConfig.ui \
-    src/ui/configuration/AdvancedParamConfig.ui \
-    src/ui/configuration/ArduCopterPidConfig.ui \
-    src/ui/configuration/ApmPlaneLevel.ui \
-    src/ui/configuration/ParamWidget.ui \
-    src/ui/configuration/ArduPlanePidConfig.ui \
-    src/ui/configuration/AdvParameterList.ui \
-    src/ui/configuration/ArduRoverPidConfig.ui \
-    src/ui/QGCConfigView.ui \
-    src/ui/main/QGCViewModeSelection.ui \
-    src/ui/main/QGCWelcomeMainWindow.ui \
     src/ui/configuration/terminalconsole.ui \
     src/ui/configuration/SerialSettingsDialog.ui \
-    src/ui/configuration/ApmFirmwareConfig.ui \
     src/ui/px4_configuration/QGCPX4AirframeConfig.ui \
     src/ui/px4_configuration/QGCPX4MulticopterConfig.ui \
     src/ui/px4_configuration/QGCPX4SensorCalibration.ui \
     src/ui/px4_configuration/PX4RCCalibration.ui \
     src/ui/QGCUASFileView.ui \
     src/ui/QGCSwarmRemote.ui
+    src/ui/px4_configuration/PX4FirmwareUpgrade.ui \
+    src/ui/QGCUASFileView.ui \
+    src/QGCQmlWidgetHolder.ui \
 
 HEADERS += \
     src/MG.h \
-    src/QGCCore.h \
+    src/QGCApplication.h \
+    src/QGCSingleton.h \
     src/uas/UASInterface.h \
     src/uas/UAS.h \
     src/uas/UASManager.h \
@@ -399,7 +382,6 @@ HEADERS += \
     src/ui/ParameterInterface.h \
     src/ui/WaypointList.h \
     src/Waypoint.h \
-    src/ui/ObjectDetectionView.h \
     src/input/JoystickInput.h \
     src/ui/JoystickWidget.h \
     src/ui/DebugConsole.h \
@@ -411,29 +393,12 @@ HEADERS += \
     src/ui/QGCParamWidget.h \
     src/ui/QGCSensorSettingsWidget.h \
     src/ui/linechart/Linecharts.h \
-    src/uas/PxQuadMAV.h \
-    src/uas/ArduPilotMegaMAV.h \
-    src/uas/senseSoarMAV.h \
-    src/ui/watchdog/WatchdogControl.h \
-    src/ui/watchdog/WatchdogProcessView.h \
-    src/ui/watchdog/WatchdogView.h \
     src/uas/UASWaypointManager.h \
     src/ui/HSIDisplay.h \
     src/QGC.h \
-    src/ui/QGCFirmwareUpdate.h \
-    src/ui/QGCPxImuFirmwareUpdate.h \
     src/ui/QGCDataPlot2D.h \
     src/ui/linechart/IncrementalPlot.h \
-    src/ui/QGCRemoteControlView.h \
-    src/ui/RadioCalibration/RadioCalibrationData.h \
-    src/ui/RadioCalibration/RadioCalibrationWindow.h \
-    src/ui/RadioCalibration/AirfoilServoCalibrator.h \
-    src/ui/RadioCalibration/SwitchCalibrator.h \
-    src/ui/RadioCalibration/CurveCalibrator.h \
-    src/ui/RadioCalibration/AbstractCalibrator.h \
     src/comm/QGCMAVLink.h \
-    src/ui/QGCWebView.h \
-    src/ui/map3D/QGCWebPage.h \
     src/ui/QGCMainWindowAPConfigurator.h \
     src/comm/MAVLinkSwarmSimulationLink.h \
     src/ui/uas/QGCUnconnectedInfoWidget.h \
@@ -441,7 +406,7 @@ HEADERS += \
     src/ui/designer/QGCParamSlider.h \
     src/ui/designer/QGCCommandButton.h \
     src/ui/designer/QGCToolWidgetItem.h \
-    src/ui/designer/QGCComboBox.h \
+    src/ui/designer/QGCToolWidgetComboBox.h \
     src/ui/designer/QGCTextLabel.h \
     src/ui/designer/QGCRadioChannelDisplay.h \
     src/ui/designer/QGCXYPlot.h \
@@ -454,8 +419,7 @@ HEADERS += \
     src/ui/QGCUASFileViewMulti.h \
     src/ui/QGCUDPLinkConfiguration.h \
     src/ui/QGCTCPLinkConfiguration.h \
-    src/ui/QGCSettingsWidget.h \
-    src/ui/uas/UASControlParameters.h \
+    src/ui/SettingsDialog.h \
     src/uas/QGCUASParamManager.h \
     src/ui/map/QGCMapWidget.h \
     src/ui/map/MAV2DIcon.h \
@@ -464,16 +428,13 @@ HEADERS += \
     src/ui/map/QGCMapToolBar.h \
     src/QGCGeo.h \
     src/ui/QGCToolBar.h \
-    src/ui/QGCStatusBar.h \
     src/ui/QGCMAVLinkInspector.h \
     src/ui/MAVLinkDecoder.h \
     src/ui/WaypointViewOnlyView.h \
     src/ui/WaypointEditableView.h \
     src/ui/QGCRGBDView.h \
     src/ui/mavlink/QGCMAVLinkMessageSender.h \
-    src/ui/firmwareupdate/QGCFirmwareUpdateWidget.h \
     src/ui/QGCPluginHost.h \
-    src/ui/firmwareupdate/QGCPX4FirmwareUpdate.h \
     src/ui/mission/QGCMissionOther.h \
     src/ui/mission/QGCMissionNavWaypoint.h \
     src/ui/mission/QGCMissionDoJump.h \
@@ -487,8 +448,6 @@ HEADERS += \
     src/ui/mission/QGCMissionNavSweep.h \
     src/ui/mission/QGCMissionDoStartSearch.h \
     src/ui/mission/QGCMissionDoFinishSearch.h \
-    src/ui/QGCVehicleConfig.h \
-    src/ui/QGCPX4VehicleConfig.h \
     src/comm/QGCHilLink.h \
     src/ui/QGCHilConfiguration.h \
     src/ui/QGCHilFlightGearConfiguration.h \
@@ -501,49 +460,16 @@ HEADERS += \
     src/ui/uas/UASQuickViewItemSelect.h \
     src/ui/uas/UASQuickViewTextItem.h \
     src/ui/uas/UASQuickViewGaugeItem.h \
-    src/ui/uas/UASActionsWidget.h \
     src/ui/QGCTabbedInfoView.h \
     src/ui/UASRawStatusView.h \
     src/ui/PrimaryFlightDisplay.h \
     src/ui/uas/QGCMessageView.h \
     src/ui/JoystickButton.h \
     src/ui/JoystickAxis.h \
-    src/ui/configuration/ApmHardwareConfig.h \
-    src/ui/configuration/ApmSoftwareConfig.h \
-    src/ui/configuration/FrameTypeConfig.h \
-    src/ui/configuration/CompassConfig.h \
-    src/ui/configuration/AccelCalibrationConfig.h \
-    src/ui/configuration/RadioCalibrationConfig.h \
-    src/ui/configuration/FlightModeConfig.h \
-    src/ui/configuration/Radio3DRConfig.h \
-    src/ui/configuration/BatteryMonitorConfig.h \
-    src/ui/configuration/SonarConfig.h \
-    src/ui/configuration/AirspeedConfig.h \
-    src/ui/configuration/OpticalFlowConfig.h \
-    src/ui/configuration/OsdConfig.h \
-    src/ui/configuration/AntennaTrackerConfig.h \
-    src/ui/configuration/CameraGimbalConfig.h \
-    src/ui/configuration/AP2ConfigWidget.h \
-    src/ui/configuration/BasicPidConfig.h \
-    src/ui/configuration/StandardParamConfig.h \
-    src/ui/configuration/GeoFenceConfig.h \
-    src/ui/configuration/FailSafeConfig.h \
-    src/ui/configuration/AdvancedParamConfig.h \
-    src/ui/configuration/ArduCopterPidConfig.h \
-    src/ui/apmtoolbar.h \
-    src/ui/configuration/ApmPlaneLevel.h \
-    src/ui/configuration/ParamWidget.h \
-    src/ui/configuration/ArduPlanePidConfig.h \
-    src/ui/configuration/AdvParameterList.h \
-    src/ui/configuration/ArduRoverPidConfig.h \
-    src/ui/QGCConfigView.h \
-    src/ui/main/QGCViewModeSelection.h \
-    src/ui/main/QGCWelcomeMainWindow.h \
     src/ui/configuration/console.h \
     src/ui/configuration/SerialSettingsDialog.h \
     src/ui/configuration/terminalconsole.h \
     src/ui/configuration/ApmHighlighter.h \
-    src/ui/configuration/ApmFirmwareConfig.h \
     src/uas/UASParameterDataModel.h \
     src/uas/UASParameterCommsMgr.h \
     src/ui/QGCPendingParamWidget.h \
@@ -552,19 +478,31 @@ HEADERS += \
     src/ui/px4_configuration/QGCPX4MulticopterConfig.h \
     src/ui/px4_configuration/QGCPX4SensorCalibration.h \
     src/ui/px4_configuration/PX4RCCalibration.h \
+    src/ui/px4_configuration/RCValueWidget.h \
+    src/ui/px4_configuration/PX4Bootloader.h \
+    src/ui/px4_configuration/PX4FirmwareUpgradeThread.h \
+    src/ui/px4_configuration/PX4FirmwareUpgrade.h \
     src/ui/menuactionhelper.h \
     src/uas/UASManagerInterface.h \
     src/uas/QGCUASParamManagerInterface.h \
     src/uas/QGCUASFileManager.h \
     src/ui/QGCUASFileView.h \
-    src/uas/QGCUASWorker.h \
     src/CmdLineOptParser.h \
     src/uas/QGXPX4UAS.h \
     src/ui/QGCSwarmRemote.h
+    src/QGCFileDialog.h \
+    src/QGCMessageBox.h \
+    src/QGCComboBox.h \
+    src/QGCTemporaryFile.h \
+    src/audio/QGCAudioWorker.h \
+    src/QGCQuickWidget.h \
+    src/QGCPalette.h \
+    src/QGCQmlWidgetHolder.h \
 
 SOURCES += \
     src/main.cc \
-    src/QGCCore.cc \
+    src/QGCApplication.cc \
+    src/QGCSingleton.cc \
     src/uas/UASManager.cc \
     src/uas/UAS.cc \
     src/comm/LinkManager.cc \
@@ -592,7 +530,6 @@ SOURCES += \
     src/ui/ParameterInterface.cc \
     src/ui/WaypointList.cc \
     src/Waypoint.cc \
-    src/ui/ObjectDetectionView.cc \
     src/input/JoystickInput.cc \
     src/ui/JoystickWidget.cc \
     src/ui/DebugConsole.cc \
@@ -604,28 +541,11 @@ SOURCES += \
     src/ui/QGCParamWidget.cc \
     src/ui/QGCSensorSettingsWidget.cc \
     src/ui/linechart/Linecharts.cc \
-    src/uas/PxQuadMAV.cc \
-    src/uas/ArduPilotMegaMAV.cc \
-    src/uas/senseSoarMAV.cpp \
-    src/ui/watchdog/WatchdogControl.cc \
-    src/ui/watchdog/WatchdogProcessView.cc \
-    src/ui/watchdog/WatchdogView.cc \
     src/uas/UASWaypointManager.cc \
     src/ui/HSIDisplay.cc \
     src/QGC.cc \
-    src/ui/QGCFirmwareUpdate.cc \
-    src/ui/QGCPxImuFirmwareUpdate.cc \
     src/ui/QGCDataPlot2D.cc \
     src/ui/linechart/IncrementalPlot.cc \
-    src/ui/QGCRemoteControlView.cc \
-    src/ui/RadioCalibration/RadioCalibrationWindow.cc \
-    src/ui/RadioCalibration/AirfoilServoCalibrator.cc \
-    src/ui/RadioCalibration/SwitchCalibrator.cc \
-    src/ui/RadioCalibration/CurveCalibrator.cc \
-    src/ui/RadioCalibration/AbstractCalibrator.cc \
-    src/ui/RadioCalibration/RadioCalibrationData.cc \
-    src/ui/QGCWebView.cc \
-    src/ui/map3D/QGCWebPage.cc \
     src/ui/QGCMainWindowAPConfigurator.cc \
     src/comm/MAVLinkSwarmSimulationLink.cc \
     src/ui/uas/QGCUnconnectedInfoWidget.cc \
@@ -633,7 +553,7 @@ SOURCES += \
     src/ui/designer/QGCParamSlider.cc \
     src/ui/designer/QGCCommandButton.cc \
     src/ui/designer/QGCToolWidgetItem.cc \
-    src/ui/designer/QGCComboBox.cc \
+    src/ui/designer/QGCToolWidgetComboBox.cc \
     src/ui/designer/QGCTextLabel.cc \
     src/ui/designer/QGCRadioChannelDisplay.cpp \
     src/ui/designer/QGCXYPlot.cc \
@@ -646,8 +566,7 @@ SOURCES += \
     src/ui/QGCUASFileViewMulti.cc \
     src/ui/QGCUDPLinkConfiguration.cc \
     src/ui/QGCTCPLinkConfiguration.cc \
-    src/ui/QGCSettingsWidget.cc \
-    src/ui/uas/UASControlParameters.cpp \
+    src/ui/SettingsDialog.cc \
     src/uas/QGCUASParamManager.cc \
     src/ui/map/QGCMapWidget.cc \
     src/ui/map/MAV2DIcon.cc \
@@ -655,16 +574,13 @@ SOURCES += \
     src/ui/map/QGCMapTool.cc \
     src/ui/map/QGCMapToolBar.cc \
     src/ui/QGCToolBar.cc \
-    src/ui/QGCStatusBar.cc \
     src/ui/QGCMAVLinkInspector.cc \
     src/ui/MAVLinkDecoder.cc \
     src/ui/WaypointViewOnlyView.cc \
     src/ui/WaypointEditableView.cc \
     src/ui/QGCRGBDView.cc \
     src/ui/mavlink/QGCMAVLinkMessageSender.cc \
-    src/ui/firmwareupdate/QGCFirmwareUpdateWidget.cc \
     src/ui/QGCPluginHost.cc \
-    src/ui/firmwareupdate/QGCPX4FirmwareUpdate.cc \
     src/ui/mission/QGCMissionOther.cc \
     src/ui/mission/QGCMissionNavWaypoint.cc \
     src/ui/mission/QGCMissionDoJump.cc \
@@ -678,8 +594,6 @@ SOURCES += \
     src/ui/mission/QGCMissionNavSweep.cc \
     src/ui/mission/QGCMissionDoStartSearch.cc \
     src/ui/mission/QGCMissionDoFinishSearch.cc \
-    src/ui/QGCVehicleConfig.cc \
-    src/ui/QGCPX4VehicleConfig.cc \
     src/ui/QGCHilConfiguration.cc \
     src/ui/QGCHilFlightGearConfiguration.cc \
     src/ui/QGCHilJSBSimConfiguration.cc \
@@ -691,49 +605,16 @@ SOURCES += \
     src/ui/uas/UASQuickViewTextItem.cc \
     src/ui/uas/UASQuickViewGaugeItem.cc \
     src/ui/uas/UASQuickViewItemSelect.cc \
-    src/ui/uas/UASActionsWidget.cpp \
     src/ui/QGCTabbedInfoView.cpp \
     src/ui/UASRawStatusView.cpp \
     src/ui/PrimaryFlightDisplay.cc \
     src/ui/JoystickButton.cc \
     src/ui/JoystickAxis.cc \
     src/ui/uas/QGCMessageView.cc \
-    src/ui/configuration/ApmHardwareConfig.cc \
-    src/ui/configuration/ApmSoftwareConfig.cc \
-    src/ui/configuration/FrameTypeConfig.cc \
-    src/ui/configuration/CompassConfig.cc \
-    src/ui/configuration/AccelCalibrationConfig.cc \
-    src/ui/configuration/RadioCalibrationConfig.cc \
-    src/ui/configuration/FlightModeConfig.cc \
-    src/ui/configuration/Radio3DRConfig.cc \
-    src/ui/configuration/BatteryMonitorConfig.cc \
-    src/ui/configuration/SonarConfig.cc \
-    src/ui/configuration/AirspeedConfig.cc \
-    src/ui/configuration/OpticalFlowConfig.cc \
-    src/ui/configuration/OsdConfig.cc \
-    src/ui/configuration/AntennaTrackerConfig.cc \
-    src/ui/configuration/CameraGimbalConfig.cc \
-    src/ui/configuration/AP2ConfigWidget.cc \
-    src/ui/configuration/BasicPidConfig.cc \
-    src/ui/configuration/StandardParamConfig.cc \
-    src/ui/configuration/GeoFenceConfig.cc \
-    src/ui/configuration/FailSafeConfig.cc \
-    src/ui/configuration/AdvancedParamConfig.cc \
-    src/ui/configuration/ArduCopterPidConfig.cc \
-    src/ui/apmtoolbar.cpp \
-    src/ui/configuration/ApmPlaneLevel.cc \
-    src/ui/configuration/ParamWidget.cc \
-    src/ui/configuration/ArduPlanePidConfig.cc \
-    src/ui/configuration/AdvParameterList.cc \
-    src/ui/configuration/ArduRoverPidConfig.cc \
-    src/ui/QGCConfigView.cc \
-    src/ui/main/QGCViewModeSelection.cc \
-    src/ui/main/QGCWelcomeMainWindow.cc \
     src/ui/configuration/terminalconsole.cpp \
     src/ui/configuration/console.cpp \
     src/ui/configuration/SerialSettingsDialog.cc \
     src/ui/configuration/ApmHighlighter.cc \
-    src/ui/configuration/ApmFirmwareConfig.cc \
     src/uas/UASParameterDataModel.cc \
     src/uas/UASParameterCommsMgr.cc \
     src/ui/QGCPendingParamWidget.cc \
@@ -742,13 +623,23 @@ SOURCES += \
     src/ui/px4_configuration/QGCPX4MulticopterConfig.cc \
     src/ui/px4_configuration/QGCPX4SensorCalibration.cc \
     src/ui/px4_configuration/PX4RCCalibration.cc \
+    src/ui/px4_configuration/RCValueWidget.cc \
+    src/ui/px4_configuration/PX4Bootloader.cc \
+    src/ui/px4_configuration/PX4FirmwareUpgradeThread.cc \
+    src/ui/px4_configuration/PX4FirmwareUpgrade.cc \
     src/ui/menuactionhelper.cpp \
     src/uas/QGCUASFileManager.cc \
     src/ui/QGCUASFileView.cc \
-    src/uas/QGCUASWorker.cc \
     src/CmdLineOptParser.cc \
     src/uas/QGXPX4UAS.cc \
     src/ui/QGCSwarmRemote.cpp
+    src/QGCFileDialog.cc \
+    src/QGCComboBox.cc \
+    src/QGCTemporaryFile.cc \
+    src/audio/QGCAudioWorker.cpp \
+    src/QGCQuickWidget.cc \
+    src/QGCPalette.cc \
+    src/QGCQmlWidgetHolder.cpp \
 
 #
 # Unit Test specific configuration goes here
@@ -761,37 +652,124 @@ SOURCES += \
 
 DebugBuild|WindowsDebugAndRelease {
 
+DEFINES += UNITTEST_BUILD
+
 INCLUDEPATH += \
 	src/qgcunittest
 
 HEADERS += \
-	src/qgcunittest/AutoTest.h \
-	src/qgcunittest/UASUnitTest.h \
+    src/qgcunittest/UnitTest.h \
+    src/qgcunittest/MessageBoxTest.h \
+    src/qgcunittest/FileDialogTest.h \
+    src/qgcunittest/MockLink.h \
+    src/qgcunittest/MockLinkMissionItemHandler.h \
 	src/qgcunittest/MockUASManager.h \
 	src/qgcunittest/MockUAS.h \
 	src/qgcunittest/MockQGCUASParamManager.h \
 	src/qgcunittest/MockMavlinkInterface.h \
 	src/qgcunittest/MockMavlinkFileServer.h \
 	src/qgcunittest/MultiSignalSpy.h \
-	src/qgcunittest/FlightModeConfigTest.h \
 	src/qgcunittest/FlightGearTest.h \
 	src/qgcunittest/TCPLinkTest.h \
 	src/qgcunittest/TCPLoopBackServer.h \
 	src/qgcunittest/QGCUASFileManagerTest.h \
-    src/qgcunittest/PX4RCCalibrationTest.h
+    src/qgcunittest/PX4RCCalibrationTest.h \
+    src/qgcunittest/LinkManagerTest.h \
+    src/qgcunittest/MainWindowTest.h \
+    src/AutoPilotPlugins/PX4/Tests/FlightModeConfigTest.h \
+    src/qgcunittest/MavlinkLogTest.h \
+    src/FactSystem/FactSystemTestBase.h \
+    src/FactSystem/FactSystemTestPX4.h \
+    src/FactSystem/FactSystemTestGeneric.h
 
 SOURCES += \
-	src/qgcunittest/UASUnitTest.cc \
+    src/qgcunittest/UnitTest.cc \
+    src/qgcunittest/MessageBoxTest.cc \
+    src/qgcunittest/FileDialogTest.cc \
+    src/qgcunittest/MockLink.cc \
+    src/qgcunittest/MockLinkMissionItemHandler.cc \
 	src/qgcunittest/MockUASManager.cc \
 	src/qgcunittest/MockUAS.cc \
 	src/qgcunittest/MockQGCUASParamManager.cc \
 	src/qgcunittest/MockMavlinkFileServer.cc \
 	src/qgcunittest/MultiSignalSpy.cc \
-	src/qgcunittest/FlightModeConfigTest.cc \
 	src/qgcunittest/FlightGearTest.cc \
 	src/qgcunittest/TCPLinkTest.cc \
 	src/qgcunittest/TCPLoopBackServer.cc \
 	src/qgcunittest/QGCUASFileManagerTest.cc \
-    src/qgcunittest/PX4RCCalibrationTest.cc
-
+    src/qgcunittest/PX4RCCalibrationTest.cc \
+    src/qgcunittest/LinkManagerTest.cc \
+    src/qgcunittest/MainWindowTest.cc \
+    src/AutoPilotPlugins/PX4/Tests/FlightModeConfigTest.cc \
+    src/qgcunittest/MavlinkLogTest.cc \
+    src/FactSystem/FactSystemTestBase.cc \
+    src/FactSystem/FactSystemTestPX4.cc \
+    src/FactSystem/FactSystemTestGeneric.cc
 }
+
+#
+# AutoPilot Plugin Support
+#
+FORMS += \
+    src/VehicleSetup/ParameterEditor.ui \
+    src/ui/QGCPX4VehicleConfig.ui \
+    src/AutoPilotPlugins/PX4/FlightModeConfig.ui \
+    src/VehicleSetup/SetupWidgetHolder.ui \
+
+HEADERS+= \
+    src/VehicleSetup/SetupView.h \
+    src/VehicleSetup/ParameterEditor.h \
+    src/VehicleSetup/VehicleComponent.h \
+    src/VehicleSetup/VehicleComponentSummaryItem.h \
+    src/AutoPilotPlugins/AutoPilotPluginManager.h \
+    src/AutoPilotPlugins/AutoPilotPlugin.h \
+    src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.h \
+    src/AutoPilotPlugins/Generic/GenericParameterFacts.h \
+    src/AutoPilotPlugins/PX4/PX4AutoPilotPlugin.h \
+    src/AutoPilotPlugins/PX4/PX4Component.h \
+    src/AutoPilotPlugins/PX4/RadioComponent.h \
+    src/AutoPilotPlugins/PX4/FlightModesComponent.h \
+    src/AutoPilotPlugins/PX4/FlightModeConfig.h \
+    src/AutoPilotPlugins/PX4/AirframeComponent.h \
+    src/AutoPilotPlugins/PX4/SensorsComponent.h \
+    src/AutoPilotPlugins/PX4/SafetyComponent.h \
+    src/AutoPilotPlugins/PX4/PX4ParameterFacts.h \
+    src/VehicleSetup/SetupWidgetHolder.h \
+
+SOURCES += \
+    src/VehicleSetup/SetupView.cc \
+    src/VehicleSetup/ParameterEditor.cc \
+    src/VehicleSetup/VehicleComponent.cc \
+    src/VehicleSetup/VehicleComponentSummaryItem.cc \
+    src/AutoPilotPlugins/AutoPilotPluginManager.cc \
+    src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.cc \
+    src/AutoPilotPlugins/Generic/GenericParameterFacts.cc \
+    src/AutoPilotPlugins/PX4/PX4AutoPilotPlugin.cc \
+    src/AutoPilotPlugins/PX4/PX4Component.cc \
+    src/AutoPilotPlugins/PX4/RadioComponent.cc \
+    src/AutoPilotPlugins/PX4/FlightModesComponent.cc \
+    src/AutoPilotPlugins/PX4/FlightModeConfig.cc \
+    src/AutoPilotPlugins/PX4/AirframeComponent.cc \
+    src/AutoPilotPlugins/PX4/SensorsComponent.cc \
+    src/AutoPilotPlugins/PX4/SafetyComponent.cc \
+    src/AutoPilotPlugins/PX4/PX4ParameterFacts.cc \
+    src/VehicleSetup/SetupWidgetHolder.cc \
+
+# Fact System code
+
+INCLUDEPATH += \
+    src/FactSystem
+
+HEADERS += \
+    src/FactSystem/FactSystem.h \
+    src/FactSystem/Fact.h \
+    src/FactSystem/FactMetaData.h \
+    src/FactSystem/FactValidator.h \
+    src/FactSystem/FactLoader.h \
+
+SOURCES += \
+    src/FactSystem/FactSystem.cc \
+    src/FactSystem/Fact.cc \
+    src/FactSystem/FactMetaData.cc \
+    src/FactSystem/FactValidator.cc \
+    src/FactSystem/FactLoader.cc \

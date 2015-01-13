@@ -159,8 +159,8 @@ void QGCUASFileManager::_listAckResponse(Request* listAck)
 
         // get the length of the name
         uint8_t cBytesLeft = cBytes - offset;
-        size_t nlen = strnlen(ptr, cBytesLeft);
-        if (nlen < 2) {
+        uint8_t nlen = static_cast<uint8_t>(strnlen(ptr, cBytesLeft));
+        if ((*ptr == 'S' && nlen > 1) || (*ptr != 'S' && nlen < 2)) {
             _currentOperation = kCOIdle;
             _emitErrorMessage(tr("Incorrectly formed list entry: '%1'").arg(ptr));
             return;
@@ -170,10 +170,12 @@ void QGCUASFileManager::_listAckResponse(Request* listAck)
             return;
         }
 
-        // Returned names are prepended with D for directory, F for file, U for unknown
+        // Returned names are prepended with D for directory, F for file, S for skip
         if (*ptr == 'F' || *ptr == 'D') {
             // put it in the view
             _emitListEntry(ptr);
+        } else if (*ptr == 'S') {
+            // do nothing
         } else {
             qDebug() << "unknown entry" << ptr;
         }
@@ -313,7 +315,7 @@ void QGCUASFileManager::listDirectory(const QString& dirPath)
 void QGCUASFileManager::_fillRequestWithString(Request* request, const QString& str)
 {
     strncpy((char *)&request->data[0], str.toStdString().c_str(), sizeof(request->data));
-    request->hdr.size = strnlen((const char *)&request->data[0], sizeof(request->data));
+    request->hdr.size = static_cast<uint8_t>(strnlen((const char *)&request->data[0], sizeof(request->data)));
 }
 
 void QGCUASFileManager::_sendListCommand(void)
@@ -479,7 +481,7 @@ void QGCUASFileManager::_sendRequest(Request* request)
     request->hdr.seqNumber = _lastOutgoingSeqNumber;
     
     if (_systemIdQGC == 0) {
-        _systemIdQGC = MainWindow::instance()->getMAVLink()->getSystemId();
+        _systemIdQGC = MAVLinkProtocol::instance()->getSystemId();
     }
     
     Q_ASSERT(_mav);

@@ -114,6 +114,7 @@ PrimaryFlightDisplay::PrimaryFlightDisplay(QWidget *parent) :
     heading(0),
 
     altitudeAMSL(std::numeric_limits<double>::quiet_NaN()),
+    altitudeWGS84(std::numeric_limits<double>::quiet_NaN()),
     altitudeRelative(std::numeric_limits<double>::quiet_NaN()),
 
     groundSpeed(std::numeric_limits<double>::quiet_NaN()),
@@ -453,7 +454,7 @@ void PrimaryFlightDisplay::drawTextCenterBottom (
     font.setPixelSize(pixelSize);
     painter.setFont(font);
 
-    QFontMetrics metrics = QFontMetrics(font);
+    QFontMetrics metrics(font);
     QRect bounds = metrics.boundingRect(text);
     int flags = Qt::AlignCenter;
     painter.drawText(x - bounds.width()/2, y, bounds.width(), bounds.height(), flags, text);
@@ -898,7 +899,7 @@ void PrimaryFlightDisplay::drawAltimeter(
     ) {
 
     float primaryAltitude = altitudeWGS84;
-    float secondaryAltitude = 0;
+    float secondaryAltitude = std::numeric_limits<double>::quiet_NaN();
 
     painter.resetTransform();
     fillInstrumentBackground(painter, area);

@@ -58,18 +58,6 @@ OpalLink::OpalLink() :
     QObject::connect(getSignalsTimer, SIGNAL(timeout()), this, SLOT(getSignals()));
 }
 
-
-/*
- *
-  Communication
- *
- */
-
-qint64 OpalLink::bytesAvailable()
-{
-    return 0;
-}
-
 void OpalLink::writeBytes(const char *bytes, qint64 length)
 {
     /* decode the message */
@@ -211,47 +199,6 @@ void OpalLink::writeBytes(const char *bytes, qint64 length)
                 params->getParameter(OpalRT::SERVO_INPUTS, "PIT_SET4_IN").setValue(((radio.pitch[4]>900 /*in us?*/)?radio.pitch[4]/1000:radio.pitch[4]));
         }
         break;
-#endif
-#ifdef MAVLINK_ENABLED_PIXHAWK
-        case MAVLINK_MSG_ID_REQUEST_DATA_STREAM: {
-            mavlink_request_data_stream_t stream;
-            mavlink_msg_request_data_stream_decode(&msg, &stream);
-            switch (stream.req_stream_id) {
-            case 0: // All data types
-                break;
-            case 1: // Raw Sensor Data
-                break;
-            case 2: // extended system status
-                break;
-            case 3: // rc channel data
-                sendRCValues = (stream.start_stop == 1?true:false);
-                break;
-            case 4: // raw controller
-                if (stream.start_stop == 1)
-                    sendRawController = true;
-                else
-                    sendRawController = false;
-                break;
-            case 5: // raw sensor fusion
-                break;
-            case 6: // position
-                sendPosition = (stream.start_stop == 1?true:false);
-                break;
-            case 7: // extra 1
-                break;
-            case 8: // extra 2
-                break;
-            case 9: // extra 3
-                break;
-            default:
-                qDebug() << __FILE__ << __LINE__ << "Received Unknown Data Strem Request with ID" << stream.req_stream_id;
-            }
-        }
-        break;
-        default: {
-            qDebug() << "OpalLink::writeBytes(): Unknown mavlink packet";
-        }
-        }
 #endif
     }
 
@@ -469,7 +416,7 @@ int8_t OpalLink::rescaleControllerOutput(double raw)
     return static_cast<int8_t>((raw>=0?raw*127:raw*128));
 }
 
-bool OpalLink::connect()
+bool OpalLink::_connect(void)
 {
     short modelState;
 
@@ -492,7 +439,7 @@ bool OpalLink::connect()
     return connectState;
 }
 
-bool OpalLink::disconnect()
+bool OpalLink::_disconnect(void)
 {
     // OpalDisconnect returns void so its success or failure cannot be tested
     OpalDisconnect();

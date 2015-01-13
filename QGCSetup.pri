@@ -39,12 +39,10 @@ WindowsBuild {
 	DESTDIR_COPY_RESOURCE_LIST = $$replace(DESTDIR,"/","\\")
 	BASEDIR_COPY_RESOURCE_LIST = $$replace(BASEDIR,"/","\\")
     QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY_DIR \"$$BASEDIR_COPY_RESOURCE_LIST\\files\" \"$$DESTDIR_COPY_RESOURCE_LIST\\files\"
-    QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY_DIR \"$$BASEDIR_COPY_RESOURCE_LIST\\qml\" \"$$DESTDIR_COPY_RESOURCE_LIST\\qml\"
     QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY_DIR \"$$BASEDIR_COPY_RESOURCE_LIST\\data\" \"$$DESTDIR_COPY_RESOURCE_LIST\\data\"
 } else {
     # Make sure to keep both side of this if using the same set of directories
     QMAKE_POST_LINK += && $$QMAKE_COPY_DIR $$BASEDIR/files $$DESTDIR_COPY_RESOURCE_LIST
-    QMAKE_POST_LINK += && $$QMAKE_COPY_DIR $$BASEDIR/qml $$DESTDIR_COPY_RESOURCE_LIST
     QMAKE_POST_LINK += && $$QMAKE_COPY_DIR $$BASEDIR/data $$DESTDIR_COPY_RESOURCE_LIST
 }
 
@@ -177,6 +175,7 @@ WindowsBuild {
         $$DLL_DIR\\Qt5PrintSupport$${DLL_QT_DEBUGCHAR}.dll \
         $$DLL_DIR\\Qt5Qml$${DLL_QT_DEBUGCHAR}.dll \
         $$DLL_DIR\\Qt5Quick$${DLL_QT_DEBUGCHAR}.dll \
+        $$DLL_DIR\\Qt5QuickWidgets$${DLL_QT_DEBUGCHAR}.dll \
         $$DLL_DIR\\Qt5Sensors$${DLL_QT_DEBUGCHAR}.dll \
         $$DLL_DIR\\Qt5SerialPort$${DLL_QT_DEBUGCHAR}.dll \
         $$DLL_DIR\\Qt5OpenGL$${DLL_QT_DEBUGCHAR}.dll \
@@ -197,7 +196,8 @@ WindowsBuild {
 	QMAKE_POST_LINK += $$escape_expand(\\n) mkdir release\\platforms
 	QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY \"$$PLUGINS_DIR_WIN\\platforms\\qwindows$${DLL_QT_DEBUGCHAR}.dll\" \"$$DESTDIR_WIN\\platforms\\qwindows$${DLL_QT_DEBUGCHAR}.dll\"
 	QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY_DIR \"$$PLUGINS_DIR_WIN\\imageformats\" \"$$DESTDIR_WIN\\imageformats\"
-    
+    QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY_DIR \"$$PLUGINS_DIR_WIN\\sqldrivers\" \"$$DESTDIR_WIN\\sqldrivers\"
+
 	ReleaseBuild {
 		# Copy Visual Studio DLLs
 		# Note that this is only done for release because the debugging versions of these DLLs cannot be redistributed.

@@ -106,7 +106,7 @@ MAVLinkSimulationLink::MAVLinkSimulationLink(QString readFile, QString writeFile
     srand(QTime::currentTime().msec());
     maxTimeNoise = 0;
     this->id = getNextLinkId();
-    LinkManager::instance()->add(this);
+    LinkManager::instance()->addLink(this);
 }
 
 MAVLinkSimulationLink::~MAVLinkSimulationLink()
@@ -197,10 +197,6 @@ void MAVLinkSimulationLink::mainloop()
 
     mavlink_attitude_t attitude;
     memset(&attitude, 0, sizeof(mavlink_attitude_t));
-#ifdef MAVLINK_ENABLED_PIXHAWK
-    mavlink_raw_aux_t rawAuxValues;
-    memset(&rawAuxValues, 0, sizeof(mavlink_raw_aux_t));
-#endif
     mavlink_raw_imu_t rawImuValues;
     memset(&rawImuValues, 0, sizeof(mavlink_raw_imu_t));
 
@@ -301,15 +297,6 @@ void MAVLinkSimulationLink::mainloop()
                         rawImuValues.zgyro = d;
                         attitude.yawspeed = ((d-29.000)/3000.0)*2.7-2.7-2.65;
                     }
-#ifdef MAVLINK_ENABLED_PIXHAWK
-                    if (keys.value(i, "") == "Pressure") {
-                        rawAuxValues.baro = d;
-                    }
-
-                    if (keys.value(i, "") == "Battery") {
-                        rawAuxValues.vbat = d;
-                    }
-#endif
                     if (keys.value(i, "") == "roll_IMU") {
                         attitude.roll = d;
                     }
@@ -438,9 +425,8 @@ void MAVLinkSimulationLink::mainloop()
 
         static int rcCounter = 0;
         if (rcCounter == 2) {
-            mavlink_rc_channels_raw_t chan;
+            mavlink_rc_channels_t chan;
             chan.time_boot_ms = 0;
-            chan.port = 0;
             chan.chan1_raw = 1000 + ((int)(fabs(x) * 1000) % 2000);
             chan.chan2_raw = 1000 + ((int)(fabs(y) * 1000) % 2000);
             chan.chan3_raw = 1000 + ((int)(fabs(z) * 1000) % 2000);
@@ -450,7 +436,7 @@ void MAVLinkSimulationLink::mainloop()
             chan.chan7_raw = (chan.chan4_raw + chan.chan2_raw) / 2.0f;
             chan.chan8_raw = 0;
             chan.rssi = 100;
-            mavlink_msg_rc_channels_raw_encode(systemId, componentId, &msg, &chan);
+            mavlink_msg_rc_channels_encode(systemId, componentId, &msg, &chan);
             // Allocate buffer with packet data
             bufferlength = mavlink_msg_to_send_buffer(buffer, &msg);
             //add data into datastream
@@ -474,46 +460,6 @@ void MAVLinkSimulationLink::mainloop()
 
         static int detectionCounter = 6;
         if (detectionCounter % 10 == 0) {
-#ifdef MAVLINK_ENABLED_PIXHAWK
-            mavlink_pattern_detected_t detected;
-            detected.confidence = 5.0f;
-            detected.type = 0;  // compiler confused into thinking type is used unitialized, bogus init to silence
-
-            if (detectionCounter == 10) {
-                char fileName[] = "patterns/face5.png";
-                memcpy(detected.file, fileName, sizeof(fileName));
-                detected.type = 0; // 0: Pattern, 1: Letter
-            } else if (detectionCounter == 20) {
-                char fileName[] = "7";
-                memcpy(detected.file, fileName, sizeof(fileName));
-                detected.type = 1; // 0: Pattern, 1: Letter
-            } else if (detectionCounter == 30) {
-                char fileName[] = "patterns/einstein.bmp";
-                memcpy(detected.file, fileName, sizeof(fileName));
-                detected.type = 0; // 0: Pattern, 1: Letter
-            } else if (detectionCounter == 40) {
-                char fileName[] = "F";
-                memcpy(detected.file, fileName, sizeof(fileName));
-                detected.type = 1; // 0: Pattern, 1: Letter
-            } else if (detectionCounter == 50) {
-                char fileName[] = "patterns/face2.png";
-                memcpy(detected.file, fileName, sizeof(fileName));
-                detected.type = 0; // 0: Pattern, 1: Letter
-            } else if (detectionCounter == 60) {
-                char fileName[] = "H";
-                memcpy(detected.file, fileName, sizeof(fileName));
-                detected.type = 1; // 0: Pattern, 1: Letter
-                detectionCounter = 0;
-            }
-            detected.detected = 1;
-            mavlink_msg_pattern_detected_encode(systemId, componentId, &msg, &detected);
-            // Allocate buffer with packet data
-            bufferlength = mavlink_msg_to_send_buffer(buffer, &msg);
-            //add data into datastream
-            memcpy(stream+streampointer,buffer, bufferlength);
-            streampointer += bufferlength;
-            //detectionCounter = 0;
-#endif
         }
         detectionCounter++;
 
@@ -585,28 +531,6 @@ void MAVLinkSimulationLink::mainloop()
         memcpy(stream+streampointer, buffer, bufferlength);
         streampointer += bufferlength;
 
-
-
-//        // HEARTBEAT VEHICLE 2
-
-//        // Pack message and get size of encoded byte string
-//        mavlink_msg_heartbeat_pack(54, componentId, &msg, MAV_HELICOPTER, MAV_AUTOPILOT_ARDUPILOTMEGA);
-//        // Allocate buffer with packet data
-//        bufferlength = mavlink_msg_to_send_buffer(buffer, &msg);
-//        //add data into datastream
-//        memcpy(stream+streampointer,buffer, bufferlength);
-//        streampointer += bufferlength;
-
-//        // HEARTBEAT VEHICLE 3
-
-//        // Pack message and get size of encoded byte string
-//        mavlink_msg_heartbeat_pack(60, componentId, &msg, MAV_FIXED_WING, MAV_AUTOPILOT_PIXHAWK);
-//        // Allocate buffer with packet data
-//        bufferlength = mavlink_msg_to_send_buffer(buffer, &msg);
-//        //add data into datastream
-//        memcpy(stream+streampointer,buffer, bufferlength);
-//        streampointer += bufferlength;
-
         // Pack message and get size of encoded byte string
         mavlink_msg_sys_status_encode(54, componentId, &msg, &status);
         // Allocate buffer with packet data
@@ -653,14 +577,6 @@ void MAVLinkSimulationLink::mainloop()
     rate50hzCounter++;
 }
 
-
-qint64 MAVLinkSimulationLink::bytesAvailable()
-{
-    readyBufferMutex.lock();
-    qint64 size = readyBuffer.size();
-    readyBufferMutex.unlock();
-    return size;
-}
 
 void MAVLinkSimulationLink::writeBytes(const char* data, qint64 size)
 {
@@ -732,14 +648,6 @@ void MAVLinkSimulationLink::writeBytes(const char* data, qint64 size)
 //                }
             }
             break;
-#ifdef MAVLINK_ENABLED_PIXHAWK
-            case MAVLINK_MSG_ID_MANUAL_CONTROL: {
-                mavlink_manual_control_t control;
-                mavlink_msg_manual_control_decode(&msg, &control);
-//                qDebug() << "\n" << "ROLL:" << control.x << "PITCH:" << control.y;
-            }
-            break;
-#endif
             case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
             {
 //                qDebug() << "GCS REQUESTED PARAM LIST FROM SIMULATION";
@@ -884,7 +792,7 @@ void MAVLinkSimulationLink::readBytes()
  * @return True if connection has been disconnected, false if connection
  * couldn't be disconnected.
  **/
-bool MAVLinkSimulationLink::disconnect()
+bool MAVLinkSimulationLink::_disconnect(void)
 {
 
     if(isConnected())
@@ -894,7 +802,6 @@ bool MAVLinkSimulationLink::disconnect()
         _isConnected = false;
 
         emit disconnected();
-        emit connected(false);
 
         //exit();
     }
@@ -908,11 +815,10 @@ bool MAVLinkSimulationLink::disconnect()
  * @return True if connection has been established, false if connection
  * couldn't be established.
  **/
-bool MAVLinkSimulationLink::connect()
+bool MAVLinkSimulationLink::_connect(void)
 {
     _isConnected = true;
     emit connected();
-    emit connected(true);
 
     start(LowPriority);
     MAVLinkSimulationMAV* mav1 = new MAVLinkSimulationMAV(this, 1, 37.480391, -122.282883);
@@ -920,36 +826,6 @@ bool MAVLinkSimulationLink::connect()
 //    MAVLinkSimulationMAV* mav2 = new MAVLinkSimulationMAV(this, 2, 47.375, 8.548, 1);
 //    Q_UNUSED(mav2);
     //    timer->start(rate);
-    return true;
-}
-
-/**
- * Connect the link.
- *
- * @param connect true connects the link, false disconnects it
- * @return True if connection has been established, false if connection
- * couldn't be established.
- **/
-void MAVLinkSimulationLink::connectLink()
-{
-    this->connect();
-}
-
-/**
- * Connect the link.
- *
- * @param connect true connects the link, false disconnects it
- * @return True if connection has been established, false if connection
- * couldn't be established.
- **/
-bool MAVLinkSimulationLink::connectLink(bool connect)
-{
-    _isConnected = connect;
-
-    if(connect) {
-        this->connect();
-    }
-
     return true;
 }
 

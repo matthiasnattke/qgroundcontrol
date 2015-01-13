@@ -7,7 +7,6 @@
 #include <QGroupBox>
 #include <QPushButton>
 #include <QStringList>
-#include <QMessageBox>
 #include <QGraphicsScene>
 
 #include "QGCToolWidget.h"
@@ -50,10 +49,6 @@ public slots:
 
     /** Set the MAV currently being calibrated */
     void setActiveUAS(UASInterface* active);
-    /** Fallback function, automatically called by loadConfig() upon failure to find and xml file*/
-    void loadQgcConfig(bool primary);
-    /** Load configuration from xml file */
-    void loadConfig();
 
 protected slots:
     void menuButtonClicked();
@@ -82,7 +77,6 @@ protected:
     QPixmap planeSide;
     QGCPX4SensorCalibration* px4SensorCalibration;
     PX4RCCalibration* px4RCCalibration;
-    QMessageBox msgBox;
     QGraphicsScene scene;
     QPushButton* skipActionButton;
 

@@ -6,57 +6,6 @@ WindowsBuild {
 }
 
 #
-# [OPTIONAL] QUpgrade support.
-#
-# Allow the user to override QUpgrade compilation through a DISABLE_QUPGRADE
-# define like: `qmake DEFINES=DISABLE_QUPGRADE`
-contains(DEFINES, DISABLE_QUPGRADE) {
-    message("Skipping support for QUpgrade (manual override from command line)")
-    DEFINES -= DISABLE_QUPGRADE
-}
-# Otherwise the user can still disable this feature in the user_config.pri file.
-else:exists(user_config.pri):infile(user_config.pri, DEFINES, DISABLE_QUPGRADE) {
-    message("Skipping support for QUpgrade (manual override from user_config.pri)")
-}
-# If the QUpgrade submodule has been initialized, build in support by default.
-# We look for the existence of qupgrade.pro for the check. We can't look for a .git file
-# because that breaks the TeamCity build process which does not use repositories.
-else:exists(qupgrade/qupgrade.pro) {
-    message("Including support for QUpgrade")
-
-    DEFINES += QGC_QUPGRADE_ENABLED
-
-    INCLUDEPATH += qupgrade/src/apps/qupgrade
-
-    FORMS += \
-        qupgrade/src/apps/qupgrade/dialog_bare.ui \
-        qupgrade/src/apps/qupgrade/boardwidget.ui
-
-    HEADERS += \
-        qupgrade/src/apps/qupgrade/qgcfirmwareupgradeworker.h \
-        qupgrade/src/apps/qupgrade/uploader.h \
-        qupgrade/src/apps/qupgrade/dialog_bare.h \
-        qupgrade/src/apps/qupgrade/boardwidget.h
-
-    SOURCES += \
-        qupgrade/src/apps/qupgrade/qgcfirmwareupgradeworker.cpp \
-        qupgrade/src/apps/qupgrade/uploader.cpp \
-        qupgrade/src/apps/qupgrade/dialog_bare.cpp \
-        qupgrade/src/apps/qupgrade/boardwidget.cpp
-
-    RESOURCES += \
-        qupgrade/qupgrade.qrc
-
-    LinuxBuild:CONFIG += qesp_linux_udev
-
-    include(qupgrade/libs/qextserialport/src/qextserialport.pri)
-}
-# Otherwise notify the user and don't compile it.
-else {
-    warning("Skipping support for QUpgrade (missing submodule, see README)")
-}
-
-#
 # [REQUIRED] Add support for the MAVLink communications protocol.
 # Some logic is involved here in selecting the proper dialect for
 # the selected autopilot system.
@@ -81,12 +30,6 @@ else:exists(user_config.pri):infile(user_config.pri, MAVLINK_CONF) {
     !isEmpty(MAVLINK_CONF) {
         message($$sprintf("Using MAVLink dialect '%1' specified in user_config.pri", $$MAVLINK_CONF))
     }
-}
-# If no valid user selection is found, default to the ardupilotmega if it's available.
-# Note: This can be a list of several dialects.
-else {
-    MAVLINK_CONF=ardupilotmega
-    message($$sprintf("Using default MAVLink dialect '%1'.", $$MAVLINK_CONF))
 }
 
 # Then we add the proper include paths dependent on the dialect.
@@ -223,26 +166,40 @@ OSGDependency {
 # [OPTIONAL] Google Earth dependency. Provides Google Earth view to supplement 2D map view.
 # Only supported on Mac and Windows where Google Earth can be installed.
 #
-contains(DEFINES, DISABLE_GOOGLE_EARTH) {
-    message("Skipping support for Google Earth view (manual override from command line)")
-    DEFINES -= DISABLE_GOOGLE_EARTH
-}
-# Otherwise the user can still disable this feature in the user_config.pri file.
-else:exists(user_config.pri):infile(user_config.pri, DEFINES, DISABLE_GOOGLE_EARTH) {
-    message("Skipping support for Google Earth view (manual override from user_config.pri)")
-} else:MacBuild {
-    message("Including support for Google Earth view")
-    DEFINES += QGC_GOOGLE_EARTH_ENABLED
-    HEADERS += src/ui/map3D/QGCGoogleEarthView.h
-    SOURCES += src/ui/map3D/QGCGoogleEarthView.cc
-} else:WindowsBuild {
-    message("Including support for Google Earth view")
-    DEFINES += QGC_GOOGLE_EARTH_ENABLED
-    HEADERS += src/ui/map3D/QGCGoogleEarthView.h
-    SOURCES += src/ui/map3D/QGCGoogleEarthView.cc
-    QT += axcontainer
+GoogleEarthDisableOverride {
+    contains(DEFINES, DISABLE_GOOGLE_EARTH) {
+        message("Skipping support for Google Earth view (manual override from command line)")
+        DEFINES -= DISABLE_GOOGLE_EARTH
+    }
+    # Otherwise the user can still disable this feature in the user_config.pri file.
+    else:exists(user_config.pri):infile(user_config.pri, DEFINES, DISABLE_GOOGLE_EARTH) {
+        message("Skipping support for Google Earth view (manual override from user_config.pri)")
+    } else:MacBuild {
+        message("Including support for Google Earth view")
+        DEFINES += QGC_GOOGLE_EARTH_ENABLED
+        HEADERS += src/ui/map3D/QGCGoogleEarthView.h \
+                    src/ui/map3D/QGCWebPage.h \
+                    src/ui/QGCWebView.h
+        SOURCES += src/ui/map3D/QGCGoogleEarthView.cc \
+                    src/ui/map3D/QGCWebPage.cc \
+                    src/ui/QGCWebView.cc
+        FORMS += src/ui/QGCWebView.ui
+    } else:WindowsBuild {
+            message("Including support for Google Earth view")
+            DEFINES += QGC_GOOGLE_EARTH_ENABLED
+            HEADERS += src/ui/map3D/QGCGoogleEarthView.h \
+                        src/ui/map3D/QGCWebPage.h \
+                        src/ui/QGCWebView.h
+            SOURCES += src/ui/map3D/QGCGoogleEarthView.cc \
+                        src/ui/map3D/QGCWebPage.cc \
+                        src/ui/QGCWebView.cc
+            FORMS += src/ui/QGCWebView.ui
+            QT += axcontainer
+    } else {
+        message("Skipping support for Google Earth view (unsupported platform)")
+    }
 } else {
-    message("Skipping support for Google Earth view (unsupported platform)")
+    message("Skipping support for Google Earth due to Issue 1157")
 }
 
 #
@@ -423,9 +380,7 @@ MacBuild {
         -F$$BASEDIR/libs/lib/Frameworks \
         -framework SDL
 } else:LinuxBuild {
-	LIBS += \
-		-lSDL \
-		-lSDLmain
+	PKGCONFIG = sdl
 } else:WindowsBuild {
 	INCLUDEPATH += \
         $$BASEDIR/libs/lib/sdl/msvc/include \

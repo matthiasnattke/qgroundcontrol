@@ -19,6 +19,10 @@ QGCPX4SensorCalibration::QGCPX4SensorCalibration(QWidget *parent) :
     connect(ui->accelButton, SIGNAL(clicked()), this, SLOT(accelButtonClicked()));
     connect(ui->diffPressureButton, SIGNAL(clicked()), this, SLOT(diffPressureButtonClicked()));
 
+    connect(ui->logCheckBox, SIGNAL(clicked(bool)), ui->textView, SLOT(setVisible(bool)));
+    ui->logCheckBox->setChecked(false);
+    ui->textView->setVisible(false);
+
     ui->gyroButton->setEnabled(false);
     ui->magButton->setEnabled(false);
     ui->accelButton->setEnabled(false);
@@ -26,9 +30,9 @@ QGCPX4SensorCalibration::QGCPX4SensorCalibration(QWidget *parent) :
     ui->autopilotComboBox->setEnabled(false);
     ui->magComboBox->setEnabled(false);
 
-    setInstructionImage(":/files/images/px4/calibration/accel_z-.png");
-    setAutopilotImage(":/files/images/px4/calibration/accel_z-.png");
-    setGpsImage(":/files/images/px4/calibration/accel_z-.png");
+    setInstructionImage(":/files/images/px4/calibration/accel_down.png");
+    setAutopilotImage(":/files/images/px4/calibration/accel_down.png");
+    setGpsImage(":/files/images/px4/calibration/accel_down.png");
 
     // Fill combo boxes
     ui->autopilotComboBox->addItem(tr("Default Orientation"), 0);
@@ -254,7 +258,9 @@ void QGCPX4SensorCalibration::setInstructionImage(const QString &path)
 
 void QGCPX4SensorCalibration::setAutopilotImage(int index)
 {
-    setAutopilotImage(QString(":/files/images/px4/calibration/pixhawk_%1.png").arg(index, 2, 10, QChar('0')));
+    Q_UNUSED(index);
+    // FIXME: This was referencing a non-existent png. Need to figure out what this was trying to do.
+    //setAutopilotImage(QString(":/files/images/px4/calibration/pixhawk_%1.png").arg(index, 2, 10, QChar('0')));
 }
 
 void QGCPX4SensorCalibration::setGpsImage(int index)
@@ -344,6 +350,23 @@ void QGCPX4SensorCalibration::setActiveUAS(UASInterface* uas)
     activeUAS = uas;
 
     updateSystemSpecs(uas->getUASID());
+    
+    // If the parameters are ready, we aren't going to get paramterChanged signals. So fake them in order to make the UI work.
+    if (uas->getParamManager()->parametersReady()) {
+        QVariant value;
+        static const char* rgParams[] = { "SENS_BOARD_ROT", "SENS_EXT_MAG_ROT", "SENS_MAG_XOFF", "SENS_GYRO_XOFF", "SENS_ACC_XOFF", "SENS_DPRES_OFF" };
+        
+        QGCUASParamManagerInterface* paramMgr = uas->getParamManager();
+        
+        for (size_t i=0; i<sizeof(rgParams)/sizeof(rgParams[0]); i++) {
+            QVariant value;
+            
+            QList<int> compIds = paramMgr->getComponentForParam(rgParams[i]);
+            Q_ASSERT(compIds.count() == 1);
+            paramMgr->getParameterValue(compIds[0], rgParams[i], value);
+            parameterChanged(uas->getUASID(), compIds[0], rgParams[i], value);
+        }
+    }
 }
 
 void QGCPX4SensorCalibration::updateSystemSpecs(int id)
@@ -381,13 +404,13 @@ void QGCPX4SensorCalibration::handleTextMessage(int uasid, int compId, int sever
 
     ui->instructionLabel->setText(QString("%1").arg(text));
 
-    if (text.startsWith("accel measurement started: ")) {
-        QString axis = text.split("measurement started: ").last().left(2);
+    if (text.startsWith("Hold still, starting to measure ")) {
+        QString axis = text.section(" ", -2, -2);
         setInstructionImage(QString(":/files/images/px4/calibration/accel_%1.png").arg(axis));
     }
 
-    if (text.startsWith("directions left: ")) {
-        QString axis = text.split("directions left: ").last().left(2);
+    if (text.startsWith("pending: ")) {
+        QString axis = text.section(" ", 1, 1);
         setInstructionImage(QString(":/files/images/px4/calibration/accel_%1.png").arg(axis));
     }
 
@@ -398,7 +421,7 @@ void QGCPX4SensorCalibration::handleTextMessage(int uasid, int compId, int sever
 
     if (text.endsWith(" calibration: done") || text.endsWith(" calibration: failed")) {
         // XXX use a confirmation image or something
-        setInstructionImage(":/files/images/px4/calibration/accel_z-.png");
+        setInstructionImage(":/files/images/px4/calibration/accel_down.png");
         if (text.endsWith(" calibration: done")) {
             ui->progressBar->setValue(100);
         } else {
@@ -442,7 +465,7 @@ void QGCPX4SensorCalibration::handleTextMessage(int uasid, int compId, int sever
     }
 
     if (text.endsWith(" calibration: started")) {
-        setInstructionImage(":/files/images/px4/calibration/accel_z-.png");
+        setInstructionImage(":/files/images/px4/calibration/accel_down.png");
     }
 
     // XXX color messages according to severity
@@ -462,28 +485,28 @@ void QGCPX4SensorCalibration::handleTextMessage(int uasid, int compId, int sever
 
 void QGCPX4SensorCalibration::gyroButtonClicked()
 {
-    setInstructionImage(":/files/images/px4/calibration/accel_z-.png");
+    setInstructionImage(":/files/images/px4/calibration/accel_down.png");
     activeUAS->executeCommand(MAV_CMD_PREFLIGHT_CALIBRATION, 1, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0);
     ui->progressBar->setValue(0);
 }
 
 void QGCPX4SensorCalibration::magButtonClicked()
 {
-    setInstructionImage(":/files/images/px4/calibration/accel_z-.png");
+    setInstructionImage(":/files/images/px4/calibration/accel_down.png");
     activeUAS->executeCommand(MAV_CMD_PREFLIGHT_CALIBRATION, 1, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0);
     ui->progressBar->setValue(0);
 }
 
 void QGCPX4SensorCalibration::accelButtonClicked()
 {
-    setInstructionImage(":/files/images/px4/calibration/accel_z-.png");
+    setInstructionImage(":/files/images/px4/calibration/accel_down.png");
     activeUAS->executeCommand(MAV_CMD_PREFLIGHT_CALIBRATION, 1, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0);
     ui->progressBar->setValue(0);
 }
 
 void QGCPX4SensorCalibration::diffPressureButtonClicked()
 {
-    setInstructionImage(":/files/images/px4/calibration/accel_z-.png");
+    setInstructionImage(":/files/images/px4/calibration/accel_down.png");
     activeUAS->executeCommand(MAV_CMD_PREFLIGHT_CALIBRATION, 1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0);
     ui->progressBar->setValue(0);
 }

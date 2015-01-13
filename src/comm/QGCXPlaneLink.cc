@@ -39,7 +39,7 @@ This file is part of the QGROUNDCONTROL project
 #include <QHostInfo>
 #include "UAS.h"
 #include "UASInterface.h"
-#include "MainWindow.h"
+#include "QGCMessageBox.h"
 
 QGCXPlaneLink::QGCXPlaneLink(UASInterface* mav, QString remoteHost, QHostAddress localHost, quint16 localPort) :
     mav(mav),
@@ -92,7 +92,6 @@ void QGCXPlaneLink::loadSettings()
 {
     // Load defaults from settings
     QSettings settings;
-    settings.sync();
     settings.beginGroup("QGC_XPLANE_LINK");
     setRemoteHost(settings.value("REMOTE_HOST", QString("%1:%2").arg(remoteHost.toString()).arg(remotePort)).toString());
     setVersion(settings.value("XPLANE_VERSION", 10).toInt());
@@ -111,7 +110,6 @@ void QGCXPlaneLink::storeSettings()
     settings.setValue("AIRFRAME", airframeName);
     settings.setValue("SENSOR_HIL", _sensorHilEnabled);
     settings.endGroup();
-    settings.sync();
 }
 
 void QGCXPlaneLink::setVersion(const QString& version)
@@ -272,28 +270,34 @@ void QGCXPlaneLink::setPort(int localPort)
 
 void QGCXPlaneLink::processError(QProcess::ProcessError err)
 {
-    switch(err)
-    {
-    case QProcess::FailedToStart:
-        MainWindow::instance()->showCriticalMessage(tr("X-Plane Failed to Start"), tr("Please check if the path and command is correct"));
-        break;
-    case QProcess::Crashed:
-        MainWindow::instance()->showCriticalMessage(tr("X-Plane Crashed"), tr("This is a X-Plane-related problem. Please upgrade X-Plane"));
-        break;
-    case QProcess::Timedout:
-        MainWindow::instance()->showCriticalMessage(tr("X-Plane Start Timed Out"), tr("Please check if the path and command is correct"));
-        break;
-    case QProcess::WriteError:
-        MainWindow::instance()->showCriticalMessage(tr("Could not Communicate with X-Plane"), tr("Please check if the path and command is correct"));
-        break;
-    case QProcess::ReadError:
-        MainWindow::instance()->showCriticalMessage(tr("Could not Communicate with X-Plane"), tr("Please check if the path and command is correct"));
-        break;
-    case QProcess::UnknownError:
-    default:
-        MainWindow::instance()->showCriticalMessage(tr("X-Plane Error"), tr("Please check if the path and command is correct."));
-        break;
+    QString msg;
+    
+    switch(err) {
+        case QProcess::FailedToStart:
+            msg = tr("X-Plane Failed to start. Please check if the path and command is correct");
+            break;
+            
+        case QProcess::Crashed:
+            msg = tr("X-Plane crashed. This is an X-Plane-related problem, check for X-Plane upgrade.");
+            break;
+            
+        case QProcess::Timedout:
+            msg = tr("X-Plane start timed out. Please check if the path and command is correct");
+            break;
+            
+        case QProcess::ReadError:
+        case QProcess::WriteError:
+            msg = tr("Could not communicate with X-Plane. Please check if the path and command are correct");
+            break;
+            
+        case QProcess::UnknownError:
+        default:
+            msg = tr("X-Plane error occurred. Please check if the path and command is correct.");
+            break;
     }
+    
+    
+    QGCMessageBox::critical(tr("X-Plane HIL"), msg);
 }
 
 QString QGCXPlaneLink::getRemoteHost()
@@ -594,22 +598,38 @@ void QGCXPlaneLink::readBytes()
             }
             if (p.index == 4)
             {
-                // Do not actually use the XPlane value, but calculate our own
-                Eigen::Vector3f g(0, 0, -9.81f);
+				// WORKAROUND: IF ground speed <<1m/s and altitude-above-ground <1m, do NOT use the X-Plane data, because X-Plane (tested 
+				// with v10.3 and earlier) delivers yacc=0 and zacc=0 when the ground speed is very low, which gives e.g. wrong readings 
+				// before launch when waiting on the runway. This might pose a problem for initial state estimation/calibration. 
+				// Instead, we calculate our own accelerations.
+				if (fabsf(groundspeed)<0.1f && alt_agl<1.0) 
+				{
+					// TODO: Add centrip. acceleration to the current static acceleration implementation.
+					Eigen::Vector3f g(0, 0, -9.81f);
+					Eigen::Matrix3f R = euler_to_wRo(yaw, pitch, roll);
+					Eigen::Vector3f gr = R.transpose().eval() * g;
 
-                Eigen::Matrix3f R = euler_to_wRo(yaw, pitch, roll);
+					xacc = gr[0];
+					yacc = gr[1];
+					zacc = gr[2];
 
-                Eigen::Vector3f gr = R.transpose().eval() * g;
+					//qDebug() << "Calculated values" << gr[0] << gr[1] << gr[2];
+				}
+				else
+				{
+					// Accelerometer readings, directly from X-Plane and including centripetal forces. 
+					const float one_g = 9.80665f;
+					xacc = p.f[5] * one_g;
+					yacc = p.f[6] * one_g;
+					zacc = -p.f[4] * one_g;
 
-                // TODO Add centrip. accel
+					//qDebug() << "X-Plane values" << xacc << yacc << zacc;
+				}
 
-                xacc = gr[0];
-                yacc = gr[1];
-                zacc = gr[2];
-
-                fields_changed |= (1 << 0) | (1 << 1) | (1 << 2);
+				fields_changed |= (1 << 0) | (1 << 1) | (1 << 2);
             }
-            else if (p.index == 6 && xPlaneVersion == 10)
+            // atmospheric pressure aircraft for XPlane 9 and 10
+            else if (p.index == 6)
             {
                 // inHg to hPa (hecto Pascal / millibar)
                 abs_pressure = p.f[0] * 33.863886666718317f;
@@ -712,14 +732,15 @@ void QGCXPlaneLink::readBytes()
 //            {
 //                qDebug() << "ATT:" << p.f[0] << p.f[1] << p.f[2];
 //            }
-            else if (p.index == 20)
-            {
-                //qDebug() << "LAT/LON/ALT:" << p.f[0] << p.f[1] << p.f[2];
-                lat = p.f[0];
-                lon = p.f[1];
-                alt = p.f[2] * 0.3048f; // convert feet (MSL) to meters
+			else if (p.index == 20)
+			{
+				//qDebug() << "LAT/LON/ALT:" << p.f[0] << p.f[1] << p.f[2];
+				lat = p.f[0];
+				lon = p.f[1];
+				alt = p.f[2] * 0.3048f; // convert feet (MSL) to meters
+				alt_agl = p.f[3] * 0.3048f; //convert feet (AGL) to meters
             }
-            else if (p.index == 21 && xPlaneVersion == 10)
+            else if (p.index == 21)
             {
                 vy = p.f[3];
                 vx = -p.f[5];
