@@ -3509,7 +3509,7 @@ QColor UAS::getColor() const
         // ID  3: green
         // ID  4: yellow
         // ID  5: pink
-        // ID  6: gray --
+        // ID  6: gray
         // ID  7: white
         // ID  8: darkYellow
         // ID  9: braun
