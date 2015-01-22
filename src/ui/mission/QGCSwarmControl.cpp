@@ -8,7 +8,6 @@
 #include <QRadioButton>
 #include <QString>
 #include <QListWidget>
-#include "UASView.h"
 #include "UASManager.h"
 
 const unsigned int QGCSwarmControl::updateInterval = 5000U;
