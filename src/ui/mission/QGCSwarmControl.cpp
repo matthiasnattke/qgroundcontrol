@@ -73,6 +73,10 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
     all_selected = false;
 
     mode_init = false;
+
+	ui->disarmButton->setAutoFillBackground(true);
+	ui->disarmButton->setStyleSheet("background-color: rgb(255, 0, 0); color: rgb(0, 0, 0)");
+
 }
 
 QGCSwarmControl::~QGCSwarmControl()
@@ -187,7 +191,10 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 		item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
 		item->setCheckState(Qt::Unchecked);
 
+		item->setForeground(uas->getColor());
+
 		ui->listWidget->addItem(item);
+		ui->listWidget->sortItems();
 
 		uasToItemMapping[uas] = item;
 		itemToUasMapping[item] = uas;
@@ -198,10 +205,13 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 		itemRemote->setFlags(itemRemote->flags() | Qt::ItemIsUserCheckable);
 		itemRemote->setCheckState(Qt::Checked);
 
+		itemRemote->setForeground(uas->getColor());
+
 		uasToItemRemote[uas] = itemRemote;
 		itemToUasRemote[itemRemote] = uas;
 
 		ui->remoteList->addItem(itemRemote);
+		ui->remoteList->sortItems();
 
 		UASlist = UASManager::instance()->getUASList();
 
