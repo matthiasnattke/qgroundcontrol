@@ -85,6 +85,7 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 	ui->disarmButton->setAutoFillBackground(true);
 	ui->disarmButton->setStyleSheet("background-color: rgb(255, 0, 0); color: rgb(0, 0, 0)");
 
+	wptReachedCnt = 0;
 }
 
 QGCSwarmControl::~QGCSwarmControl()
@@ -96,6 +97,9 @@ void QGCSwarmControl::continueAllButton_clicked()
 {
 	qDebug() << "continueAllButton clicked";
 
+	wptReachedCnt = 0;
+	ui->wptReachedValue->setText(QString::number(wptReachedCnt));
+	
 	mavlink_message_t msg;
 	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_MISSION_START, 1, 1, 1, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
@@ -346,7 +350,14 @@ void QGCSwarmControl::textMessageReceived(UASInterface* uas, QString message)
     	qDebug() << "UAS id:" << QString::number(uas->getUASID());
     	item = uasToItemMapping[uas];
 
-    	if (message.contains("SUCCESS"))
+    	qDebug() << message;
+
+    	if (message.contains("reached waypoint"))
+    	{
+    		wptReachedCnt++;
+    		qDebug() << QString::number(wptReachedCnt);
+    		ui->wptReachedValue->setText(QString::number(wptReachedCnt));
+    	} else if (message.contains("SUCCESS"))
     	{
     		item->setBackground(Qt::green);
     	}
@@ -360,7 +371,7 @@ void QGCSwarmControl::textMessageReceived(UASInterface* uas, QString message)
 void QGCSwarmControl::refreshView()
 {
 	QListWidgetItem* item;
-	
+
 	foreach(UASInterface* uas, UASManager::instance()->getUASList())
 	{
 		item = uasToItemMapping[uas];

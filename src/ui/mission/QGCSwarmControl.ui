@@ -541,6 +541,38 @@
     <double>0.050000000000000</double>
    </property>
   </widget>
+  <widget class="QLabel" name="wptReachedLabel">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>600</y>
+     <width>121</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string># of MAV arrived:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="wptReachedValue">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>600</y>
+     <width>21</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="text">
+    <string>0</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
  </widget>
  <resources>
   <include location="../../../qgroundcontrol.qrc"/>

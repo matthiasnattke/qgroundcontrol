@@ -69,6 +69,8 @@ private:
 
     void updateModesList(UASInterface* uas);
 
+    int wptReachedCnt;
+
 protected:
 	MAVLinkProtocol* mavlink;     ///< Reference to the MAVLink instance
 	UASInterface *uas;
