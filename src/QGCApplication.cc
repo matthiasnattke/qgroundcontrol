@@ -57,6 +57,7 @@
 #include "AutoPilotPluginManager.h"
 #include "QGCTemporaryFile.h"
 #include "QGCFileDialog.h"
+#include "QGCPalette.h"
 
 #ifdef QGC_RTLAB_ENABLED
 #include "OpalLink.h"
@@ -246,6 +247,9 @@ void QGCApplication::_initCommon(void)
     // Avoid Using setFont(). In the Qt docu you can read the following:
     //     "Warning: Do not use this function in conjunction with Qt Style Sheets."
     // setFont(fontDatabase.font(fontFamilyName, "Roman", 12));
+    
+    // Register our Qml palette before anyone tries to use it
+    qmlRegisterType<QGCPalette>("QGroundControl.Palette", 1, 0, "QGCPalette");
 }
 
 bool QGCApplication::_initForNormalAppBoot(void)
@@ -476,10 +480,12 @@ void QGCApplication::criticalMessageBoxOnMainThread(const QString& title, const 
 
 void QGCApplication::saveTempFlightDataLogOnMainThread(QString tempLogfile)
 {
-    QString saveFilename = QGCFileDialog::getSaveFileName(MainWindow::instance(),
-                                                          tr("Select file to save Flight Data Log"),
-                                                          qgcApp()->mavlinkLogFilesLocation(),
-                                                          tr("Flight Data Log (*.mavlink)"));
+    QString saveFilename = QGCFileDialog::getSaveFileName(
+        MainWindow::instance(),
+        tr("Save Flight Data Log"),
+        qgcApp()->mavlinkLogFilesLocation(),
+        tr("Flight Data Log (*.mavlink)"),
+        "mavlink");
     if (!saveFilename.isEmpty()) {
         QFile::copy(tempLogfile, saveFilename);
     }
@@ -534,6 +540,8 @@ void QGCApplication::_loadCurrentStyle(void)
         // Fall back to plastique if we can't load our own
         setStyle("plastique");
     }
+    
+    QGCPalette::setGlobalTheme(_styleIsDark ? QGCPalette::Dark : QGCPalette::Light);
     
     // Finally restore the cursor before returning.
     restoreOverrideCursor();

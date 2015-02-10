@@ -343,7 +343,7 @@ FORMS += \
     src/ui/px4_configuration/PX4FirmwareUpgrade.ui \
     src/ui/QGCUASFileView.ui \
     src/QGCQmlWidgetHolder.ui \
-    src/ui/QGCMapRCToParamDialog.ui
+    src/ui/QGCMapRCToParamDialog.ui \
 
 HEADERS += \
     src/MG.h \
@@ -452,7 +452,6 @@ HEADERS += \
     src/ui/QGCHilFlightGearConfiguration.h \
     src/ui/QGCHilJSBSimConfiguration.h \
     src/ui/QGCHilXPlaneConfiguration.h \
-    src/ui/submainwindow.h \
     src/ui/uas/UASQuickView.h \
     src/ui/uas/UASQuickViewItem.h \
     src/ui/linechart/ChartPlot.h \
@@ -481,7 +480,6 @@ HEADERS += \
     src/ui/px4_configuration/PX4Bootloader.h \
     src/ui/px4_configuration/PX4FirmwareUpgradeThread.h \
     src/ui/px4_configuration/PX4FirmwareUpgrade.h \
-    src/ui/menuactionhelper.h \
     src/uas/UASManagerInterface.h \
     src/uas/QGCUASParamManagerInterface.h \
     src/uas/QGCUASFileManager.h \
@@ -497,7 +495,8 @@ HEADERS += \
     src/QGCPalette.h \
     src/QGCQmlWidgetHolder.h \
     src/ui/QGCParamTreeWidget.h \
-    src/ui/QGCMapRCToParamDialog.h
+    src/ui/QGCMapRCToParamDialog.h \
+    src/QGCDockWidget.h \
 
 SOURCES += \
     src/main.cc \
@@ -598,7 +597,6 @@ SOURCES += \
     src/ui/QGCHilFlightGearConfiguration.cc \
     src/ui/QGCHilJSBSimConfiguration.cc \
     src/ui/QGCHilXPlaneConfiguration.cc \
-    src/ui/submainwindow.cpp \
     src/ui/uas/UASQuickViewItem.cc \
     src/ui/uas/UASQuickView.cc \
     src/ui/linechart/ChartPlot.cc \
@@ -627,7 +625,6 @@ SOURCES += \
     src/ui/px4_configuration/PX4Bootloader.cc \
     src/ui/px4_configuration/PX4FirmwareUpgradeThread.cc \
     src/ui/px4_configuration/PX4FirmwareUpgrade.cc \
-    src/ui/menuactionhelper.cpp \
     src/uas/QGCUASFileManager.cc \
     src/ui/QGCUASFileView.cc \
     src/CmdLineOptParser.cc \
@@ -640,7 +637,8 @@ SOURCES += \
     src/QGCPalette.cc \
     src/QGCQmlWidgetHolder.cpp \
     src/ui/QGCParamTreeWidget.cpp \
-    src/ui/QGCMapRCToParamDialog.cpp
+    src/ui/QGCMapRCToParamDialog.cpp \
+    src/QGCDockWidget.cc \
 
 #
 # Unit Test specific configuration goes here
@@ -681,7 +679,8 @@ HEADERS += \
     src/qgcunittest/MavlinkLogTest.h \
     src/FactSystem/FactSystemTestBase.h \
     src/FactSystem/FactSystemTestPX4.h \
-    src/FactSystem/FactSystemTestGeneric.h
+    src/FactSystem/FactSystemTestGeneric.h \
+    src/QmlControls/QmlTestWidget.h \
 
 SOURCES += \
     src/qgcunittest/UnitTest.cc \
@@ -705,7 +704,9 @@ SOURCES += \
     src/qgcunittest/MavlinkLogTest.cc \
     src/FactSystem/FactSystemTestBase.cc \
     src/FactSystem/FactSystemTestPX4.cc \
-    src/FactSystem/FactSystemTestGeneric.cc
+    src/FactSystem/FactSystemTestGeneric.cc \
+    src/QmlControls/QmlTestWidget.cc \
+
 }
 
 #
@@ -715,13 +716,12 @@ FORMS += \
     src/VehicleSetup/ParameterEditor.ui \
     src/ui/QGCPX4VehicleConfig.ui \
     src/AutoPilotPlugins/PX4/FlightModeConfig.ui \
-    src/VehicleSetup/SetupWidgetHolder.ui \
+    src/VehicleSetup/SetupView.ui \
 
 HEADERS+= \
     src/VehicleSetup/SetupView.h \
     src/VehicleSetup/ParameterEditor.h \
     src/VehicleSetup/VehicleComponent.h \
-    src/VehicleSetup/VehicleComponentSummaryItem.h \
     src/AutoPilotPlugins/AutoPilotPluginManager.h \
     src/AutoPilotPlugins/AutoPilotPlugin.h \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.h \
@@ -735,13 +735,11 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/SensorsComponent.h \
     src/AutoPilotPlugins/PX4/SafetyComponent.h \
     src/AutoPilotPlugins/PX4/PX4ParameterFacts.h \
-    src/VehicleSetup/SetupWidgetHolder.h \
 
 SOURCES += \
     src/VehicleSetup/SetupView.cc \
     src/VehicleSetup/ParameterEditor.cc \
     src/VehicleSetup/VehicleComponent.cc \
-    src/VehicleSetup/VehicleComponentSummaryItem.cc \
     src/AutoPilotPlugins/AutoPilotPluginManager.cc \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.cc \
     src/AutoPilotPlugins/Generic/GenericParameterFacts.cc \
@@ -754,7 +752,6 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/SensorsComponent.cc \
     src/AutoPilotPlugins/PX4/SafetyComponent.cc \
     src/AutoPilotPlugins/PX4/PX4ParameterFacts.cc \
-    src/VehicleSetup/SetupWidgetHolder.cc \
 
 # Fact System code
 

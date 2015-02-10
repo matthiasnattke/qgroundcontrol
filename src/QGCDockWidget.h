@@ -21,31 +21,24 @@
  
  ======================================================================*/
 
+#ifndef QGCDockWidget_h
+#define QGCDockWidget_h
+
+#include <QDockWidget>
+
 /// @file
+///     @brief Subclass of QDockWidget so we can intercept the closeEvent.
+///
 ///     @author Don Gagne <don@thegagnes.com>
 
-#include "FactSystem.h"
-#include "UASManager.h"
-#include "QGCApplication.h"
-#include "VehicleComponent.h"
-
-#include <QtQml>
-
-IMPLEMENT_QGC_SINGLETON(FactSystem, FactSystem)
-
-const char* FactSystem::_factSystemQmlUri = "QGroundControl.FactSystem";
-
-FactSystem::FactSystem(QObject* parent) :
-    QGCSingleton(parent)
-{
-    qmlRegisterType<Fact>(_factSystemQmlUri, 1, 0, "Fact");
-    qmlRegisterType<FactValidator>(_factSystemQmlUri, 1, 0, "FactValidator");
+class QGCDockWidget : public QDockWidget {
+    Q_OBJECT
     
-    // FIXME: Where should these go?
-    qmlRegisterUncreatableType<VehicleComponent>(_factSystemQmlUri, 1, 0, "VehicleComponent", "Can only reference VehicleComponent");
-}
+public:
+    QGCDockWidget(const QString& title, QWidget *parent = 0, Qt::WindowFlags flags = 0);
 
-FactSystem::~FactSystem()
-{
+    void closeEvent(QCloseEvent* event);
+};
 
-}
+
+#endif
