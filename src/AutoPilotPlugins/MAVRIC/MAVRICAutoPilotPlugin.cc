@@ -90,7 +90,7 @@ QList<AutoPilotPluginManager::FullMode_t> MAVRICAutoPilotPlugin::getModes(void)
     fullMode.baseMode = MAV_MODE_FLAG_STABILIZE_ENABLED | MAV_MODE_FLAG_GUIDED_ENABLED | MAV_MODE_FLAG_AUTO_ENABLED;
     fullMode.customMode = 0;
     modeList << fullMode;
-    
+
     return modeList;
 }
 
@@ -98,8 +98,8 @@ QString MAVRICAutoPilotPlugin::getShortModeText(uint8_t baseMode, uint32_t custo
 {
     QString mode;
     
-    Q_ASSERT(baseMode & MAV_MODE_FLAG_CUSTOM_MODE_ENABLED);
-    
+    //Q_ASSERT(baseMode & MAV_MODE_FLAG_CUSTOM_MODE_ENABLED);
+
     // use base_mode - not autopilot-specific
     if (baseMode == 0) {
         mode = "|PREFLIGHT";

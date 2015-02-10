@@ -37,14 +37,22 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 
 	connect(ui->setHomeButton,SIGNAL(clicked()),this,SLOT(sendNewHomePosition()));
 
-	// Get current MAV list => in parameterinterface.cc
-    //QList<UASInterface*> systems = UASManager::instance()->getUASList();
 	mavlink = MAVLinkProtocol::instance();
 
 	uas =  UASManager::instance()->getActiveUAS();
 	uas_previous = UASManager::instance()->getActiveUAS();
 
 	UASlist = UASManager::instance()->getUASList();
+
+	QListWidgetItem* item;
+	foreach(UASInterface* uasNew, UASlist)
+	{
+		item = uasToItemMapping[uasNew];
+		if (!item)
+		{
+			UASCreated(uasNew);
+		}
+	}
 
 	connect(UASManager::instance(),SIGNAL(UASCreated(UASInterface*)),this,SLOT(UASCreated(UASInterface*)));
 	connect(UASManager::instance(),SIGNAL(UASDeleted(UASInterface*)),this,SLOT(RemoveUAS(UASInterface*)));
@@ -171,6 +179,8 @@ void QGCSwarmControl::stopLogging_clicked()
 
 void QGCSwarmControl::UASCreated(UASInterface* uas)
 {
+	Q_ASSERT(uas);
+
 	if (uas)
 	{
 		QString idstring;
@@ -226,7 +236,6 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 
 void QGCSwarmControl::updateModesList(UASInterface* uas)
 {
-    
     if (!uas)
     {
     	return;
@@ -251,9 +260,9 @@ void QGCSwarmControl::RemoveUAS(UASInterface* uas)
 {
 	QListWidgetItem* item = uasToItemMapping[uas];
 	uasToItemMapping.remove(uas);
-	
+
 	itemToUasMapping.remove(item);
-	
+
 	//ui->listWidget->removeItemWidget(item);
 	ui->listWidget->takeItem(ui->listWidget->row(item));
 	delete item;
@@ -351,7 +360,7 @@ void QGCSwarmControl::textMessageReceived(UASInterface* uas, QString message)
 void QGCSwarmControl::refreshView()
 {
 	QListWidgetItem* item;
-
+	
 	foreach(UASInterface* uas, UASManager::instance()->getUASList())
 	{
 		item = uasToItemMapping[uas];
