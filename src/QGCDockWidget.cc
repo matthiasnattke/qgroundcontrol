@@ -21,37 +21,19 @@
  
  ======================================================================*/
 
-#ifndef VehicleComponentSummaryItem_H
-#define VehicleComponentSummaryItem_H
+#include "QGCDockWidget.h"
 
-#include <QObject>
-#include <QQmlContext>
-#include <QQuickItem>
+#include <QCloseEvent>
 
-#include "UASInterface.h"
-
-/// @file
-///     @brief Vehicle Component class. A vehicle component is an object which
-///             abstracts the physical portion of a vehicle into a set of
-///             configurable values and user interface.
-///     @author Don Gagne <don@thegagnes.com>
-
-class VehicleComponentSummaryItem : public QObject
+QGCDockWidget::QGCDockWidget(const QString& title, QWidget *parent, Qt::WindowFlags flags) :
+    QDockWidget(title, parent, flags)
 {
-    Q_OBJECT
     
-    Q_PROPERTY(QString name READ name CONSTANT)
-    Q_PROPERTY(QString state READ state CONSTANT)
-    
-public:
-    VehicleComponentSummaryItem(const QString& name, const QString& state, QObject* parent = NULL);
-    
-    QString name(void) const { return _name; }
-    QString state(void) const { return _state; }
-    
-protected:
-    QString _name;
-    QString _state;
-};
+}
 
-#endif
+// Instead of destroying the widget just hide it
+void QGCDockWidget::closeEvent(QCloseEvent* event)
+{
+    event->ignore();
+    setVisible(false);
+}

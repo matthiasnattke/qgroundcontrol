@@ -21,15 +21,22 @@
  
  ======================================================================*/
 
+#ifndef QmlTestWidget_h
+#define QmlTestWidget_h
+
 /// @file
 ///     @author Don Gagne <don@thegagnes.com>
 
-#include "VehicleComponentSummaryItem.h"
+#include "QGCQmlWidgetHolder.h"
 
-VehicleComponentSummaryItem::VehicleComponentSummaryItem(const QString& name, const QString& state, QObject* parent) :
-    QObject(parent),
-    _name(name),
-    _state(state)
+/// This is used to create widgets which are implemented in QML.
+
+class QmlTestWidget : public QGCQmlWidgetHolder
 {
-    
-}
+    Q_OBJECT
+
+public:
+    QmlTestWidget(void);
+};
+
+#endif
