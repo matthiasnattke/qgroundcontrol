@@ -49,8 +49,9 @@ public:
     /// Sets the UAS into the widget which in turn will load facts into the context
     void setAutoPilot(AutoPilotPlugin* autoPilot);
 
-    /// Sets the QML into the control
-    void setSource(const QUrl& qmlUrl);
+    /// Sets the QML into the control. Will display errors message box if error occurs loading source.
+    ///     @return true: source loaded, false: source not loaded, errors occured
+    bool setSource(const QUrl& qmlUrl);
 
 private:
     Ui::QGCQmlWidgetHolder _ui;

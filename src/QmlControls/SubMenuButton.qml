@@ -7,27 +7,27 @@ import QGroundControl.Palette 1.0
 
 Button {
     checkable: true
-    height: 80
+    height: 60
 
     text: "Button"
     property bool setupComplete: true
     property bool setupIndicator: true
+    property string imageResource: "subMenuButtonImage.png"
 
     style: ButtonStyle {
         id: buttonStyle
 
-        property var __qgcpal: QGCPalette {
-            colorGroup: control.enabled ? QGCPalette.Active : QGCPalette.Disabled
+        property var __qgcPal: QGCPalette {
+            colorGroupEnabled: control.enabled
         }
+
+        property bool __showHighlight: control.pressed | control.checked
 
         background: Rectangle {
             id: innerRect
-            readonly property real titleHeight: 30
+            readonly property real titleHeight: 20
 
-            border.color: control.checked ? "#eee333" : "#676767"
-            radius: 10
-
-            color: control.checked ? "#eee333" : "#343434"
+            color: __showHighlight ? __qgcPal.buttonHighlight : __qgcPal.button
 
             Text {
                 id: titleBar
@@ -40,12 +40,12 @@ Button {
 
                 text: control.text
                 font.pixelSize: 12
-                color: control.checked ? "black" : "white"
+                color: __showHighlight ? __qgcPal.buttonHighlightText : __qgcPal.buttonText
 
                 Rectangle {
                     id: setupIndicator
 
-                    readonly property real indicatorRadius: 6
+                    readonly property real indicatorRadius: 4
 
                     x: parent.width - (indicatorRadius * 2) - 5
                     y: (parent.height - (indicatorRadius * 2)) / 2
@@ -53,7 +53,7 @@ Button {
                     height: indicatorRadius * 2
 
                     radius: indicatorRadius
-                    color: control.setupIndicator ? (control.setupComplete ? "green" : "red") : innerRect.color
+                    color: control.setupIndicator ? (control.setupComplete ? "#00d932" : "red") : innerRect.color
                 }
             }
 
@@ -63,12 +63,11 @@ Button {
 
                 y: parent.titleHeight
 
-                color: __qgcpal.window
-                border.color: control.checked ? "#eee333" : "#676767"
+                color: __qgcPal.windowShade
 
                 Image {
                     id: buttonImage
-                    source: "setupButtonImage.png"
+                    source: control.imageResource
                     sourceSize: Qt.size(parent.width - 20, parent.height - 20)
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.verticalCenter: parent.verticalCenter
@@ -79,7 +78,7 @@ Button {
                 ColorOverlay {
                     anchors.fill: buttonImage
                     source: buttonImage
-                    color: control.checked ? "#eee333" : "#58585a"
+                    color: __showHighlight ? __qgcPal.buttonHighlight : __qgcPal.button
                 }
             }
         }

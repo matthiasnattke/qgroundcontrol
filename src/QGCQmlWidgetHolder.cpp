@@ -43,8 +43,7 @@ void QGCQmlWidgetHolder::setAutoPilot(AutoPilotPlugin* autoPilot)
     _ui.qmlWidget->rootContext()->setContextProperty("autopilot", autoPilot);
 }
 
-void QGCQmlWidgetHolder::setSource(const QUrl& qmlUrl)
+bool QGCQmlWidgetHolder::setSource(const QUrl& qmlUrl)
 {
-    _ui.qmlWidget->setSource(qmlUrl);
-    _ui.qmlWidget->setMinimumSize(_ui.qmlWidget->rootObject()->width(), _ui.qmlWidget->rootObject()->height());
+    return _ui.qmlWidget->setSource(qmlUrl);
 }
