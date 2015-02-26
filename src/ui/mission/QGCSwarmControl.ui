@@ -59,7 +59,7 @@
    <property name="geometry">
     <rect>
      <x>140</x>
-     <y>260</y>
+     <y>240</y>
      <width>101</width>
      <height>23</height>
     </rect>
@@ -90,7 +90,7 @@
   <widget class="QSpinBox" name="numVhcSpinBox">
    <property name="geometry">
     <rect>
-     <x>100</x>
+     <x>70</x>
      <y>210</y>
      <width>42</width>
      <height>22</height>
@@ -105,12 +105,12 @@
     <rect>
      <x>80</x>
      <y>190</y>
-     <width>91</width>
+     <width>51</width>
      <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>Num. of vehicles</string>
+    <string># Vhc</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_2">
@@ -139,48 +139,6 @@
     <string>Auto landing</string>
    </property>
   </widget>
-  <widget class="QListWidget" name="scenarioList">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>240</y>
-     <width>111</width>
-     <height>91</height>
-    </rect>
-   </property>
-   <item>
-    <property name="text">
-     <string>Circle</string>
-    </property>
-    <property name="checkState">
-     <enum>Checked</enum>
-    </property>
-   </item>
-   <item>
-    <property name="text">
-     <string>Circle uniform</string>
-    </property>
-    <property name="checkState">
-     <enum>Unchecked</enum>
-    </property>
-   </item>
-   <item>
-    <property name="text">
-     <string>Stream</string>
-    </property>
-    <property name="checkState">
-     <enum>Unchecked</enum>
-    </property>
-   </item>
-   <item>
-    <property name="text">
-     <string>Swarm</string>
-    </property>
-    <property name="checkState">
-     <enum>Unchecked</enum>
-    </property>
-   </item>
-  </widget>
   <widget class="QPushButton" name="autoTakeoff">
    <property name="geometry">
     <rect>
@@ -197,7 +155,7 @@
   <widget class="QSpinBox" name="altitudeSpinBox">
    <property name="geometry">
     <rect>
-     <x>190</x>
+     <x>120</x>
      <y>210</y>
      <width>42</width>
      <height>22</height>
@@ -210,7 +168,7 @@
   <widget class="QLabel" name="label_3">
    <property name="geometry">
     <rect>
-     <x>190</x>
+     <x>130</x>
      <y>190</y>
      <width>41</width>
      <height>20</height>
@@ -223,8 +181,8 @@
   <widget class="QCheckBox" name="autoContinueCheckBox">
    <property name="geometry">
     <rect>
-     <x>140</x>
-     <y>240</y>
+     <x>170</x>
+     <y>210</y>
      <width>111</width>
      <height>20</height>
     </rect>
@@ -281,7 +239,7 @@
   <widget class="QPushButton" name="setParameters">
    <property name="geometry">
     <rect>
-     <x>110</x>
+     <x>100</x>
      <y>340</y>
      <width>41</width>
      <height>27</height>
@@ -417,8 +375,8 @@
   <widget class="QPushButton" name="setHomeButton">
    <property name="geometry">
     <rect>
-     <x>140</x>
-     <y>290</y>
+     <x>20</x>
+     <y>300</y>
      <width>99</width>
      <height>27</height>
     </rect>
@@ -571,6 +529,79 @@
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBoxScenario">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>240</y>
+     <width>85</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>Circle</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Circle uniform</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Stream</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Swarm</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QComboBox" name="comboBoxStrategy">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>270</y>
+     <width>85</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>ORCA</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Human</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>PFM</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Flocking</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QPushButton" name="strategyLaunch">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>270</y>
+     <width>101</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Set strategy</string>
    </property>
   </widget>
  </widget>
