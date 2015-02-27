@@ -44,6 +44,8 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 
 	UASlist = UASManager::instance()->getUASList();
 
+    mode_init = false;
+
 	QListWidgetItem* item;
 	foreach(UASInterface* uasNew, UASlist)
 	{
@@ -76,8 +78,6 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
     connect(ui->strategyLaunch, SIGNAL(clicked()),this,SLOT(strategyLaunchClicked()));
 
     all_selected = false;
-
-    mode_init = false;
 
 	ui->disarmButton->setAutoFillBackground(true);
 	ui->disarmButton->setStyleSheet("background-color: rgb(255, 0, 0); color: rgb(0, 0, 0)");
@@ -128,7 +128,7 @@ void QGCSwarmControl::launchScenario_clicked()
 	}
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_SET_SCENARIO, 1, scenarioNum, ui->radiusSpinBox->value(), ui->numVhcSpinBox->value(),  ui->altitudeSpinBox->value(), autoContinue, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, MAV_COMP_ID_MISSIONPLANNER, MAV_CMD_CONDITION_LAST, 1, scenarioNum, ui->radiusSpinBox->value(), ui->numVhcSpinBox->value(),  ui->altitudeSpinBox->value(), autoContinue, 0, 0);
     mavlink->sendMessage(msg);
 }
 
@@ -155,7 +155,7 @@ void QGCSwarmControl::startLogging_clicked()
 	qDebug() << "startLogging clicked";
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_TOGGLE_DATA_LOG, 1, 1, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_PARAMETER, 1, 1, 0, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }
 
@@ -164,7 +164,7 @@ void QGCSwarmControl::stopLogging_clicked()
 	qDebug() << "stopLogging clicked";
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_TOGGLE_DATA_LOG, 1, 0, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_PARAMETER, 1, 0, 0, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }
 
@@ -360,7 +360,7 @@ void QGCSwarmControl::setParameters_clicked()
 	float param7 = ui->spinBoxParam7->value();
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_SET_COLL_AVOID_PARAM, 1, param1, param2, param3, param4, param5, param6, param7);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_PATHPLANNING, 1, param1, param2, param3, param4, param5, param6, param7);
 	mavlink->sendMessage(msg);
 }
 
@@ -518,6 +518,6 @@ void QGCSwarmControl::strategyLaunchClicked()
 
 
 	mavlink_message_t msg;
-	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_SET_STRATEGY, 1, strategy, 0, 0, 0, 0, 0, 0);
+	mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_NAV_ROI, 1, strategy, 0, 0, 0, 0, 0, 0);
 	mavlink->sendMessage(msg);
 }
