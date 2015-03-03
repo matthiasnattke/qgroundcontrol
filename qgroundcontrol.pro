@@ -29,8 +29,8 @@ exists(user_config.pri):infile(user_config.pri, CONFIG) {
 # to allow us to easily modify suported build types in one place instead of duplicated throughout
 # the project file.
 
-!equals(QT_MAJOR_VERSION, 5) | !greaterThan(QT_MINOR_VERSION, 1) {
-    error("Unsupported Qt version, 5.2+ is required")
+!equals(QT_MAJOR_VERSION, 5) | !greaterThan(QT_MINOR_VERSION, 3) {
+    error("Unsupported Qt version, 5.4+ is required")
 }
 
 linux {
@@ -117,6 +117,7 @@ QT += network \
     serialport \
     sql \
     printsupport \
+    qml \
     quick \
     quickwidgets
 
@@ -184,7 +185,8 @@ WindowsBuild {
 	QMAKE_CXXFLAGS_WARN_ON += /W3 \
         /wd4996 \   # silence warnings about deprecated strcpy and whatnot
         /wd4005 \   # silence warnings about macro redefinition
-        /wd4290     # ignore exception specifications
+        /wd4290 \   # ignore exception specifications
+        /Zc:strictStrings-  # work around win 8.1 sdk sapi.h problem
     WarningsAsErrorsOn {
         QMAKE_CXXFLAGS_WARN_ON += /WX
     }
@@ -271,7 +273,6 @@ INCLUDEPATH += \
 
 FORMS += \
     src/ui/MainWindow.ui \
-    src/ui/CommSettings.ui \
     src/ui/SerialSettings.ui \
     src/ui/UASControl.ui \
     src/ui/UASList.ui \
@@ -300,7 +301,6 @@ FORMS += \
     src/ui/QGCMAVLinkLogPlayer.ui \
     src/ui/QGCWaypointListMulti.ui \
     src/ui/QGCUASFileViewMulti.ui \
-    src/ui/QGCUDPLinkConfiguration.ui \
     src/ui/QGCTCPLinkConfiguration.ui \
     src/ui/SettingsDialog.ui \
     src/ui/map/QGCMapTool.ui \
@@ -331,19 +331,19 @@ FORMS += \
     src/ui/uas/UASQuickViewItemSelect.ui \
     src/ui/QGCTabbedInfoView.ui \
     src/ui/UASRawStatusView.ui \
-    src/ui/uas/QGCMessageView.ui \
+    src/ui/uas/UASMessageView.ui \
     src/ui/JoystickButton.ui \
     src/ui/JoystickAxis.ui \
     src/ui/configuration/terminalconsole.ui \
     src/ui/configuration/SerialSettingsDialog.ui \
     src/ui/px4_configuration/QGCPX4AirframeConfig.ui \
-    src/ui/px4_configuration/QGCPX4MulticopterConfig.ui \
-    src/ui/px4_configuration/QGCPX4SensorCalibration.ui \
     src/ui/px4_configuration/PX4RCCalibration.ui \
-    src/ui/px4_configuration/PX4FirmwareUpgrade.ui \
     src/ui/QGCUASFileView.ui \
     src/QGCQmlWidgetHolder.ui \
     src/ui/QGCMapRCToParamDialog.ui \
+    src/ui/QGCLinkConfiguration.ui \
+    src/ui/QGCCommConfiguration.ui \
+    src/ui/QGCUDPLinkConfiguration.ui
 
 HEADERS += \
     src/MG.h \
@@ -354,14 +354,12 @@ HEADERS += \
     src/uas/UASManager.h \
     src/comm/LinkManager.h \
     src/comm/LinkInterface.h \
-    src/comm/SerialLinkInterface.h \
     src/comm/SerialLink.h \
     src/comm/ProtocolInterface.h \
     src/comm/MAVLinkProtocol.h \
     src/comm/QGCFlightGearLink.h \
     src/comm/QGCJSBSimLink.h \
     src/comm/QGCXPlaneLink.h \
-    src/ui/CommConfigurationWindow.h \
     src/ui/SerialConfigurationWindow.h \
     src/ui/MainWindow.h \
     src/ui/uas/UASControlWidget.h \
@@ -416,7 +414,6 @@ HEADERS += \
     src/uas/QGCMAVLinkUASFactory.h \
     src/ui/QGCWaypointListMulti.h \
     src/ui/QGCUASFileViewMulti.h \
-    src/ui/QGCUDPLinkConfiguration.h \
     src/ui/QGCTCPLinkConfiguration.h \
     src/ui/SettingsDialog.h \
     src/uas/QGCUASParamManager.h \
@@ -461,7 +458,7 @@ HEADERS += \
     src/ui/QGCTabbedInfoView.h \
     src/ui/UASRawStatusView.h \
     src/ui/PrimaryFlightDisplay.h \
-    src/ui/uas/QGCMessageView.h \
+    src/ui/uas/UASMessageView.h \
     src/ui/JoystickButton.h \
     src/ui/JoystickAxis.h \
     src/ui/configuration/console.h \
@@ -473,13 +470,8 @@ HEADERS += \
     src/ui/QGCPendingParamWidget.h \
     src/ui/px4_configuration/QGCPX4AirframeConfig.h \
     src/ui/QGCBaseParamWidget.h \
-    src/ui/px4_configuration/QGCPX4MulticopterConfig.h \
-    src/ui/px4_configuration/QGCPX4SensorCalibration.h \
     src/ui/px4_configuration/PX4RCCalibration.h \
     src/ui/px4_configuration/RCValueWidget.h \
-    src/ui/px4_configuration/PX4Bootloader.h \
-    src/ui/px4_configuration/PX4FirmwareUpgradeThread.h \
-    src/ui/px4_configuration/PX4FirmwareUpgrade.h \
     src/uas/UASManagerInterface.h \
     src/uas/QGCUASParamManagerInterface.h \
     src/uas/QGCUASFileManager.h \
@@ -497,6 +489,11 @@ HEADERS += \
     src/ui/QGCParamTreeWidget.h \
     src/ui/QGCMapRCToParamDialog.h \
     src/QGCDockWidget.h \
+    src/ui/QGCLinkConfiguration.h \
+    src/comm/LinkConfiguration.h \
+    src/ui/QGCCommConfiguration.h \
+    src/ui/QGCUDPLinkConfiguration.h \
+    src/uas/UASMessageHandler.h
 
 SOURCES += \
     src/main.cc \
@@ -510,7 +507,6 @@ SOURCES += \
     src/comm/QGCFlightGearLink.cc \
     src/comm/QGCJSBSimLink.cc \
     src/comm/QGCXPlaneLink.cc \
-    src/ui/CommConfigurationWindow.cc \
     src/ui/SerialConfigurationWindow.cc \
     src/ui/MainWindow.cc \
     src/ui/uas/UASControlWidget.cc \
@@ -563,7 +559,6 @@ SOURCES += \
     src/uas/QGCMAVLinkUASFactory.cc \
     src/ui/QGCWaypointListMulti.cc \
     src/ui/QGCUASFileViewMulti.cc \
-    src/ui/QGCUDPLinkConfiguration.cc \
     src/ui/QGCTCPLinkConfiguration.cc \
     src/ui/SettingsDialog.cc \
     src/uas/QGCUASParamManager.cc \
@@ -608,7 +603,7 @@ SOURCES += \
     src/ui/PrimaryFlightDisplay.cc \
     src/ui/JoystickButton.cc \
     src/ui/JoystickAxis.cc \
-    src/ui/uas/QGCMessageView.cc \
+    src/ui/uas/UASMessageView.cc \
     src/ui/configuration/terminalconsole.cpp \
     src/ui/configuration/console.cpp \
     src/ui/configuration/SerialSettingsDialog.cc \
@@ -618,13 +613,8 @@ SOURCES += \
     src/ui/QGCPendingParamWidget.cc \
     src/ui/px4_configuration/QGCPX4AirframeConfig.cc \
     src/ui/QGCBaseParamWidget.cc \
-    src/ui/px4_configuration/QGCPX4MulticopterConfig.cc \
-    src/ui/px4_configuration/QGCPX4SensorCalibration.cc \
     src/ui/px4_configuration/PX4RCCalibration.cc \
     src/ui/px4_configuration/RCValueWidget.cc \
-    src/ui/px4_configuration/PX4Bootloader.cc \
-    src/ui/px4_configuration/PX4FirmwareUpgradeThread.cc \
-    src/ui/px4_configuration/PX4FirmwareUpgrade.cc \
     src/uas/QGCUASFileManager.cc \
     src/ui/QGCUASFileView.cc \
     src/CmdLineOptParser.cc \
@@ -639,6 +629,11 @@ SOURCES += \
     src/ui/QGCParamTreeWidget.cpp \
     src/ui/QGCMapRCToParamDialog.cpp \
     src/QGCDockWidget.cc \
+    src/ui/QGCLinkConfiguration.cc \
+    src/comm/LinkConfiguration.cc \
+    src/ui/QGCCommConfiguration.cc \
+    src/ui/QGCUDPLinkConfiguration.cc \
+    src/uas/UASMessageHandler.cc
 
 #
 # Unit Test specific configuration goes here
@@ -681,6 +676,7 @@ HEADERS += \
     src/FactSystem/FactSystemTestPX4.h \
     src/FactSystem/FactSystemTestGeneric.h \
     src/QmlControls/QmlTestWidget.h \
+    src/VehicleSetup/SetupViewTest.h \
 
 SOURCES += \
     src/qgcunittest/UnitTest.cc \
@@ -706,12 +702,17 @@ SOURCES += \
     src/FactSystem/FactSystemTestPX4.cc \
     src/FactSystem/FactSystemTestGeneric.cc \
     src/QmlControls/QmlTestWidget.cc \
+    src/VehicleSetup/SetupViewTest.cc \
 
 }
 
 #
 # AutoPilot Plugin Support
 #
+
+INCLUDEPATH += \
+    src/VehicleSetup
+
 FORMS += \
     src/VehicleSetup/ParameterEditor.ui \
     src/ui/QGCPX4VehicleConfig.ui \
@@ -722,6 +723,9 @@ HEADERS+= \
     src/VehicleSetup/SetupView.h \
     src/VehicleSetup/ParameterEditor.h \
     src/VehicleSetup/VehicleComponent.h \
+    src/VehicleSetup/FirmwareUpgradeController.h \
+    src/VehicleSetup/PX4Bootloader.h \
+    src/VehicleSetup/PX4FirmwareUpgradeThread.h \
     src/AutoPilotPlugins/AutoPilotPluginManager.h \
     src/AutoPilotPlugins/AutoPilotPlugin.h \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.h \
@@ -733,6 +737,7 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/FlightModeConfig.h \
     src/AutoPilotPlugins/PX4/AirframeComponent.h \
     src/AutoPilotPlugins/PX4/SensorsComponent.h \
+    src/AutoPilotPlugins/PX4/SensorsComponentController.h \
     src/AutoPilotPlugins/PX4/SafetyComponent.h \
     src/AutoPilotPlugins/PX4/PX4ParameterFacts.h \
 
@@ -740,7 +745,11 @@ SOURCES += \
     src/VehicleSetup/SetupView.cc \
     src/VehicleSetup/ParameterEditor.cc \
     src/VehicleSetup/VehicleComponent.cc \
+    src/VehicleSetup/FirmwareUpgradeController.cc \
+    src/VehicleSetup/PX4Bootloader.cc \
+    src/VehicleSetup/PX4FirmwareUpgradeThread.cc \
     src/AutoPilotPlugins/AutoPilotPluginManager.cc \
+    src/AutoPilotPlugins/AutoPilotPlugin.cc \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.cc \
     src/AutoPilotPlugins/Generic/GenericParameterFacts.cc \
     src/AutoPilotPlugins/PX4/PX4AutoPilotPlugin.cc \
@@ -750,6 +759,7 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/FlightModeConfig.cc \
     src/AutoPilotPlugins/PX4/AirframeComponent.cc \
     src/AutoPilotPlugins/PX4/SensorsComponent.cc \
+    src/AutoPilotPlugins/PX4/SensorsComponentController.cc \
     src/AutoPilotPlugins/PX4/SafetyComponent.cc \
     src/AutoPilotPlugins/PX4/PX4ParameterFacts.cc \
 

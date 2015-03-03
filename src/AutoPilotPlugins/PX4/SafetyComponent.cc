@@ -1,24 +1,24 @@
 /*=====================================================================
- 
+
  QGroundControl Open Source Ground Control Station
- 
+
  (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
+
  This file is part of the QGROUNDCONTROL project
- 
+
  QGROUNDCONTROL is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  QGROUNDCONTROL is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU General Public License
  along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
+
  ======================================================================*/
 
 /// @file
@@ -28,9 +28,6 @@
 #include "PX4RCCalibration.h"
 #include "QGCQmlWidgetHolder.h"
 #include "PX4AutoPilotPlugin.h"
-
-/// @brief Parameters which signal a change in setupComplete state
-static const char* triggerParams[] = { NULL };
 
 SafetyComponent::SafetyComponent(UASInterface* uas, AutoPilotPlugin* autopilot, QObject* parent) :
     PX4Component(uas, autopilot, parent),
@@ -48,9 +45,9 @@ QString SafetyComponent::description(void) const
     return tr("The Safety Component is used to setup triggers for Return to Land as well as the settings for Return to Land itself.");
 }
 
-QString SafetyComponent::icon(void) const
+QString SafetyComponent::iconResource(void) const
 {
-    return ":/files/images/px4/menu/remote.png";
+    return "SafetyComponentIcon.png";
 }
 
 bool SafetyComponent::requiresSetup(void) const
@@ -67,7 +64,7 @@ bool SafetyComponent::setupComplete(void) const
 QString SafetyComponent::setupStateDescription(void) const
 {
     const char* stateDescription;
-    
+
     if (requiresSetup()) {
         stateDescription = "Requires setup";
     } else {
@@ -76,15 +73,15 @@ QString SafetyComponent::setupStateDescription(void) const
     return QString(stateDescription);
 }
 
-const char** SafetyComponent::setupCompleteChangedTriggerList(void) const
+QStringList SafetyComponent::setupCompleteChangedTriggerList(void) const
 {
-    return triggerParams;
+    return QStringList();
 }
 
 QStringList SafetyComponent::paramFilterList(void) const
 {
     QStringList list;
-    
+
     return list;
 }
 
@@ -92,11 +89,11 @@ QWidget* SafetyComponent::setupWidget(void) const
 {
     QGCQmlWidgetHolder* holder = new QGCQmlWidgetHolder();
     Q_CHECK_PTR(holder);
-    
+
     holder->setAutoPilot(_autopilot);
-    
+
     holder->setSource(QUrl::fromUserInput("qrc:/qml/SafetyComponent.qml"));
-    
+
     return holder;
 }
 
@@ -109,10 +106,10 @@ QString SafetyComponent::prerequisiteSetup(void) const
 {
     PX4AutoPilotPlugin* plugin = dynamic_cast<PX4AutoPilotPlugin*>(_autopilot);
     Q_ASSERT(plugin);
-    
+
     if (!plugin->airframeComponent()->setupComplete()) {
         return plugin->airframeComponent()->name();
     }
-    
+
     return QString();
 }

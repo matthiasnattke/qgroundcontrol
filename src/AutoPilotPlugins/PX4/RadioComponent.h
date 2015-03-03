@@ -39,12 +39,12 @@ public:
     RadioComponent(UASInterface* uas, AutoPilotPlugin* autopilot, QObject* parent = NULL);
     
     // Virtuals from PX4Component
-    virtual const char** setupCompleteChangedTriggerList(void) const;
+    virtual QStringList setupCompleteChangedTriggerList(void) const;
     
     // Virtuals from VehicleComponent
     virtual QString name(void) const;
     virtual QString description(void) const;
-    virtual QString icon(void) const;
+    virtual QString iconResource(void) const;
     virtual bool requiresSetup(void) const;
     virtual bool setupComplete(void) const;
     virtual QString setupStateDescription(void) const;

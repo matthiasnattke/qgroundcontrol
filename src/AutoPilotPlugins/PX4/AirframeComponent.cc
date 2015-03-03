@@ -27,9 +27,9 @@
 #include "AirframeComponent.h"
 #include "QGCPX4AirframeConfig.h"
 
-/// @brief Parameters which signal a change in setupComplete state
-static const char* triggerParams[] = { "SYS_AUTOSTART", NULL };
-
+#if 0
+// Broken by latest mavlink module changes. Not used yet. Comment out for now.
+// Discussing mavlink fix.
 struct mavType {
     int         type;
     const char* description;
@@ -58,17 +58,28 @@ static const struct mavType mavTypeInfo[] = {
     { MAV_TYPE_ONBOARD_CONTROLLER,  "Onbard companion controller" },
     { MAV_TYPE_VTOL_DUOROTOR,       "Two-rotor VTOL" },
     { MAV_TYPE_VTOL_QUADROTOR,      "Quad-rotor VTOL" },
+    { MAV_TYPE_VTOL_RESERVED1,      "Reserved" },
+    { MAV_TYPE_VTOL_RESERVED2,      "Reserved" },
+    { MAV_TYPE_VTOL_RESERVED3,      "Reserved" },
+    { MAV_TYPE_VTOL_RESERVED4,      "Reserved" },
+    { MAV_TYPE_VTOL_RESERVED5,      "Reserved" },
+    { MAV_TYPE_GIMBAL,              "Gimbal" },
 };
 static size_t cMavTypes = sizeof(mavTypeInfo) / sizeof(mavTypeInfo[0]);
+#endif
 
 AirframeComponent::AirframeComponent(UASInterface* uas, AutoPilotPlugin* autopilot, QObject* parent) :
     PX4Component(uas, autopilot, parent),
     _name(tr("Airframe"))
 {
+#if 0
+    // Broken by latest mavlink module changes. Not used yet. Comment out for now.
+    // Discussing mavlink fix.
     Q_UNUSED(mavTypeInfo);  // Keeping this around for later use
     
     // Validate that our mavTypeInfo array hasn't gotten out of sync
     
+    qDebug() << cMavTypes << MAV_TYPE_ENUM_END;
     Q_ASSERT(cMavTypes == MAV_TYPE_ENUM_END);
     
     static const int mavTypes[] = {
@@ -92,13 +103,20 @@ AirframeComponent::AirframeComponent(UASInterface* uas, AutoPilotPlugin* autopil
         MAV_TYPE_KITE,
         MAV_TYPE_ONBOARD_CONTROLLER,
         MAV_TYPE_VTOL_DUOROTOR,
-        MAV_TYPE_VTOL_QUADROTOR
+        MAV_TYPE_VTOL_QUADROTOR,
+        MAV_TYPE_VTOL_RESERVED1,
+        MAV_TYPE_VTOL_RESERVED2,
+        MAV_TYPE_VTOL_RESERVED3,
+        MAV_TYPE_VTOL_RESERVED4,
+        MAV_TYPE_VTOL_RESERVED5,
+        MAV_TYPE_GIMBAL,
     };
     Q_UNUSED(mavTypes); // Keeping this around for later use
     
     for (size_t i=0; i<cMavTypes; i++) {
         Q_ASSERT(mavTypeInfo[i].type == mavTypes[i]);
     }
+#endif
 }
 
 QString AirframeComponent::name(void) const
@@ -112,9 +130,9 @@ QString AirframeComponent::description(void) const
               "This will in turn set up the various tuning values for flight paramters.");
 }
 
-QString AirframeComponent::icon(void) const
+QString AirframeComponent::iconResource(void) const
 {
-    return ":/files/images/px4/menu/plane.png";
+    return "AirframeComponentIcon.png";
 }
 
 bool AirframeComponent::requiresSetup(void) const
@@ -125,7 +143,7 @@ bool AirframeComponent::requiresSetup(void) const
 bool AirframeComponent::setupComplete(void) const
 {
     QVariant value;
-    if (_paramMgr->getParameterValue(_paramMgr->getDefaultComponentId(), triggerParams[0], value)) {
+    if (_paramMgr->getParameterValue(_paramMgr->getDefaultComponentId(), "SYS_AUTOSTART", value)) {
         return value.toInt() != 0;
     } else {
         Q_ASSERT(false);
@@ -145,9 +163,9 @@ QString AirframeComponent::setupStateDescription(void) const
     return QString(stateDescription);
 }
 
-const char** AirframeComponent::setupCompleteChangedTriggerList(void) const
+QStringList AirframeComponent::setupCompleteChangedTriggerList(void) const
 {
-    return triggerParams;
+    return QStringList("SYS_AUTOSTART");
 }
 
 QStringList AirframeComponent::paramFilterList(void) const
