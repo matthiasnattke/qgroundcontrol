@@ -1,3 +1,34 @@
+/*=====================================================================
+ 
+ QGroundControl Open Source Ground Control Station
+ 
+ (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ 
+ This file is part of the QGROUNDCONTROL project
+ 
+ QGROUNDCONTROL is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ 
+ QGROUNDCONTROL is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
+ 
+ ======================================================================*/
+
+// The above copyright block should be at the top of every file.
+
+/// @file
+///     @brief This file is used to control a group of muliple robot 
+///             having in mind the MAV'RIC framework. 
+///
+///     @author Nicolas Dousse <nic.dousse@gmail.com>
+
 #include "QGCSwarmControl.h"
 #include "ui_QGCSwarmControl.h"
 
@@ -42,12 +73,10 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
     uas =  UASManager::instance()->getActiveUAS();
     uas_previous = UASManager::instance()->getActiveUAS();
 
-    UASlist = UASManager::instance()->getUASList();
-
     mode_init = false;
 
     QListWidgetItem* item;
-    foreach(UASInterface* uasNew, UASlist)
+    foreach(UASInterface* uasNew, UASManager::instance()->getUASList())
     {
         item = uasToItemMapping[uasNew];
         if (!item)
@@ -88,8 +117,7 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 QGCSwarmControl::~QGCSwarmControl()
 {
     QListWidgetItem* item;
-    UASlist = UASManager::instance()->getUASList();
-    foreach(UASInterface* uasRemove, UASlist)
+    foreach(UASInterface* uasRemove, UASManager::instance()->getUASList())
     {
         item = uasToItemMapping[uasRemove];
         if (!item)
@@ -226,8 +254,6 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
         ui->remoteList->addItem(itemRemote);
         ui->remoteList->sortItems();
 
-        UASlist = UASManager::instance()->getUASList();
-
         if(!mode_init)
         {
             updateModesList(uas);
@@ -277,8 +303,6 @@ void QGCSwarmControl::RemoveUAS(UASInterface* uas)
 
     ui->remoteList->takeItem(ui->remoteList->row(item));
     delete item;
-
-    UASlist = UASManager::instance()->getUASList();
 }
 
 void QGCSwarmControl::ListWidgetClicked(QListWidgetItem* item)
