@@ -30,6 +30,7 @@ This file is part of the QGROUNDCONTROL project
 
 #ifndef _MAINWINDOW_H_
 #define _MAINWINDOW_H_
+
 #include <QMainWindow>
 #include <QStatusBar>
 #include <QStackedWidget>
@@ -59,6 +60,7 @@ This file is part of the QGROUNDCONTROL project
 #ifdef QGC_GOOGLE_EARTH_ENABLED
 #include "QGCGoogleEarthView.h"
 #endif
+#include "MainToolBar.h"
 #include "QGCToolBar.h"
 #include "LogCompressor.h"
 
@@ -76,7 +78,6 @@ class QSplashScreen;
 class QGCStatusBar;
 class Linecharts;
 class QGCDataPlot2D;
-class MenuActionHelper;
 class QGCUASFileViewMulti;
 
 /**
@@ -85,19 +86,20 @@ class QGCUASFileViewMulti;
  **/
 class MainWindow : public QMainWindow
 {
+    friend class MainToolBar;
     Q_OBJECT
 
 public:
     /// @brief Returns the MainWindow singleton. Will not create the MainWindow if it has not already
     ///         been created.
     static MainWindow* instance(void);
-    
+
     /// @brief Deletes the MainWindow singleton
     void deleteInstance(void);
-    
+
     /// @brief Creates the MainWindow singleton. Should only be called once by QGCApplication.
     static MainWindow* _create(QSplashScreen* splashScreen);
-    
+
     /// @brief Called to indicate that splash screen is no longer being displayed.
     void splashScreenFinished(void) { _splashScreen = NULL; }
 
@@ -107,25 +109,29 @@ public:
     /** @brief Get auto link reconnect setting */
     bool autoReconnectEnabled() const
     {
-        return autoReconnect;
+        return _autoReconnect;
     }
 
     /** @brief Get low power mode setting */
     bool lowPowerModeEnabled() const
     {
-        return lowPowerMode;
+        return _lowPowerMode;
     }
 
-    QList<QAction*> listLinkMenuActions();
-    
     void hideSplashScreen(void);
+
+    /// @brief Saves the last used connection
+    void saveLastUsedConnection(const QString connection);
+
+    /// @brief Restore (and connects) the last used connection (if any)
+    void restoreLastUsedConnection();
+    
+    /// @brief Gets a pointer to the Main Tool Bar
+    MainToolBar* getMainToolBar(void) { return _mainToolBar; }
 
 public slots:
     /** @brief Show the application settings */
     void showSettings();
-    /** @brief Add a communication link */
-    LinkInterface* addLink();
-    bool configLink(LinkInterface *link);
     /** @brief Simulate a link */
     void simulateLink(bool simulate);
     /** @brief Set the currently controlled UAS */
@@ -158,6 +164,8 @@ public slots:
     void loadGoogleEarthView();
     /** @brief Load local 3D view */
     void loadLocal3DView();
+    /** @brief Manage Links */
+    void manageLinks();
 
     /** @brief Show the online help for users */
     void showHelp();
@@ -170,7 +178,7 @@ public slots:
     void enableAutoReconnect(bool enabled);
 
     /** @brief Save power by reducing update rates */
-    void enableLowPowerMode(bool enabled) { lowPowerMode = enabled; }
+    void enableLowPowerMode(bool enabled) { _lowPowerMode = enabled; }
 
     void closeEvent(QCloseEvent* event);
 
@@ -178,7 +186,7 @@ public slots:
     void configureWindowName();
 
     void commsWidgetDestroyed(QObject *obj);
-    
+
 protected slots:
     /**
      * @brief Unchecks the normalActionItem.
@@ -197,6 +205,8 @@ signals:
     void initStatusChanged(const QString& message, int alignment, const QColor &color);
     /** Emitted when any value changes from any source */
     void valueChanged(const int uasId, const QString& name, const QString& unit, const QVariant& value, const quint64 msec);
+    /** Emitted when any the Canvas elements within QML wudgets need updating */
+    void repaintCanvas();
 
 #ifdef QGC_MOUSE_ENABLED_LINUX
     /** @brief Forward X11Event to catch 3DMouse inputs */
@@ -232,10 +242,7 @@ protected:
     void storeSettings();
 
 
-    LinkInterface* udpLink;
-
     QSettings settings;
-    QActionGroup* centerStackActionGroup;
 
     // Center widgets
     QPointer<Linecharts> linechartWidget;
@@ -243,10 +250,11 @@ protected:
     QPointer<QWidget> q3DWidget;
 #endif
 #ifdef QGC_GOOGLE_EARTH_ENABLED
-	QPointer<QGCGoogleEarthView> earthWidget;
+    QPointer<QGCGoogleEarthView> earthWidget;
 #endif
     QPointer<QGCFirmwareUpdate> firmwareUpdateWidget;
 
+    QPointer<MainToolBar> _mainToolBar;
     QPointer<QGCToolBar> toolBar;
 
     QPointer<QDockWidget> mavlinkInspectorWidget;
@@ -281,16 +289,11 @@ protected:
 
 
     LogCompressor* comp;
-    QString screenFileName;
     QTimer* videoTimer;
-    bool autoReconnect;
-    MAVLinkSimulationLink* simulationLink;
-    bool lowPowerMode; ///< If enabled, QGC reduces the update rates of all widgets
     QGCFlightGearLink* fgLink;
     QTimer windowNameUpdateTimer;
-    
+
 private slots:
-    void _addLinkMenu(LinkInterface* link);
     void _showDockWidgetAction(bool show);
     void _loadCustomWidgetFromFile(void);
     void _createNewCustomWidget(void);
@@ -301,9 +304,9 @@ private slots:
 private:
     /// Constructor is private since all creation should be through MainWindow::_create
     MainWindow(QSplashScreen* splashScreen);
-    
+
     void _openUrl(const QString& url, const QString& errorMessage);
-    
+
     // Center widgets
     QPointer<QWidget> _plannerView;
     QPointer<QWidget> _pilotView;
@@ -313,10 +316,7 @@ private:
     QPointer<QWidget> _terminalView;
     QPointer<QWidget> _googleEarthView;
     QPointer<QWidget> _local3DView;
-    
-    VIEW_SECTIONS   _currentView;       ///< Currently displayed view
-    QWidget*        _currentViewWidget; ///< Currently displayed view widget
-    
+
     // Dock widget names
     static const char* _uasControlDockWidgetName;
     static const char* _uasListDockWidgetName;
@@ -338,7 +338,7 @@ private:
     QMap<QString, QDockWidget*>     _mapName2DockWidget;
     QMap<int, QDockWidget*>         _mapUasId2HilDockWidget;
     QMap<QDockWidget*, QAction*>    _mapDockWidget2Action;
-    
+
     void _buildPlannerView(void);
     void _buildPilotView(void);
     void _buildSetupView(void);
@@ -347,10 +347,10 @@ private:
     void _buildTerminalView(void);
     void _buildGoogleEarthView(void);
     void _buildLocal3DView(void);
-    
+
     void _storeCurrentViewState(void);
     void _loadCurrentViewState(void);
-    
+
     void _createDockWidget(const QString& title, const QString& name, Qt::DockWidgetArea area, QWidget* innerWidget);
     void _createInnerDockWidget(const QString& widgetName);
     void _buildCustomWidgets(void);
@@ -359,21 +359,24 @@ private:
     void _hideAllDockWidgets(void);
     void _showDockWidget(const QString &name, bool show);
     void _showHILConfigurationWidgets(void);
-    
-    QList<QGCToolWidget*> _customWidgets;
-    
-    QVBoxLayout* _centralLayout;
-    
-    QList<QObject*> commsWidgetList;
-    MenuActionHelper *menuActionHelper;
-    Ui::MainWindow ui;
 
-    QString getWindowStateKey();
-    QString getWindowGeometryKey();
-    
-    QSplashScreen* _splashScreen;   ///< Splash screen, NULL is splash screen not currently being shown
+    bool                    _autoReconnect;
+    bool                    _lowPowerMode;           ///< If enabled, QGC reduces the update rates of all widgets
+    QActionGroup*           _centerStackActionGroup;
+    MAVLinkSimulationLink*  _simulationLink;
+    QList<QGCToolWidget*>   _customWidgets;
+    QVBoxLayout*            _centralLayout;
+    QList<QObject*>         _commsWidgetList;
+    QWidget*                _currentViewWidget;     ///< Currently displayed view widget
+    QSplashScreen*          _splashScreen;          ///< Splash screen, NULL is splash screen not currently being shown
+    VIEW_SECTIONS           _currentView;           ///< Currently displayed view
+    Ui::MainWindow          _ui;
+    QString                 _screenFileName;
 
-    friend class MenuActionHelper; //For VIEW_SECTIONS
+    QString _getWindowStateKey();
+    QString _getWindowGeometryKey();
+
+
 };
 
 #endif /* _MAINWINDOW_H_ */

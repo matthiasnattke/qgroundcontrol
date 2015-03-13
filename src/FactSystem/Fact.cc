@@ -28,17 +28,38 @@
 
 #include <QtQml>
 
-Fact::Fact(QString name, QObject* parent) :
+Fact::Fact(QString name, FactMetaData::ValueType_t type, QObject* parent) :
     QObject(parent),
     _name(name),
+    _type(type),
     _metaData(NULL)
 {
-    _value = "";
+    _value = 0;
 }
 
 void Fact::setValue(const QVariant& value)
 {
-    _value = value;
+    switch (type()) {
+        case FactMetaData::valueTypeInt8:
+        case FactMetaData::valueTypeInt16:
+        case FactMetaData::valueTypeInt32:
+            _value.setValue(QVariant(value.toInt()));
+            break;
+
+        case FactMetaData::valueTypeUint8:
+        case FactMetaData::valueTypeUint16:
+        case FactMetaData::valueTypeUint32:
+            _value.setValue(value.toUInt());
+            break;
+
+        case FactMetaData::valueTypeFloat:
+            _value.setValue(value.toFloat());
+            break;
+
+        case FactMetaData::valueTypeDouble:
+            _value.setValue(value.toDouble());
+            break;
+    }
     emit valueChanged(_value);
     emit _containerValueChanged(_value);
 }
@@ -66,36 +87,51 @@ QString Fact::valueString(void) const
 
 QVariant Fact::defaultValue(void)
 {
+    Q_ASSERT(_metaData);
     return _metaData->defaultValue;
 }
 
 FactMetaData::ValueType_t Fact::type(void)
 {
-    return _metaData->type;
+    return _type;
 }
 
 QString Fact::shortDescription(void)
 {
-    return _metaData->shortDescription;
+    if (_metaData) {
+        return _metaData->shortDescription;
+    } else {
+        return QString();
+    }
 }
 
 QString Fact::longDescription(void)
 {
-    return _metaData->longDescription;
+    if (_metaData) {
+        return _metaData->longDescription;
+    } else {
+        return QString();
+    }
 }
 
 QString Fact::units(void)
 {
-    return _metaData->units;
+    if (_metaData) {
+        return _metaData->units;
+    } else {
+        return QString();
+    }
 }
 
 QVariant Fact::min(void)
 {
+    Q_ASSERT(_metaData);
     return _metaData->min;
 }
 
 QVariant Fact::max(void)
 {
+    Q_ASSERT(_metaData);
     return _metaData->max;
 }
 

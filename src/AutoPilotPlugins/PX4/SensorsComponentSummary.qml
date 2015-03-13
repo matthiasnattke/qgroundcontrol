@@ -1,54 +1,52 @@
 import QtQuick 2.2
 import QtQuick.Controls 1.2
 import QtQuick.Controls.Styles 1.2
+
 import QGroundControl.FactSystem 1.0
-import QGroundControl.FactControls 1.0
+import QGroundControl.Controls 1.0
+
+/*
+    IMPORTANT NOTE: Any changes made here must also be made to SensorsComponentSummaryFixedWing.qml
+*/
 
 Column {
     anchors.fill: parent
     anchors.margins: 8
 
-    Row {
-        width: parent.width
+    Component {
+        id: component
 
-        Text { id: compass; text: "Compass:" }
-        Text {
-            horizontalAlignment: Text.AlignRight;
-            width: parent.width - compass.contentWidth;
-            text: autopilot.parameters["SENS_MAG_XOFF"].value == 0.0 ? "Setup required" : "Ready"
+        Row {
+            width: parent.width
+
+            QGCLabel { id: label; text: labelText }
+            QGCLabel {
+                property Fact fact:     Fact { name: factName }
+                horizontalAlignment:    Text.AlignRight;
+                width:                  parent.width - label.contentWidth;
+                text:                   fact.value  == 0 ? "Setup required" : "Ready"
+            }
         }
     }
 
-    Row {
+    Loader {
+        property string labelText: "Compass:"
+        property string factName: "CAL_MAG0_ID"
         width: parent.width
-
-        Text { id: gyro; text: "Gyro:" }
-        Text {
-            horizontalAlignment: Text.AlignRight;
-            width: parent.width - gyro.contentWidth;
-            text: autopilot.parameters["SENS_GYRO_XOFF"].value == 0.0 ? "Setup required" : "Ready"
-        }
+        sourceComponent: component
     }
 
-    Row {
+    Loader {
+        property string labelText: "Gyro:"
+        property string factName: "CAL_GYRO0_ID"
         width: parent.width
-
-        Text { id: accel; text: "Accelerometer:" }
-        Text {
-            horizontalAlignment: Text.AlignRight;
-            width: parent.width - accel.contentWidth;
-            text: autopilot.parameters["SENS_ACC_XOFF"].value == 0.0 ? "Setup required" : "Ready"
-        }
+        sourceComponent: component
     }
 
-    Row {
+    Loader {
+        property string labelText: "Accelerometer:"
+        property string factName: "CAL_ACC0_ID"
         width: parent.width
-
-        Text { id: airspeed; text: "Airspeed:" }
-        Text {
-            horizontalAlignment: Text.AlignRight;
-            width: parent.width - airspeed.contentWidth;
-            text: autopilot.parameters["SENS_DPRES_OFF"].value == 0.0 ? "Setup required" : "Ready"
-        }
+        sourceComponent: component
     }
 }

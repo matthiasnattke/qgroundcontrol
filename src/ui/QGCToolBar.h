@@ -37,6 +37,8 @@ This file is part of the QGROUNDCONTROL project
 #include "SerialLink.h"
 #include "LinkManager.h"
 
+class UASMessageViewRollDown;
+
 class QGCToolBar : public QToolBar
 {
     Q_OBJECT
@@ -45,6 +47,14 @@ public:
     explicit QGCToolBar(QWidget* parent = 0);
     void setPerspectiveChangeActions(const QList<QAction*> &action);
     void setPerspectiveChangeAdvancedActions(const QList<QAction*> &action);
+    /**
+     * @brief Mouse entered Message label area
+     */
+    void enterMessageLabel();
+    /**
+     * @brief Mouse left message drop down list area (and closed it)
+     */
+    void leaveMessageView();
 
 public slots:
     /** @brief Set the system that is currently displayed by this widget */
@@ -71,8 +81,6 @@ public slots:
     void updateView();
     /** @brief Update connection timeout time */
     void heartbeatTimeout(bool timeout, unsigned int ms);
-    /** @brief Clear status string */
-    void clearStatusString();
     /** @brief Set an activity action as checked in menu */
     void advancedActivityTriggered(QAction* action);
 
@@ -113,30 +121,28 @@ protected:
     QAction* firstAction;
     QToolButton *advancedButton;
     QButtonGroup *group;
-    
+
 private slots:
     void _linkConnected(LinkInterface* link);
     void _linkDisconnected(LinkInterface* link);
     void _disconnectFromMenu(bool checked);
     void _connectButtonClicked(bool checked);
     void _linkComboActivated(int index);
-    
+    void _updateConfigurations();
+
 private:
-    void _updateConnectButton(void);
-    void _updatePortList(void);
-    
+    void _updateConnectButton(LinkInterface* disconnectedLink = NULL);
+
     LinkManager*    _linkMgr;
-    
+
     QComboBox*  _linkCombo;
     QAction*    _linkComboAction;
-    bool        _linkSelectedOnce;
-    QTimer      _portListTimer;
-    
-    QComboBox*  _baudCombo;
-    QAction*    _baudComboAction;
-    
+
+    UASMessageViewRollDown* _rollDownMessages;
+
     QPushButton*    _connectButton;
     bool            _linksConnected;
+    bool            _linkSelected;      // User selected a link. Stop autoselecting it.
 };
 
 #endif // QGCTOOLBAR_H

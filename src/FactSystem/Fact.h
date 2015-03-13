@@ -57,7 +57,7 @@ class Fact : public QObject
     Q_ENUMS(FactMetaData::ValueType_t)
     
 public:
-    Fact(QString name = "", QObject* parent = NULL);
+    Fact(QString name = "", FactMetaData::ValueType_t type = FactMetaData::valueTypeInt32, QObject* parent = NULL);
     
     // Property system methods
     
@@ -108,12 +108,13 @@ signals:
     /// Signalled when property has been changed by a call to the property write accessor
     ///
     /// This signal is meant for use by Fact container implementations.
-    void _containerValueChanged(QVariant& value);
+    void _containerValueChanged(const QVariant& value);
     
 private:
-    QString         _name;      ///< Fact name
-    QVariant        _value;     ///< Fact value
-    FactMetaData*   _metaData;  ///< FactMetaData object for Fact
+    QString                     _name;
+    QVariant                    _value;
+    FactMetaData::ValueType_t   _type;
+    FactMetaData*               _metaData;
 };
 
 #endif
