@@ -24,9 +24,8 @@ Rectangle {
     Column {
         anchors.fill:parent
 
-        Text {
+        QGCLabel {
             text: "FIRMWARE UPDATE"
-            color: qgcPal.text
             font.pointSize: 20
         }
 
@@ -94,6 +93,7 @@ Rectangle {
             height: 300
             readOnly: true
             frameVisible: false
+            text: qsTr("Please disconnect all connections and unplug board from USB before selecting Upgrade.")
             style: TextAreaStyle {
                 textColor: qgcPal.text
                 backgroundColor: qgcPal.windowShade
