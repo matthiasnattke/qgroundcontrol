@@ -28,6 +28,7 @@
 #include "UASManager.h"
 #include "QGCApplication.h"
 #include "VehicleComponent.h"
+#include "FactBinder.h"
 
 #include <QtQml>
 
@@ -38,8 +39,7 @@ const char* FactSystem::_factSystemQmlUri = "QGroundControl.FactSystem";
 FactSystem::FactSystem(QObject* parent) :
     QGCSingleton(parent)
 {
-    qmlRegisterType<Fact>(_factSystemQmlUri, 1, 0, "Fact");
-    qmlRegisterType<FactValidator>(_factSystemQmlUri, 1, 0, "FactValidator");
+    qmlRegisterType<FactBinder>(_factSystemQmlUri, 1, 0, "Fact");
     
     // FIXME: Where should these go?
     qmlRegisterUncreatableType<VehicleComponent>(_factSystemQmlUri, 1, 0, "VehicleComponent", "Can only reference VehicleComponent");

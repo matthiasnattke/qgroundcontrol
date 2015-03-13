@@ -30,7 +30,9 @@
 
 UT_REGISTER_TEST(SetupViewTest)
 
-SetupViewTest::SetupViewTest(void)
+SetupViewTest::SetupViewTest(void) :
+    _mainWindow(NULL),
+    _mainToolBar(NULL)
 {
     
 }
@@ -41,6 +43,9 @@ void SetupViewTest::init(void)
 
     _mainWindow = MainWindow::_create(NULL);
     Q_CHECK_PTR(_mainWindow);
+    
+    _mainToolBar = _mainWindow->getMainToolBar();
+    Q_ASSERT(_mainToolBar);
 }
 
 void SetupViewTest::cleanup(void)
@@ -63,24 +68,10 @@ void SetupViewTest::_clickThrough_test(void)
     linkMgr->connectLink(link);
     QTest::qWait(5000); // Give enough time for UI to settle and heartbeats to go through
     
-    // Find the Setup button and click it
-    
-    QGCToolBar* toolbar = _mainWindow->findChild<QGCToolBar*>();
-    Q_ASSERT(toolbar);
-    
-    QList<QToolButton*> buttons = toolbar->findChildren<QToolButton*>();
-    QToolButton* setupButton = NULL;
-    foreach(QToolButton* button, buttons) {
-        if (button->text() == "Setup") {
-            setupButton = button;
-            break;
-        }
-    }
-    
-    Q_ASSERT(setupButton);
-    QTest::mouseClick(setupButton, Qt::LeftButton);
+    // Switch to the Setup view
+    _mainToolBar->onSetupView();
     QTest::qWait(1000);
-
+    
     // Click through all the setup buttons
     // FIXME: NYI
     

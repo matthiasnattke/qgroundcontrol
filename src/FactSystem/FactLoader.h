@@ -38,14 +38,6 @@
 Q_DECLARE_LOGGING_CATEGORY(FactLoaderLog)
 
 /// Connects to Parameter Manager to load/update Facts
-///
-/// These Facts are available for binding within QML code. For example:
-/// @code{.unparsed}
-///     TextInput {
-///         text: autopilot.parameters["RC_MAP_THROTTLE"].value
-///     }
-/// @endcode
-
 class FactLoader : public QObject
 {
     Q_OBJECT
@@ -73,7 +65,7 @@ protected:
     
 private slots:
     void _parameterUpdate(int uas, int component, QString parameterName, int mavType, QVariant value);
-    void _valueUpdated(QVariant value);
+    void _valueUpdated(const QVariant& value);
     void _paramMgrParameterListUpToDate(void);
     
 private:

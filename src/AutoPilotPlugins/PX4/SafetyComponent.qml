@@ -1,3 +1,26 @@
+/*=====================================================================
+
+ QGroundControl Open Source Ground Control Station
+
+ (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+
+ This file is part of the QGROUNDCONTROL project
+
+ QGROUNDCONTROL is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ QGROUNDCONTROL is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
+
+ ======================================================================*/
+
 import QtQuick 2.2
 import QtQuick.Controls 1.2
 import QtQuick.Controls.Styles 1.2
@@ -6,6 +29,7 @@ import QGroundControl.FactSystem 1.0
 import QGroundControl.FactControls 1.0
 import QGroundControl.Palette 1.0
 import QGroundControl.Controls 1.0
+import QGroundControl.ScreenTools 1.0
 
 Rectangle {
     QGCPalette { id: palette; colorGroupEnabled: true }
@@ -14,6 +38,7 @@ Rectangle {
     height: 600
     color: palette.window
 
+    property ScreenTools screenTools: ScreenTools { }
     property int flightLineWidth: 2             // width of lines for flight graphic
     property int loiterAltitudeColumnWidth: 180 // width of loiter altitude column
     property int shadedMargin: 20               // margin inset for shaded areas
@@ -29,7 +54,7 @@ Rectangle {
 
         QGCLabel {
             text: "SAFETY CONFIG"
-            font.pointSize: 20
+            font.pointSize: screenTools.dpiAdjustedPointSize(20);
         }
 
         Item { height: 20; width: 10 } // spacer
@@ -37,7 +62,7 @@ Rectangle {
         //-----------------------------------------------------------------
         //-- Return Home Triggers
 
-        QGCLabel { text: "Triggers For Return Home"; color: palette.text; font.pointSize: 20 }
+        QGCLabel { text: "Triggers For Return Home"; color: palette.text; font.pointSize: screenTools.dpiAdjustedPointSize(20); }
 
         Item { height: 10; width: 10 } // spacer
 
@@ -61,7 +86,7 @@ Rectangle {
                     QGCLabel { text: "Return Home after"; anchors.baseline: rcLossField.baseline }
                     FactTextField {
                         id: rcLossField
-                        fact: autopilot.parameters["COM_RC_LOSS_T"]
+                        fact: Fact { name: "COM_RC_LOSS_T" }
                         showUnits: true
                     }
                 }
@@ -70,7 +95,7 @@ Rectangle {
                     spacing: 10
                     FactCheckBox {
                         id: telemetryTimeoutCheckbox
-                        fact: autopilot.parameters["COM_DL_LOSS_EN"]
+                        fact: Fact { name: "COM_DL_LOSS_EN" }
                         checkedValue: 1
                         uncheckedValue: 0
                         text: "Telemetry Signal Timeout"
@@ -80,7 +105,7 @@ Rectangle {
                     QGCLabel { text: "Return Home after"; anchors.baseline: telemetryLossField.baseline }
                     FactTextField {
                         id: telemetryLossField
-                        fact: autopilot.parameters["COM_DL_LOSS_T"];
+                        fact: Fact { name: "COM_DL_LOSS_T" }
                         showUnits: true
                         enabled: telemetryTimeoutCheckbox.checked
                     }
@@ -96,7 +121,7 @@ Rectangle {
         //-----------------------------------------------------------------
         //-- Return Home Settings
 
-        QGCLabel { text: "Return Home Settings"; font.pointSize: 20 }
+        QGCLabel { text: "Return Home Settings"; font.pointSize: screenTools.dpiAdjustedPointSize(20); }
 
         Item { height: 10; width: 10 } // spacer
 
@@ -125,7 +150,7 @@ Rectangle {
                         QGCLabel { text: "Climb to altitude of" }
                         FactTextField {
                             id: climbField
-                            fact: autopilot.parameters["RTL_RETURN_ALT"]
+                            fact: Fact { name: "RTL_RETURN_ALT" }
                             showUnits: true
                         }
                     }
@@ -137,7 +162,8 @@ Rectangle {
 
                         QGCCheckBox {
                             id: homeLoiterCheckbox
-                            property Fact fact: autopilot.parameters["RTL_LAND_DELAY"]
+                            property Fact fact: Fact { name: "RTL_LAND_DELAY" }
+
                             checked: fact.value > 0
                             text: "Loiter at Home altitude for"
                             onClicked: {
@@ -145,7 +171,7 @@ Rectangle {
                             }
                         }
                         FactTextField {
-                            fact: autopilot.parameters["RTL_LAND_DELAY"];
+                            fact: Fact { name: "RTL_LAND_DELAY" }
                             showUnits: true
                             enabled: homeLoiterCheckbox.checked == true
                         }
@@ -200,7 +226,7 @@ Rectangle {
                             y: parent.height - height - 20
                             width: 80
                             height: parent.height / 2
-                            source: "/qml/SafetyComponentTree.png"
+                            source: "/qml/SafetyComponentTree.svg"
                             fillMode: Image.Stretch
                             smooth: true
                             color: palette.windowShadeDark
@@ -211,8 +237,8 @@ Rectangle {
                             y: parent.height - height
                             width: 100
                             height: parent.height * .75
-                            source: "/qml/SafetyComponentTree.png"
-                            fillMode: Image.Stretch
+                            source: "/qml/SafetyComponentTree.svg"
+                            fillMode: Image.PreserveAspectFit
                             smooth: true
                             color: palette.button
                         }
@@ -247,12 +273,12 @@ Rectangle {
                         QGCLabel {
                             text: "Home loiter altitude";
                             color: palette.text;
-                            enabled: homeLoiterCheckbox.checked == true
+                            enabled: homeLoiterCheckbox.checked === true
                         }
                         FactTextField {
                             id: descendField;
-                            fact: autopilot.parameters["RTL_DESCEND_ALT"];
-                            enabled: homeLoiterCheckbox.checked == true
+                            fact: Fact { name: "RTL_DESCEND_ALT" }
+                            enabled: homeLoiterCheckbox.checked === true
                             showUnits: true
                         }
                     }
@@ -263,17 +289,19 @@ Rectangle {
         }
 
         QGCLabel {
+            property Fact fact: Fact { name: "NAV_RCL_OBC" }
             width: parent.width
-            font.pointSize: 14
+            font.pointSize: screenTools.dpiAdjustedPointSize(14);
             text: "Warning: You have an advanced safety configuration set using the NAV_RCL_OBC parameter. The above settings may not apply.";
-            visible: autopilot.parameters["NAV_RCL_OBC"].value != 0
+            visible: fact.value !== 0
             wrapMode: Text.Wrap
         }
         QGCLabel {
+            property Fact fact: Fact { name: "NAV_DLL_OBC" }
             width: parent.width
-            font.pointSize: 14
+            font.pointSize: screenTools.dpiAdjustedPointSize(14);
             text: "Warning: You have an advanced safety configuration set using the NAV_DLL_OBC parameter. The above settings may not apply.";
-            visible: autopilot.parameters["NAV_DLL_OBC"].value != 0
+            visible: fact.value !== 0
             wrapMode: Text.Wrap
         }
     }
