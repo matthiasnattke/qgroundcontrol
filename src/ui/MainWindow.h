@@ -57,11 +57,7 @@ This file is part of the QGROUNDCONTROL project
 #include "HDDisplay.h"
 #include "HSIDisplay.h"
 #include "opmapcontrol.h"
-#ifdef QGC_GOOGLE_EARTH_ENABLED
-#include "QGCGoogleEarthView.h"
-#endif
 #include "MainToolBar.h"
-#include "QGCToolBar.h"
 #include "LogCompressor.h"
 
 #include "QGCMAVLinkInspector.h"
@@ -160,8 +156,6 @@ public slots:
     void loadOperatorView();
     /** @brief Load Terminal Console views */
     void loadTerminalView();
-    /** @brief Load Google Earth View */
-    void loadGoogleEarthView();
     /** @brief Load local 3D view */
     void loadLocal3DView();
     /** @brief Manage Links */
@@ -230,7 +224,6 @@ protected:
         VIEW_SETUP,            // Setup view. Used for initializing the system for operation. Includes UI for calibration, firmware updating/checking, and parameter modifcation.
         VIEW_TERMINAL,         // Terminal interface. Used for communicating with the remote system, usually in a special configuration input mode.
         VIEW_LOCAL3D,          // A local 3D view. Provides a local 3D view that makes visualizing 3D attitude/orientation/pose easy while in operation.
-        VIEW_GOOGLEEARTH       // 3D Google Earth view. A 3D terrain view, though the vehicle is still 2D.
     } VIEW_SECTIONS;
 
     /** @brief Catch window resize events */
@@ -249,14 +242,9 @@ protected:
 #ifdef QGC_OSG_ENABLED
     QPointer<QWidget> q3DWidget;
 #endif
-#ifdef QGC_GOOGLE_EARTH_ENABLED
-    QPointer<QGCGoogleEarthView> earthWidget;
-#endif
     QPointer<QGCFirmwareUpdate> firmwareUpdateWidget;
 
     QPointer<MainToolBar> _mainToolBar;
-    QPointer<QGCToolBar> toolBar;
-
     QPointer<QDockWidget> mavlinkInspectorWidget;
     QPointer<MAVLinkDecoder> mavlinkDecoder;
     QPointer<QDockWidget> mavlinkSenderWidget;
@@ -297,6 +285,7 @@ private slots:
     void _showDockWidgetAction(bool show);
     void _loadCustomWidgetFromFile(void);
     void _createNewCustomWidget(void);
+    void _linkStateChange(LinkInterface*);
 #ifdef UNITTEST_BUILD
     void _showQmlTestWidget(void);
 #endif
@@ -314,7 +303,6 @@ private:
     QPointer<QWidget> _engineeringView;
     QPointer<QWidget> _simView;
     QPointer<QWidget> _terminalView;
-    QPointer<QWidget> _googleEarthView;
     QPointer<QWidget> _local3DView;
 
     // Dock widget names
@@ -345,7 +333,6 @@ private:
     void _buildEngineeringView(void);
     void _buildSimView(void);
     void _buildTerminalView(void);
-    void _buildGoogleEarthView(void);
     void _buildLocal3DView(void);
 
     void _storeCurrentViewState(void);
