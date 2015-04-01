@@ -125,11 +125,6 @@ contains(DEFINES, QGC_NOTIFY_TUNES_ENABLED) {
     QT += multimedia
 }
 
-!contains(DEFINES, DISABLE_GOOGLE_EARTH) {
-    QT += webkit webkitwidgets
-}
-
-
 #  testlib is needed even in release flavor for QSignalSpy support
 QT += testlib
 
@@ -291,7 +286,6 @@ FORMS += \
     src/ui/QGCSensorSettingsWidget.ui \
     src/ui/QGCDataPlot2D.ui \
     src/ui/QMap3D.ui \
-    src/ui/map3D/QGCGoogleEarthView.ui \
     src/ui/uas/QGCUnconnectedInfoWidget.ui \
     src/ui/designer/QGCToolWidget.ui \
     src/ui/designer/QGCParamSlider.ui \
@@ -425,7 +419,6 @@ HEADERS += \
     src/ui/map/QGCMapTool.h \
     src/ui/map/QGCMapToolBar.h \
     src/QGCGeo.h \
-    src/ui/QGCToolBar.h \
     src/ui/QGCMAVLinkInspector.h \
     src/ui/MAVLinkDecoder.h \
     src/ui/WaypointViewOnlyView.h \
@@ -479,7 +472,6 @@ HEADERS += \
     src/uas/QGCUASFileManager.h \
     src/ui/QGCUASFileView.h \
     src/CmdLineOptParser.h \
-    src/uas/QGXPX4UAS.h \
     src/QGCFileDialog.h \
     src/QGCMessageBox.h \
     src/QGCComboBox.h \
@@ -497,7 +489,8 @@ HEADERS += \
     src/ui/QGCUDPLinkConfiguration.h \
     src/uas/UASMessageHandler.h \
     src/ui/toolbar/MainToolBar.h \
-    src/QmlControls/ScreenTools.h
+    src/QmlControls/ScreenTools.h \
+    src/QGCLoggingCategory.h
 
 SOURCES += \
     src/main.cc \
@@ -571,7 +564,6 @@ SOURCES += \
     src/ui/map/Waypoint2DIcon.cc \
     src/ui/map/QGCMapTool.cc \
     src/ui/map/QGCMapToolBar.cc \
-    src/ui/QGCToolBar.cc \
     src/ui/QGCMAVLinkInspector.cc \
     src/ui/MAVLinkDecoder.cc \
     src/ui/WaypointViewOnlyView.cc \
@@ -622,7 +614,6 @@ SOURCES += \
     src/uas/QGCUASFileManager.cc \
     src/ui/QGCUASFileView.cc \
     src/CmdLineOptParser.cc \
-    src/uas/QGXPX4UAS.cc \
     src/QGCFileDialog.cc \
     src/QGCComboBox.cc \
     src/QGCTemporaryFile.cc \
@@ -639,7 +630,8 @@ SOURCES += \
     src/ui/QGCUDPLinkConfiguration.cc \
     src/uas/UASMessageHandler.cc \
     src/ui/toolbar/MainToolBar.cc \
-    src/QmlControls/ScreenTools.cc
+    src/QmlControls/ScreenTools.cc \
+    src/QGCLoggingCategory.cc
 
 #
 # Unit Test specific configuration goes here
@@ -719,7 +711,6 @@ INCLUDEPATH += \
 
 FORMS += \
     src/VehicleSetup/ParameterEditor.ui \
-    src/ui/QGCPX4VehicleConfig.ui \
     src/VehicleSetup/SetupView.ui \
 
 HEADERS+= \
@@ -779,7 +770,7 @@ HEADERS += \
     src/FactSystem/FactBinder.h \
     src/FactSystem/FactMetaData.h \
     src/FactSystem/FactValidator.h \
-    src/FactSystem/FactLoader.h \
+    src/FactSystem/ParameterLoader.h \
 
 SOURCES += \
     src/FactSystem/FactSystem.cc \
@@ -787,4 +778,4 @@ SOURCES += \
     src/FactSystem/FactBinder.cc \
     src/FactSystem/FactMetaData.cc \
     src/FactSystem/FactValidator.cc \
-    src/FactSystem/FactLoader.cc \
+    src/FactSystem/ParameterLoader.cc \

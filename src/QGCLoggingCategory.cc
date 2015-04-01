@@ -2,7 +2,7 @@
  
  QGroundControl Open Source Ground Control Station
  
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  
  This file is part of the QGROUNDCONTROL project
  
@@ -24,26 +24,19 @@
 /// @file
 ///     @author Don Gagne <don@thegagnes.com>
 
-#include "FactSystem.h"
-#include "UASManager.h"
-#include "QGCApplication.h"
-#include "VehicleComponent.h"
-#include "FactBinder.h"
+#include "QGCLoggingCategory.h"
 
-#include <QtQml>
+// Add Global logging categories (not class specific) here using QGC_LOGGING_CATEGORY
+    // There currently are no global categories
 
-IMPLEMENT_QGC_SINGLETON(FactSystem, FactSystem)
+QGCLoggingCategoryRegister* _instance = NULL;
 
-const char* FactSystem::_factSystemQmlUri = "QGroundControl.FactSystem";
-
-FactSystem::FactSystem(QObject* parent) :
-    QGCSingleton(parent)
+QGCLoggingCategoryRegister* QGCLoggingCategoryRegister::instance(void)
 {
-    qmlRegisterType<FactBinder>(_factSystemQmlUri, 1, 0, "Fact");
-    qmlRegisterUncreatableType<VehicleComponent>(_factSystemQmlUri, 1, 0, "VehicleComponent", "Can only reference VehicleComponent");
-}
-
-FactSystem::~FactSystem()
-{
-
+    if (!_instance) {
+        _instance = new QGCLoggingCategoryRegister();
+        Q_CHECK_PTR(_instance);
+    }
+    
+    return _instance;
 }

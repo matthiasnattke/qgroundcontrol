@@ -81,9 +81,6 @@ public:
     void saveSettings(QSettings& settings, const QString& root);
     void updateSettings();
 
-    /*! @brief Get a list of the currently available ports */
-    static QList<QString> getCurrentPorts();
-
 private:
     int _baud;
     int _dataBits;
@@ -105,16 +102,14 @@ private:
 class SerialLink : public LinkInterface
 {
     Q_OBJECT
+    
     friend class SerialConfiguration;
+    friend class LinkManager;
+    
 public:
-
-    SerialLink(SerialConfiguration* config);
-    ~SerialLink();
-
     // LinkInterface
 
     LinkConfiguration* getLinkConfiguration();
-    int     getId() const;
     QString getName() const;
     void    requestReset();
     bool    isConnected() const;
@@ -148,7 +143,6 @@ protected:
     QSerialPort* _port;
     quint64 _bytesRead;
     int     _timeout;
-    int     _id;
     QMutex  _dataMutex;       // Mutex for reading data from _port
     QMutex  _writeMutex;      // Mutex for accessing the _transmitBuffer.
     QString _type;
@@ -157,9 +151,13 @@ private slots:
     void _rerouteDisconnected(void);
 
 private:
+    // Links are only created/destroyed by LinkManager so constructor/destructor is not public
+    SerialLink(SerialConfiguration* config);
+    ~SerialLink();
+    
     // From LinkInterface
-    bool _connect(void);
-    bool _disconnect(void);
+    virtual bool _connect(void);
+    virtual bool _disconnect(void);
 
     // Internal methods
     void _emitLinkError(const QString& errorMsg);

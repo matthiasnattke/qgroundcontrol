@@ -31,14 +31,15 @@
 
 FactBinder::FactBinder(void) :
     _autopilotPlugin(NULL),
-    _fact(NULL)
+    _fact(NULL),
+    _componentId(FactSystem::defaultComponentId)
 {
     UASInterface* uas = UASManager::instance()->getActiveUAS();
     Q_ASSERT(uas);
     
     _autopilotPlugin = AutoPilotPluginManager::instance()->getInstanceForAutoPilotPlugin(uas);
     Q_ASSERT(_autopilotPlugin);
-    Q_ASSERT(_autopilotPlugin->pluginIsReady());
+    Q_ASSERT(_autopilotPlugin->pluginReady());
 }
 
 QString FactBinder::name(void) const
@@ -58,8 +59,8 @@ void FactBinder::setName(const QString& name)
     }
     
     if (!name.isEmpty()) {
-        if (_autopilotPlugin->factExists(name)) {
-            _fact = _autopilotPlugin->getFact(name);
+        if (_autopilotPlugin->factExists(FactSystem::ParameterProvider, _componentId, name)) {
+            _fact = _autopilotPlugin->getFact(FactSystem::ParameterProvider, _componentId, name);
             connect(_fact, &Fact::valueChanged, this, &FactBinder::valueChanged);
 
             emit valueChanged();
