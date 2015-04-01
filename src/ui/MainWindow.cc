@@ -68,6 +68,7 @@ This file is part of the QGROUNDCONTROL project
 #include "QGCFileDialog.h"
 #include "QGCMessageBox.h"
 #include "QGCDockWidget.h"
+#include "QGCSwarmControl.h"
 
 #ifdef UNITTEST_BUILD
 #include "QmlControls/QmlTestWidget.h"
@@ -97,6 +98,7 @@ const char* MainWindow::_pfdDockWidgetName = "PRIMARY_FLIGHT_DISPLAY_DOCKWIDGET"
 const char* MainWindow::_hudDockWidgetName = "HEAD_UP_DISPLAY_DOCKWIDGET";
 const char* MainWindow::_uasInfoViewDockWidgetName = "UAS_INFO_INFOVIEW_DOCKWIDGET";
 const char* MainWindow::_debugConsoleDockWidgetName = "COMMUNICATION_CONSOLE_DOCKWIDGET";
+const char* MainWindow::_swarmControlWidgetName = "SWARM_CONTROL_DOCKWIDGET";
 
 static MainWindow* _instance = NULL;   ///< @brief MainWindow singleton
 
@@ -411,7 +413,7 @@ void MainWindow::_buildCommonWidgets(void)
 
     static const struct DockWidgetInfo rgDockWidgetInfo[] = {
         { _uasControlDockWidgetName,        "Control",                  Qt::LeftDockWidgetArea },
-        { _uasListDockWidgetName,           "Unmanned Systems",         Qt::RightDockWidgetArea },
+        { _uasListDockWidgetName,           "Unmanned Systems",         Qt::LeftDockWidgetArea },
         { _waypointsDockWidgetName,         "Mission Plan",             Qt::BottomDockWidgetArea },
         { _mavlinkDockWidgetName,           "MAVLink Inspector",        Qt::RightDockWidgetArea },
         { _parametersDockWidgetName,        "Onboard Parameters",       Qt::RightDockWidgetArea },
@@ -424,7 +426,8 @@ void MainWindow::_buildCommonWidgets(void)
         { _pfdDockWidgetName,               "Primary Flight Display",   Qt::RightDockWidgetArea },
         { _hudDockWidgetName,               "Video Downlink",           Qt::RightDockWidgetArea },
         { _uasInfoViewDockWidgetName,       "Info View",                Qt::LeftDockWidgetArea },
-        { _debugConsoleDockWidgetName,      "Communications Console",   Qt::LeftDockWidgetArea }
+        { _debugConsoleDockWidgetName,      "Communications Console",   Qt::LeftDockWidgetArea },
+        { _swarmControlWidgetName,          "Swarm Control",            Qt::RightDockWidgetArea }
     };
     static const size_t cDockWidgetInfo = sizeof(rgDockWidgetInfo) / sizeof(rgDockWidgetInfo[0]);
 
@@ -569,6 +572,8 @@ void MainWindow::_createInnerDockWidget(const QString& widgetName)
         widget = pInfoView;
     } else if (widgetName == _debugConsoleDockWidgetName) {
         widget = new DebugConsole(this);
+    } else if (widgetName == _swarmControlWidgetName) {
+        widget = new QGCSwarmControl(this);
     } else {
         qWarning() << "Attempt to create unknown Inner Dock Widget" << widgetName;
     }

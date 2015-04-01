@@ -57,8 +57,7 @@ MAVRICAutoPilotPlugin::MAVRICAutoPilotPlugin(UASInterface* uas, QObject* parent)
     _parameterFacts = new GenericParameterFacts(uas, this);
     Q_CHECK_PTR(_parameterFacts);
     
-    connect(_parameterFacts, &GenericParameterFacts::factsReady, this, &MAVRICAutoPilotPlugin::pluginReady);
-
+    connect(_parameterFacts, &GenericParameterFacts::parametersReady, this, &MAVRICAutoPilotPlugin::_parametersReady);
 
 }
 
@@ -144,19 +143,15 @@ void MAVRICAutoPilotPlugin::clearStaticData(void)
     // No Static data yet
 }
 
-const QVariantList& MAVRICAutoPilotPlugin::components(void)
+const QVariantList& MAVRICAutoPilotPlugin::vehicleComponents(void)
 {
     static QVariantList emptyList;
     
     return emptyList;
 }
 
-const QVariantMap& MAVRICAutoPilotPlugin::parameters(void)
+void MAVRICAutoPilotPlugin::_parametersReady(void)
 {
-    return _parameterFacts->factMap();
-}
-
-QUrl MAVRICAutoPilotPlugin::setupBackgroundImage(void)
-{
-    return QUrl::fromUserInput("qrc:/qml/px4fmu_2.x.png");
+    _pluginReady = true;
+    emit pluginReadyChanged(_pluginReady);
 }
