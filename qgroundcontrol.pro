@@ -264,6 +264,7 @@ INCLUDEPATH += \
     src/ui/px4_configuration \
     src/ui/main \
     src/ui/toolbar \
+    src/ui/flightdisplay \
     src/VehicleSetup \
     src/AutoPilotPlugins \
     src/QmlControls
@@ -332,7 +333,6 @@ FORMS += \
     src/ui/JoystickAxis.ui \
     src/ui/configuration/terminalconsole.ui \
     src/ui/configuration/SerialSettingsDialog.ui \
-    src/ui/px4_configuration/QGCPX4AirframeConfig.ui \
     src/ui/px4_configuration/PX4RCCalibration.ui \
     src/ui/QGCUASFileView.ui \
     src/QGCQmlWidgetHolder.ui \
@@ -463,7 +463,6 @@ HEADERS += \
     src/uas/UASParameterDataModel.h \
     src/uas/UASParameterCommsMgr.h \
     src/ui/QGCPendingParamWidget.h \
-    src/ui/px4_configuration/QGCPX4AirframeConfig.h \
     src/ui/QGCBaseParamWidget.h \
     src/ui/px4_configuration/PX4RCCalibration.h \
     src/ui/px4_configuration/RCValueWidget.h \
@@ -490,7 +489,8 @@ HEADERS += \
     src/uas/UASMessageHandler.h \
     src/ui/toolbar/MainToolBar.h \
     src/QmlControls/ScreenTools.h \
-    src/QGCLoggingCategory.h
+    src/QGCLoggingCategory.h \
+    src/ui/flightdisplay/QGCFlightDisplay.h
 
 SOURCES += \
     src/main.cc \
@@ -607,7 +607,6 @@ SOURCES += \
     src/uas/UASParameterDataModel.cc \
     src/uas/UASParameterCommsMgr.cc \
     src/ui/QGCPendingParamWidget.cc \
-    src/ui/px4_configuration/QGCPX4AirframeConfig.cc \
     src/ui/QGCBaseParamWidget.cc \
     src/ui/px4_configuration/PX4RCCalibration.cc \
     src/ui/px4_configuration/RCValueWidget.cc \
@@ -631,7 +630,8 @@ SOURCES += \
     src/uas/UASMessageHandler.cc \
     src/ui/toolbar/MainToolBar.cc \
     src/QmlControls/ScreenTools.cc \
-    src/QGCLoggingCategory.cc
+    src/QGCLoggingCategory.cc \
+    src/ui/flightdisplay/QGCFlightDisplay.cc
 
 #
 # Unit Test specific configuration goes here
@@ -730,6 +730,8 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/FlightModesComponent.h \
     src/AutoPilotPlugins/PX4/FlightModesComponentController.h \
     src/AutoPilotPlugins/PX4/AirframeComponent.h \
+    src/AutoPilotPlugins/PX4/AirframeComponentAirframes.h \
+    src/AutoPilotPlugins/PX4/AirframeComponentController.h \
     src/AutoPilotPlugins/PX4/SensorsComponent.h \
     src/AutoPilotPlugins/PX4/SensorsComponentController.h \
     src/AutoPilotPlugins/PX4/SafetyComponent.h \
@@ -753,6 +755,8 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/FlightModesComponent.cc \
     src/AutoPilotPlugins/PX4/FlightModesComponentController.cc \
     src/AutoPilotPlugins/PX4/AirframeComponent.cc \
+    src/AutoPilotPlugins/PX4/AirframeComponentAirframes.cc \
+    src/AutoPilotPlugins/PX4/AirframeComponentController.cc \
     src/AutoPilotPlugins/PX4/SensorsComponent.cc \
     src/AutoPilotPlugins/PX4/SensorsComponentController.cc \
     src/AutoPilotPlugins/PX4/SafetyComponent.cc \

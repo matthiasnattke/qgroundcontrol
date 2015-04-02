@@ -566,9 +566,33 @@ void QGCApplication::_loadCurrentStyle(void)
             success = false;
         }
     }
+    
+    // Now that we have the styles loaded we need to dpi adjust the font point sizes
+    
+    QString dpiAdjustedStyles;
+    if (success) {
+        QTextStream styleStream(&styles, QIODevice::ReadOnly);
+        QRegularExpression regex("font-size:.+(\\d\\d)pt;");
+        
+        while (!styleStream.atEnd()) {
+            QString adjustedLine;
+            QString line = styleStream.readLine();
+            
+            QRegularExpressionMatch match = regex.match(line);
+            if (match.hasMatch()) {
+                //qDebug() << "found:" << line << match.captured(1);
+                adjustedLine = QString("font-size: %1pt;").arg(ScreenTools::dpiAdjustedPointSize_s(match.captured(1).toDouble()));
+                //qDebug() << "adjusted:" << adjustedLine;
+            } else {
+                adjustedLine = line;
+            }
+            
+            dpiAdjustedStyles += adjustedLine;
+        }
+    }
 
-    if (!styles.isEmpty()) {
-        setStyleSheet(styles);
+    if (!dpiAdjustedStyles.isEmpty()) {
+        setStyleSheet(dpiAdjustedStyles);
     }
 
     if (!success) {
@@ -580,4 +604,27 @@ void QGCApplication::_loadCurrentStyle(void)
 
     // Finally restore the cursor before returning.
     restoreOverrideCursor();
+}
+
+void QGCApplication::reconnectAfterWait(int waitSeconds)
+{
+    LinkManager* linkManager = LinkManager::instance();
+    Q_ASSERT(linkManager);
+    
+    Q_ASSERT(linkManager->getLinks().count() == 1);
+    LinkInterface* link = linkManager->getLinks()[0];
+    
+    // Save the link configuration so we can restart the link laster
+    _reconnectLinkConfig = linkManager->getLinks()[0]->getLinkConfiguration();
+    
+    // Disconnect and wait
+    
+    linkManager->disconnectLink(link);
+    QTimer::singleShot(waitSeconds * 1000, this, &QGCApplication::_reconnect);
+}
+
+void QGCApplication::_reconnect(void)
+{
+    qgcApp()->restoreOverrideCursor();
+    LinkManager::instance()->createConnectedLink(_reconnectLinkConfig);
 }
