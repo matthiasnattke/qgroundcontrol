@@ -34,6 +34,9 @@ void QGCMapToolBar::setMap(QGCMapWidget* map)
         connect(_map, SIGNAL(OnTilesStillToLoad(int)), this, SLOT(tileLoadProgress(int)));
         connect(_ui->ripMapButton, SIGNAL(clicked()), _map, SLOT(cacheVisibleRegion()));
 
+        connect(_ui->clearWptButton,SIGNAL(clicked()),_map,SLOT(clearAllWpt()));
+        connect(_ui->getAllWptButton,SIGNAL(clicked()),_map,SLOT(getAllWpt()));
+
         _ui->followCheckBox->setChecked(_map->getFollowUAVEnabled());
         connect(_ui->followCheckBox, SIGNAL(clicked(bool)), _map, SLOT(setFollowUAVEnabled(bool)));
 

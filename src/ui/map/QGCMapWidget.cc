@@ -372,6 +372,7 @@ void QGCMapWidget::activeUASSet(UASInterface* uas)
         disconnect(currWPManager, SIGNAL(waypointEditableChanged(int, Waypoint*)), this, SLOT(updateWaypoint(int,Waypoint*)));
         disconnect(this, SIGNAL(waypointCreated(Waypoint*)), currWPManager, SLOT(addWaypointEditable(Waypoint*)));
         disconnect(this, SIGNAL(waypointChanged(Waypoint*)), currWPManager, SLOT(notifyOfChangeEditable(Waypoint*)));
+        //disconnect(currWPManager,SIGNAL(waypointEditableListChanged(void)), this, SLOT(getAllWpt(void)));
     }
 
     // Attach the new waypoint manager if a new UAS was selected. Otherwise, indicate
@@ -389,6 +390,7 @@ void QGCMapWidget::activeUASSet(UASInterface* uas)
         connect(currWPManager, SIGNAL(waypointEditableChanged(int, Waypoint*)), this, SLOT(updateWaypoint(int,Waypoint*)), Qt::UniqueConnection);
         connect(this, SIGNAL(waypointCreated(Waypoint*)), currWPManager, SLOT(addWaypointEditable(Waypoint*)), Qt::UniqueConnection);
         connect(this, SIGNAL(waypointChanged(Waypoint*)), currWPManager, SLOT(notifyOfChangeEditable(Waypoint*)), Qt::UniqueConnection);
+        //connect(currWPManager, SIGNAL(waypointEditableListChanged(void)), this, SLOT(getAllWpt(void)));
 
         if (!mapPositionInitialized) {
             internals::PointLatLng pos_lat_lon = internals::PointLatLng(uas->getLatitude(), uas->getLongitude());
@@ -803,12 +805,21 @@ void QGCMapWidget::updateWaypointList(int uas)
             }
         }
 
-        // Delete first all old waypoints
+        // Delete first old waypoints that aren't in any of the uas wps
         // this is suboptimal (quadratic, but wps should stay in the sub-100 range anyway)
-        QList<Waypoint* > wps = currWPManager->getGlobalFrameAndNavTypeWaypointList();
         foreach (Waypoint* wp, waypointsToIcons.keys())
         {
-            if (!wps.contains(wp))
+            bool wpExists = false;
+            foreach (UASInterface* uas, UASManager::instance()->getUASList())
+            {
+                QList<Waypoint* > tempWps = uas->getWaypointManager()->getGlobalFrameAndNavTypeWaypointList();
+                if(tempWps.contains(wp))
+                {
+                    wpExists = true;
+                    break;
+                }
+            }
+            if(!wpExists)
             {
                 // Get icon to work on
                 mapcontrol::WayPointItem* icon = waypointsToIcons.value(wp);
@@ -826,6 +837,7 @@ void QGCMapWidget::updateWaypointList(int uas)
         }
 
         // Update all potentially new waypoints
+        QList<Waypoint* > wps = currWPManager->getGlobalFrameAndNavTypeWaypointList();
         foreach (Waypoint* wp, wps)
         {
             qDebug() << "UPDATING NEW WP" << wp->getId();
@@ -859,6 +871,66 @@ void QGCMapWidget::updateWaypointList(int uas)
     }
 }
 
+
+void QGCMapWidget::clearAllWpt()
+{
+    if (currWPManager)
+    {
+        qDebug() << "ND DELETING NOW ALL WPS -------------------";
+
+        // Delete connecting waypoint lines
+        QGraphicsItemGroup* group ;// = waypointLines.value(uas, NULL);
+        if (group)
+        {
+            foreach (QGraphicsItem* item, group->childItems())
+            {
+                delete item;
+            }
+        }
+
+        // Delete first old waypoints that aren't in any of the uas wps
+        // this is suboptimal (quadratic, but wps should stay in the sub-100 range anyway)
+        foreach (Waypoint* wp, waypointsToIcons.keys())
+        {
+            // Get icon to work on
+            mapcontrol::WayPointItem* icon = waypointsToIcons.value(wp);
+            waypointsToIcons.remove(wp);
+            iconsToWaypoints.remove(icon);
+            WPDelete(icon);
+        }
+
+        UASInterface* _uas = UASManager::instance()->getActiveUAS();
+        updateWaypointList(_uas->getUASID());
+    }
+}
+
+void QGCMapWidget::getAllWpt()
+{
+    qDebug() << "ND GETTING NOW ALL WPS -------------------";
+    
+    UASInterface* _uas;
+
+    QList<UASInterface*> UASList = UASManager::instance()->getUASList();
+
+    static int i = 0;
+
+    if (i <= UASList.size())
+    {
+        _uas = UASList.at(i);
+    
+        if (_uas)
+        {
+            qDebug() << "uas id" << _uas->getUASID();
+            _uas->getWaypointManager()->readWaypoints(true);
+
+            i++;
+        }
+    }
+    else
+    {
+        i=0;
+    }
+}
 
 //// ADAPTER / HELPER FUNCTIONS
 //float QGCMapWidget::metersToPixels(double meters)

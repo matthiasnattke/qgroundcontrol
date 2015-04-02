@@ -83,6 +83,10 @@ public slots:
     void cacheVisibleRegion();
     /** @brief Set follow mode */
     void setFollowUAVEnabled(bool enabled) { followUAVEnabled = enabled; }
+    /** @brief Clear all waypoints on the map*/
+    void clearAllWpt();
+    /** @brief Get all waypoints on the map*/
+    void getAllWpt();
     /** @brief Set trail to time mode and set time @param seconds The minimum time between trail dots in seconds. If set to a value < 0, trails will be disabled*/
     void setTrailModeTimed(int seconds)
     {
