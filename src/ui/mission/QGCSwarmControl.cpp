@@ -33,13 +33,12 @@
 #include "ui_QGCSwarmControl.h"
 
 #include <QMessageBox>
-#include "UAS.h"
-#include "QGCMAVLink.h"
-#include "LinkManager.h"
 #include <QRadioButton>
 #include <QString>
 #include <QListWidget>
-#include "UASManager.h"
+
+#include "UAS.h"
+#include "QGCMAVLink.h"
 
 const unsigned int QGCSwarmControl::updateInterval = 5000U;
 

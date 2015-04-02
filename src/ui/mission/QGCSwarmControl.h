@@ -52,7 +52,7 @@ class QGCSwarmControl : public QWidget
 
 public:
     explicit QGCSwarmControl(QWidget *parent = 0);
-    ~QGCSwarmControl();
+    ~QGCSwarmControl(void);
 
 public slots:
 
@@ -60,14 +60,14 @@ public slots:
     void textEmit(int uasid, int component, int severity, QString message);
 
 private slots:
-    void continueAllButton_clicked();
-    void Return2startButton_clicked();
-    void launchScenario_clicked();
-    void autoLanding_clicked();
-    void autoTakeoff_clicked();
+    void continueAllButton_clicked(void);
+    void Return2startButton_clicked(void);
+    void launchScenario_clicked(void);
+    void autoLanding_clicked(void);
+    void autoTakeoff_clicked(void);
 
-    void startLogging_clicked();
-    void stopLogging_clicked();
+    void startLogging_clicked(void);
+    void stopLogging_clicked(void);
 
     void UASCreated(UASInterface* uas);
     void RemoveUAS(UASInterface* uas);
@@ -75,27 +75,27 @@ private slots:
 
     void newActiveUAS(UASInterface* uas);
 
-    void refreshView();
+    void refreshView(void);
 
-    void setParameters_clicked();
+    void setParameters_clicked(void);
 
-    void startButton_clicked();
-    void stopButton_clicked();
+    void startButton_clicked(void);
+    void stopButton_clicked(void);
 
-    void armButton_clicked();
-    void disarmButton_clicked();
+    void armButton_clicked(void);
+    void disarmButton_clicked(void);
 
-    void selectButton_clicked();
+    void selectButton_clicked(void);
 
     void remoteItem_clicked(QListWidgetItem* item);
 
-    void remoteButton_clicked();
+    void remoteButton_clicked(void);
 
     void setMode(int mode);
 
-    void sendNewHomePosition();
+    void sendNewHomePosition(void);
 
-    void strategyLaunchClicked();
+    void strategyLaunchClicked(void);
 
 private:
     Ui::QGCSwarmControl *ui;
