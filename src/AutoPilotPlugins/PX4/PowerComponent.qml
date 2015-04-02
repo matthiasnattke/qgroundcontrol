@@ -44,7 +44,7 @@ Rectangle {
     color:  palette.window
 
     property int firstColumnWidth: 220
-    property int textEditWidth:    60
+    property int textEditWidth:    80
     property ScreenTools screenTools: ScreenTools { }
 
     property Fact battNumCells: Fact { name: "BAT_N_CELLS" }
@@ -109,7 +109,7 @@ Rectangle {
 
         Rectangle {
             width: parent.width
-            height: 160
+            height: 120
             color: palette.windowShade
 
             Column {
@@ -155,17 +155,6 @@ Rectangle {
                                 showUnits: true
                             }
                         }
-                        Row {
-                            spacing: 10
-                            visible: showAdvanced.checked
-                            QGCLabel { text: "Voltage Drop on Full Load (per cell)"; width: firstColumnWidth; anchors.baseline: battDropField.baseline}
-                            FactTextField {
-                                id: battDropField
-                                width: textEditWidth
-                                fact: Fact { name: "BAT_V_LOAD_DROP" }
-                                showUnits: true
-                            }
-                        }
                     }
                     Canvas {
                         id: arrows
@@ -208,12 +197,10 @@ Rectangle {
                                 text: "Battery Max:"
                                 color: palette.text
                                 width: 80
-                                font.pointSize: screenTools.dpiAdjustedPointSize(12);
                             }
                             QGCLabel {
                                 text: (battNumCells.value * battHighVolt.value).toFixed(1) + ' V'
                                 color: palette.text
-                                font.pointSize: screenTools.dpiAdjustedPointSize(12);
                             }
                         }
                         Row {
@@ -222,12 +209,10 @@ Rectangle {
                                 text: "Battery Min:"
                                 color: palette.text
                                 width: 80
-                                font.pointSize: screenTools.dpiAdjustedPointSize(12);
                             }
                             QGCLabel {
                                 text: (battNumCells.value * battLowVolt.value).toFixed(1) + ' V'
                                 color: palette.text
-                                font.pointSize: screenTools.dpiAdjustedPointSize(12);
                             }
                         }
                     }
@@ -275,6 +260,34 @@ Rectangle {
         QGCCheckBox {
             id: showAdvanced
             text: "Show Advanced Settings"
+        }
+        QGCLabel {
+            text: "Advanced Power Settings"
+            color: palette.text
+            font.pointSize: screenTools.dpiAdjustedPointSize(20);
+            visible: showAdvanced.checked
+        }
+        Rectangle {
+            width: parent.width
+            height: 40
+            color: palette.windowShade
+            visible: showAdvanced.checked
+            Column {
+                id: advBatteryColumn
+                spacing: 10
+                anchors.verticalCenter: parent.verticalCenter
+                x: (parent.x + 20)
+                Row {
+                    spacing: 10
+                    QGCLabel { text: "Voltage Drop on Full Load (per cell)"; width: firstColumnWidth; anchors.baseline: battDropField.baseline}
+                    FactTextField {
+                        id: battDropField
+                        width: textEditWidth
+                        fact: Fact { name: "BAT_V_LOAD_DROP" }
+                        showUnits: true
+                    }
+                }
+            }
         }
     }
 }

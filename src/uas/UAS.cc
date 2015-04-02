@@ -31,8 +31,9 @@
 #include <Eigen/Geometry>
 #include "AutoPilotPluginManager.h"
 #include "QGCMessageBox.h"
+#include "QGCLoggingCategory.h"
 
-Q_LOGGING_CATEGORY(UASLog, "UASLog")
+QGC_LOGGING_CATEGORY(UASLog, "UASLog")
 
 #define UAS_DEFAULT_BATTERY_WARNLEVEL 20
 
@@ -49,7 +50,6 @@ UAS::UAS(MAVLinkProtocol* protocol, int id) : UASInterface(),
     uasId(id),
     unknownPackets(),
     mavlink(protocol),
-    commStatus(COMM_DISCONNECTED),
     receiveDropRate(0),
     sendDropRate(0),
 
@@ -380,8 +380,7 @@ bool UAS::getSelected() const
 
 void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
 {
-    if (!links.contains(link))
-    {
+    if (!_containsLink(link)) {
         addLink(link);
         //        qDebug() << __FILE__ << __LINE__ << "ADDED LINK!" << link->getName();
     }
@@ -873,8 +872,6 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
             }
             positionLock = true;
             isGlobalPositionKnown = true;
-            //TODO fix this hack for forwarding of global position for patch antenna tracking
-            //forwardMessage(message);
         }
             break;
         case MAVLINK_MSG_ID_GPS_RAW_INT:
@@ -1029,8 +1026,6 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
             paramVal.type = rawValue.param_type;
 
             processParamValueMsg(message, parameterName,rawValue,paramVal);
-            processParamValueMsgHook(message, parameterName,rawValue,paramVal);
-
          }
             break;
         case MAVLINK_MSG_ID_COMMAND_ACK:
@@ -1248,14 +1243,17 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
             QByteArray b;
             b.resize(MAVLINK_MSG_STATUSTEXT_FIELD_TEXT_LEN+1);
             mavlink_msg_statustext_get_text(&message, b.data());
+ 
             // Ensure NUL-termination
             b[b.length()-1] = '\0';
             QString text = QString(b);
             int severity = mavlink_msg_statustext_get_severity(&message);
 
-            if (text.startsWith("#") || severity <= MAV_SEVERITY_WARNING)
+	    // If the message is NOTIFY or higher severity, or starts with a '#',
+	    // then read it aloud.
+            if (text.startsWith("#") || severity <= MAV_SEVERITY_NOTICE)
             {
-                text.remove("#audio:");
+                text.remove("#");
                 emit textMessageReceived(uasId, message.compid, severity, text);
                 GAudioOutput::instance()->say(text.toLower(), severity);
             }
@@ -1343,6 +1341,7 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
             setDistToWaypoint(p.wp_dist);
             setBearingToWaypoint(p.nav_bearing);
             emit navigationControllerErrorsChanged(this, p.alt_error, p.aspd_error, p.xtrack_error);
+            emit NavigationControllerDataChanged(this, p.nav_roll, p.nav_pitch, p.nav_bearing, p.target_bearing, p.wp_dist);
         }
             break;
         // Messages to ignore
@@ -1723,45 +1722,17 @@ void UAS::sendMessage(mavlink_message_t message)
         return;
     }
 
-    if (links.count() < 1) {
+    if (_links.count() < 1) {
         qDebug() << "NO LINK AVAILABLE TO SEND!";
     }
 
     // Emit message on all links that are currently connected
-    foreach (LinkInterface* link, links) {
+    foreach (SharedLinkInterface sharedLink, _links) {
+        LinkInterface* link = sharedLink.data();
+        Q_ASSERT(link);
+        
         if (link->isConnected()) {
             sendMessage(link, message);
-        }
-    }
-}
-
-/**
-* Forward a message to all links that are currently connected.
-* @param message that is to be forwarded
-*/
-void UAS::forwardMessage(mavlink_message_t message)
-{
-    // Emit message on all links that are currently connected
-    QList<LinkInterface*>link_list = LinkManager::instance()->getLinks();
-
-    foreach(LinkInterface* link, link_list)
-    {
-        if (link)
-        {
-            SerialLink* serial = dynamic_cast<SerialLink*>(link);
-            if(serial != 0)
-            {
-                for(int i=0; i<links.size(); i++)
-                {
-                    if(serial != links.at(i))
-                    {
-                        if (link->isConnected()) {
-                            qDebug()<<"Antenna tracking: Forwarding Over link: "<<serial->getName()<<" "<<serial;
-                            sendMessage(serial, message);
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -1779,7 +1750,7 @@ void UAS::sendMessage(LinkInterface* link, mavlink_message_t message)
     // Write message into buffer, prepending start sign
     int len = mavlink_msg_to_send_buffer(buffer, &message);
     static uint8_t messageKeys[256] = MAVLINK_MESSAGE_CRCS;
-    mavlink_finalize_message_chan(&message, mavlink->getSystemId(), mavlink->getComponentId(), link->getId(), message.len, messageKeys[message.msgid]);
+    mavlink_finalize_message_chan(&message, mavlink->getSystemId(), mavlink->getComponentId(), link->getMavlinkChannel(), message.len, messageKeys[message.msgid]);
 
     // If link is connected
     if (link->isConnected())
@@ -1938,11 +1909,6 @@ quint64 UAS::getUptime() const
     {
         return QGC::groundTimeMilliseconds() - startTime;
     }
-}
-
-int UAS::getCommunicationStatus() const
-{
-    return commStatus;
 }
 
 void UAS::writeParametersToStorage()
@@ -2708,6 +2674,21 @@ int UAS::getSystemType()
     return this->type;
 }
 
+/** @brief Is it an airplane (or like one)?,..)*/
+bool UAS::isAirplane()
+{
+    switch(this->type) {
+        case MAV_TYPE_GENERIC:
+        case MAV_TYPE_FIXED_WING:
+        case MAV_TYPE_AIRSHIP:
+        case MAV_TYPE_FLAPPING_WING:
+            return true;
+        default:
+            break;
+    }
+    return false;
+}
+
 /**
 * Halt the uas.
 */
@@ -3272,27 +3253,30 @@ const QString& UAS::getShortMode() const
 */
 void UAS::addLink(LinkInterface* link)
 {
-    if (!links.contains(link))
+    if (!_containsLink(link))
     {
-        links.append(link);
+        _links.append(LinkManager::instance()->sharedPointerForLink(link));
         qCDebug(UASLog) << "addLink:" << QString("%1").arg((ulong)link, 0, 16);
-        connect(link, SIGNAL(destroyed(QObject*)), this, SLOT(removeLink(QObject*)));
+        connect(LinkManager::instance(), &LinkManager::linkDisconnected, this, &UAS::_linkDisconnected);
     }
 }
 
-void UAS::removeLink(QObject* object)
+void UAS::_linkDisconnected(LinkInterface* link)
 {
-    qCDebug(UASLog) << "removeLink:" << QString("%1").arg((ulong)object, 0, 16);
-    qCDebug(UASLog) << "link count:" << links.count();
+    qCDebug(UASLog) << "_linkDisconnected:" << link->getName();
+    qCDebug(UASLog) << "link count:" << _links.count();
 
-    // Do not dynamic cast or de-reference QObject, since object is either in destructor or may have already
-    // been destroyed.
-
-    LinkInterface* link = (LinkInterface*)object;
-
-    int index = links.indexOf(link);
-    Q_ASSERT(index != -1);
-    links.removeAt(index);
+    for (int i=0; i<_links.count(); i++) {
+        if (_links[i].data() == link) {
+            _links.removeAt(i);
+            break;
+        }
+    }
+    
+    if (_links.count() == 0) {
+        // Remove the UAS when all links to it close
+        UASManager::instance()->removeUAS(this);
+    }
 }
 
 /**
@@ -3300,7 +3284,13 @@ void UAS::removeLink(QObject* object)
 */
 QList<LinkInterface*> UAS::getLinks()
 {
-    return links;
+    QList<LinkInterface*> list;
+    
+    foreach (SharedLinkInterface sharedLink, _links) {
+        list << sharedLink.data();
+    }
+    
+    return list;
 }
 
 /**
@@ -3479,3 +3469,13 @@ void UAS::unsetRCToParameterMap()
     }
 }
 
+bool UAS::_containsLink(LinkInterface* link)
+{
+    foreach (SharedLinkInterface sharedLink, _links) {
+        if (sharedLink.data() == link) {
+            return true;
+        }
+    }
+
+    return false;
+}

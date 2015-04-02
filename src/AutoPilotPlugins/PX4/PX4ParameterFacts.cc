@@ -26,17 +26,18 @@
 
 #include "PX4ParameterFacts.h"
 #include "QGCApplication.h"
+#include "QGCLoggingCategory.h"
 
 #include <QFile>
 #include <QDebug>
 
-Q_LOGGING_CATEGORY(PX4ParameterFactsMetaDataLog, "PX4ParameterFactsMetaDataLog")
+QGC_LOGGING_CATEGORY(PX4ParameterFactsMetaDataLog, "PX4ParameterFactsMetaDataLog")
 
 bool PX4ParameterFacts::_parameterMetaDataLoaded = false;
 QMap<QString, FactMetaData*> PX4ParameterFacts::_mapParameterName2FactMetaData;
 
 PX4ParameterFacts::PX4ParameterFacts(UASInterface* uas, QObject* parent) :
-    FactLoader(uas, parent)
+    ParameterLoader(uas, parent)
 {
     Q_ASSERT(uas);
 }
@@ -272,6 +273,6 @@ void PX4ParameterFacts::_addMetaDataToFact(Fact* fact)
         fact->setMetaData(_mapParameterName2FactMetaData[fact->name()]);
     } else {
         // Use generic meta data
-        FactLoader::_addMetaDataToFact(fact);
+        ParameterLoader::_addMetaDataToFact(fact);
     }
 }
