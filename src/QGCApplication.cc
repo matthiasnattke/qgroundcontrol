@@ -61,6 +61,8 @@
 #include "QGCPalette.h"
 #include "ScreenTools.h"
 #include "QGCLoggingCategory.h"
+#include "ViewWidgetController.h"
+#include "ParameterEditorController.h"
 
 #ifdef QGC_RTLAB_ENABLED
 #include "OpalLink.h"
@@ -79,8 +81,8 @@ const char* QGCApplication::_defaultSavedFileDirectoryName = "QGroundControl";
 const char* QGCApplication::_savedFileMavlinkLogDirectoryName = "FlightData";
 const char* QGCApplication::_savedFileParameterDirectoryName = "SavedParameters";
 
-const char* QGCApplication::_darkStyleFile = ":files/styles/style-dark.css";
-const char* QGCApplication::_lightStyleFile = ":files/styles/style-light.css";
+const char* QGCApplication::_darkStyleFile = ":/res/styles/style-dark.css";
+const char* QGCApplication::_lightStyleFile = ":/res/styles/style-light.css";
 
 /**
  * @brief Constructor for the main application.
@@ -251,7 +253,7 @@ void QGCApplication::_initCommon(void)
 
     // Load application font
     QFontDatabase fontDatabase = QFontDatabase();
-    const QString fontFileName = ":/general/vera.ttf"; ///< Font file is part of the QRC file and compiled into the app
+    const QString fontFileName = ":/res/fonts/vera.ttf"; ///< Font file is part of the QRC file and compiled into the app
     //const QString fontFamilyName = "Bitstream Vera Sans";
     if(!QFile::exists(fontFileName)) printf("ERROR! font file: %s DOES NOT EXIST!\n", fontFileName.toStdString().c_str());
     fontDatabase.addApplicationFont(fontFileName);
@@ -262,6 +264,8 @@ void QGCApplication::_initCommon(void)
     // Register our Qml objects
     qmlRegisterType<QGCPalette>("QGroundControl.Palette", 1, 0, "QGCPalette");
     qmlRegisterType<ScreenTools>("QGroundControl.ScreenTools", 1, 0, "ScreenTools");
+	qmlRegisterType<ViewWidgetController>("QGroundControl.Controllers", 1, 0, "ViewWidgetController");
+	qmlRegisterType<ParameterEditorController>("QGroundControl.Controllers", 1, 0, "ParameterEditorController");
 }
 
 bool QGCApplication::_initForNormalAppBoot(void)
@@ -271,7 +275,7 @@ bool QGCApplication::_initForNormalAppBoot(void)
     _createSingletons();
 
     // Show splash screen
-    QPixmap splashImage(":/files/images/splash.png");
+    QPixmap splashImage(":/res/SplashScreen");
     QSplashScreen* splashScreen = new QSplashScreen(splashImage);
     // Delete splash screen after mainWindow was displayed
     splashScreen->setAttribute(Qt::WA_DeleteOnClose);

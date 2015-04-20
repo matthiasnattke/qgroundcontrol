@@ -23,7 +23,7 @@ This file is part of the QGROUNDCONTROL project
 
 /**
  * @file
- *   @brief QGC Main Tool Bar
+ *   @brief QGC Main Flight Display
  *   @author Gus Grubba <mavlink@grubba.com>
  */
 
@@ -31,7 +31,7 @@ import QtQuick 2.3
 import QtQuick.Controls 1.2
 import QtQuick.Controls.Styles 1.2
 
-import QGroundControl.HUDControls 1.0
+import QGroundControl.FlightControls 1.0
 
 Rectangle {
     id: root
@@ -40,94 +40,129 @@ Rectangle {
     property real roll:    isNaN(flightDisplay.roll)    ? 0 : flightDisplay.roll
     property real pitch:   isNaN(flightDisplay.pitch)   ? 0 : flightDisplay.pitch
 
+    property bool showPitchIndicator:       true
+    property bool showAttitudeIndicator:    true
+    property bool showCompass:              true
+
+    function getBool(value) {
+        return value === '0' ? false : true;
+    }
+
+    function setBool(value) {
+        return value ? "1" : "0";
+    }
+
     Component.onCompleted:
     {
-        //mapBackground.visible               = flightDisplay.loadSetting("enableMapBackground", false);
-        //mapBackground.alwaysNorth           = flightDisplay.loadSetting("mapAlwaysNorth", false);
-        attitudeWidget.visible              = flightDisplay.loadSetting("enableattitudeWidget", true);
-        //attitudeWidget.displayBackground    = flightDisplay.loadSetting("displayRollPitchBackground", true);
-        pitchWidget.visible                 = flightDisplay.loadSetting("enablepitchWidget", true);
-        altitudeWidget.visible              = flightDisplay.loadSetting("enablealtitudeWidget", true);
-        speedWidget.visible                 = flightDisplay.loadSetting("enablespeedWidget", true);
-        compassIndicator.visible            = flightDisplay.loadSetting("enableCompassIndicator", true);
-        currentSpeed.showAirSpeed           = flightDisplay.loadSetting("showAirSpeed", true);
-        currentSpeed.showGroundSpeed        = flightDisplay.loadSetting("showGroundSpeed", true);
-        currentAltitude.showClimbRate       = flightDisplay.loadSetting("showCurrentClimbRate", true);
-        currentAltitude.showAltitude        = flightDisplay.loadSetting("showCurrentAltitude", true);
-        //mapTypeMenu.update();
+        mapBackground.visible               = getBool(flightDisplay.loadSetting("showMapBackground",        "0"));
+        mapBackground.alwaysNorth           = getBool(flightDisplay.loadSetting("mapAlwaysPointsNorth",     "0"));
+        showAttitudeIndicator               = getBool(flightDisplay.loadSetting("showAttitudeIndicator",    "1"));
+        showPitchIndicator                  = getBool(flightDisplay.loadSetting("showPitchIndicator",       "1"));
+        showCompass                         = getBool(flightDisplay.loadSetting("showCompass",              "1"));
+        altitudeWidget.visible              = getBool(flightDisplay.loadSetting("showAltitudeWidget",       "1"));
+        speedWidget.visible                 = getBool(flightDisplay.loadSetting("showSpeedWidget",          "1"));
+        currentSpeed.showAirSpeed           = getBool(flightDisplay.loadSetting("showCurrentAirSpeed",      "1"));
+        currentSpeed.showGroundSpeed        = getBool(flightDisplay.loadSetting("showCurrentGroundSpeed",   "1"));
+        currentAltitude.showClimbRate       = getBool(flightDisplay.loadSetting("showCurrentClimbRate",     "1"));
+        currentAltitude.showAltitude        = getBool(flightDisplay.loadSetting("showCurrentAltitude",      "1"));
+        mapTypeMenu.update();
     }
-
-    Rectangle {
-        id: windowBackground
-        anchors.fill: parent
-        anchors.centerIn: parent
-        visible: !attitudeWidget.visible //&& !mapBackground.visible
-        color:   Qt.hsla(0.25, 0.5, 0.45)
-        z:       0
-    }
-
-    /*
-    Menu {
-        id: mapTypeMenu
-        function setCurrentMap(map) {
-            for (var i = 0; i < mapBackground.mapItem.supportedMapTypes.length; i++) {
-                if (map === mapBackground.mapItem.supportedMapTypes[i].name) {
-                    mapBackground.mapItem.activeMapType = mapBackground.mapItem.supportedMapTypes[i]
-                    return;
-                }
-            }
-        }
-        function addMap(map) {
-            var mItem = mapTypeMenu.addItem(map);
-            var menuSlot = function() {setCurrentMap(map);};
-            mItem.triggered.connect(menuSlot);
-        }
-        function update() {
-            clear()
-            for (var i = 0; i < mapBackground.mapItem.supportedMapTypes.length; i++) {
-                addMap(mapBackground.mapItem.supportedMapTypes[i].name);
-            }
-            if (mapBackground.mapItem.supportedMapTypes.length > 0)
-                setCurrentMap(mapBackground.mapItem.activeMapType.name);
-        }
-    }
-    */
 
     Menu {
         id: contextMenu
 
         MenuItem {
-            text: "Main Attitude Indicators"
+            text: "Map Background"
             checkable: true
-            checked: attitudeWidget.visible
+            checked: mapBackground.visible
             onTriggered:
             {
-                attitudeWidget.visible = !attitudeWidget.visible;
-                flightDisplay.saveSetting("enableattitudeWidget", attitudeWidget.visible);
+                mapBackground.visible = !mapBackground.visible;
+                flightDisplay.saveSetting("showMapBackground", setBool(mapBackground.visible));
             }
         }
 
         /*
         MenuItem {
-            text: "Display Attitude Background"
+            text: "Map Always Points North"
             checkable: true
-            checked: attitudeWidget.displayBackground
+            checked: mapBackground.alwaysNorth
             onTriggered:
             {
-                attitudeWidget.displayBackground = !attitudeWidget.displayBackground;
-                flightDisplay.saveSetting("displayRollPitchBackground", attitudeWidget.displayBackground);
+                mapBackground.alwaysNorth = !mapBackground.alwaysNorth;
+                flightDisplay.saveSetting("mapAlwaysPointsNorth", setBool(mapBackground.alwaysNorth));
             }
         }
         */
 
+        Menu {
+            id: mapTypeMenu
+            title: "Map Type..."
+            ExclusiveGroup { id: currentMapType }
+            function setCurrentMap(map) {
+                for (var i = 0; i < mapBackground.mapItem.supportedMapTypes.length; i++) {
+                    if (map === mapBackground.mapItem.supportedMapTypes[i].name) {
+                        mapBackground.mapItem.activeMapType = mapBackground.mapItem.supportedMapTypes[i]
+                        flightDisplay.saveSetting("currentMapType", map);
+                        return;
+                    }
+                }
+            }
+            function addMap(map, checked) {
+                var mItem = mapTypeMenu.addItem(map);
+                mItem.checkable = true
+                mItem.checked   = checked
+                mItem.exclusiveGroup = currentMapType
+                var menuSlot = function() {setCurrentMap(map);};
+                mItem.triggered.connect(menuSlot);
+            }
+            function update() {
+                clear()
+                var map = ''
+                if (mapBackground.mapItem.supportedMapTypes.length > 0)
+                    map = mapBackground.mapItem.activeMapType.name;
+                map = flightDisplay.loadSetting("currentMapType", map);
+                for (var i = 0; i < mapBackground.mapItem.supportedMapTypes.length; i++) {
+                    var name = mapBackground.mapItem.supportedMapTypes[i].name;
+                    addMap(name, map === name);
+                }
+                if(map != '')
+                    setCurrentMap(map);
+            }
+        }
+
+        MenuSeparator {}
+
         MenuItem {
             text: "Pitch Indicator"
-            checkable: true
-            checked: pitchWidget.visible
+            checkable:  true
+            checked:    showPitchIndicator
             onTriggered:
             {
-                pitchWidget.visible = !pitchWidget.visible;
-                flightDisplay.saveSetting("enablepitchWidget", pitchWidget.visible);
+                showPitchIndicator = !showPitchIndicator;
+                flightDisplay.saveSetting("showPitchIndicator", setBool(showPitchIndicator));
+            }
+        }
+
+        MenuItem {
+            text: "Attitude Indicator"
+            checkable:  true
+            checked:    showAttitudeIndicator
+            onTriggered:
+            {
+                showAttitudeIndicator = !showAttitudeIndicator;
+                flightDisplay.saveSetting("showAttitudeIndicator", setBool(showAttitudeIndicator));
+            }
+        }
+
+        MenuItem {
+            text: "Compass"
+            checkable: true
+            checked: showCompass
+            onTriggered:
+            {
+                showCompass = !showCompass;
+                flightDisplay.saveSetting("showCompass", setBool(showCompass));
             }
         }
 
@@ -138,7 +173,7 @@ Rectangle {
             onTriggered:
             {
                 altitudeWidget.visible = !altitudeWidget.visible;
-                flightDisplay.saveSetting("enablealtitudeWidget", altitudeWidget.visible);
+                flightDisplay.saveSetting("showAltitudeWidget", setBool(altitudeWidget.visible));
             }
         }
 
@@ -149,7 +184,7 @@ Rectangle {
             onTriggered:
             {
                 currentAltitude.showAltitude = !currentAltitude.showAltitude;
-                flightDisplay.saveSetting("showCurrentAltitude", currentAltitude.showAltitude);
+                flightDisplay.saveSetting("showCurrentAltitude", setBool(currentAltitude.showAltitude));
             }
         }
 
@@ -160,7 +195,7 @@ Rectangle {
             onTriggered:
             {
                 currentAltitude.showClimbRate = !currentAltitude.showClimbRate;
-                flightDisplay.saveSetting("showCurrentClimbRate", currentAltitude.showClimbRate);
+                flightDisplay.saveSetting("showCurrentClimbRate", setBool(currentAltitude.showClimbRate));
             }
         }
 
@@ -171,7 +206,7 @@ Rectangle {
             onTriggered:
             {
                 speedWidget.visible = !speedWidget.visible;
-                flightDisplay.saveSetting("enablespeedWidget", speedWidget.visible);
+                flightDisplay.saveSetting("showSpeedWidget", setBool(speedWidget.visible));
             }
         }
 
@@ -182,7 +217,7 @@ Rectangle {
             onTriggered:
             {
                 currentSpeed.showAirSpeed = !currentSpeed.showAirSpeed;
-                flightDisplay.saveSetting("showAirSpeed", currentSpeed.showAirSpeed);
+                flightDisplay.saveSetting("showCurrentAirSpeed", setBool(currentSpeed.showAirSpeed));
             }
         }
 
@@ -193,55 +228,9 @@ Rectangle {
             onTriggered:
             {
                 currentSpeed.showGroundSpeed = !currentSpeed.showGroundSpeed;
-                flightDisplay.saveSetting("showGroundSpeed", currentSpeed.showGroundSpeed);
+                flightDisplay.saveSetting("showCurrentGroundSpeed", setBool(currentSpeed.showGroundSpeed));
             }
         }
-
-        MenuItem {
-            text: "Compass"
-            checkable: true
-            checked: compassIndicator.visible
-            onTriggered:
-            {
-                compassIndicator.visible = !compassIndicator.visible;
-                flightDisplay.saveSetting("enableCompassIndicator", compassIndicator.visible);
-            }
-        }
-
-        /*
-        MenuSeparator {}
-
-        MenuItem {
-            text: "Map Background"
-            checkable: true
-            checked: mapBackground.visible
-            onTriggered:
-            {
-                mapBackground.visible = !mapBackground.visible;
-                flightDisplay.saveSetting("enableMapBackground", mapBackground.visible);
-            }
-        }
-
-        MenuItem {
-            text: "Map Always Points North"
-            checkable: true
-            checked: mapBackground.alwaysNorth
-            onTriggered:
-            {
-                mapBackground.alwaysNorth = !mapBackground.alwaysNorth;
-                flightDisplay.saveSetting("mapAlwaysNorth", mapBackground.alwaysNorth);
-            }
-        }
-
-        MenuItem {
-            text: "Map Type..."
-            checkable: false
-            onTriggered:
-            {
-                mapTypeMenu.popup();
-            }
-        }
-        */
 
         MenuSeparator {}
 
@@ -249,124 +238,180 @@ Rectangle {
             text: "Restore Defaults"
             onTriggered:
             {
-                attitudeWidget.visible = true;
-                flightDisplay.saveSetting("enableattitudeWidget", attitudeWidget.visible);
-                attitudeWidget.displayBackground = true;
-                flightDisplay.saveSetting("displayRollPitchBackground", attitudeWidget.displayBackground);
-                pitchWidget.visible = true;
-                flightDisplay.saveSetting("enablepitchWidget", pitchWidget.visible);
+                showPitchIndicator = true;
+                flightDisplay.saveSetting("showPitchIndicator", setBool(showPitchIndicator));
+                showAttitudeIndicator = true;
+                flightDisplay.saveSetting("showAttitudeIndicator", setBool(showAttitudeIndicator));
+                showCompass = true;
+                flightDisplay.saveSetting("showCompass", setBool(showCompass));
                 altitudeWidget.visible = true;
-                flightDisplay.saveSetting("enablealtitudeWidget", altitudeWidget.visible);
+                flightDisplay.saveSetting("showAltitudeWidget", setBool(altitudeWidget.visible));
                 currentAltitude.showAltitude = true;
-                flightDisplay.saveSetting("showCurrentAltitude", currentAltitude.showAltitude);
+                flightDisplay.saveSetting("showCurrentAltitude", setBool(currentAltitude.showAltitude));
                 currentAltitude.showClimbRate = true;
-                flightDisplay.saveSetting("showCurrentClimbRate", currentAltitude.showClimbRate);
+                flightDisplay.saveSetting("showCurrentClimbRate", setBool(currentAltitude.showClimbRate));
                 speedWidget.visible = true;
-                flightDisplay.saveSetting("enablespeedWidget", speedWidget.visible);
+                flightDisplay.saveSetting("showSpeedWidget", setBool(speedWidget.visible));
                 currentSpeed.showAirSpeed = true;
-                flightDisplay.saveSetting("showAirSpeed", currentSpeed.showAirSpeed);
+                flightDisplay.saveSetting("showCurrentAirSpeed", setBool(currentSpeed.showAirSpeed));
                 currentSpeed.showGroundSpeed = true;
-                flightDisplay.saveSetting("showGroundSpeed", currentSpeed.showGroundSpeed);
-                compassIndicator.visible = true;
-                flightDisplay.saveSetting("enableCompassIndicator", compassIndicator.visible);
-                //mapBackground.visible = false;
-                //flightDisplay.saveSetting("enableMapBackground", mapBackground.visible);
-                //mapBackground.alwaysNorth = false;
-                //flightDisplay.saveSetting("mapAlwaysNorth", mapBackground.alwaysNorth);
+                flightDisplay.saveSetting("showCurrentGroundSpeed", setBool(currentSpeed.showGroundSpeed));
+                mapBackground.visible = false;
+                flightDisplay.saveSetting("showMapBackground", setBool(mapBackground.visible));
+                mapBackground.alwaysNorth = false;
+                flightDisplay.saveSetting("mapAlwaysPointsNorth", setBool(mapBackground.alwaysNorth));
             }
         }
 
     }
 
-    /*
     QGCMapBackground {
-        id: mapBackground
-        anchors.centerIn: parent
-        visible:   false
-        heading:   isNaN(flightDisplay.heading) ? 0 : flightDisplay.heading
-        latitude:  flightDisplay.latitude
-        longitude: flightDisplay.longitude
-        z: 5
+        id:                 mapBackground
+        anchors.fill:       parent
+        heading:            0 // isNaN(flightDisplay.heading) ? 0 : flightDisplay.heading
+        latitude:           mapBackground.visible ? ((flightDisplay.latitude  === 0) ?   37.803784 : flightDisplay.latitude)  :   37.803784
+        longitude:          mapBackground.visible ? ((flightDisplay.longitude === 0) ? -122.462276 : flightDisplay.longitude) : -122.462276
+        interactive:        !flightDisplay.mavPresent
+        z:                  10
     }
-    */
+
+    QGCCompassInstrument {
+        id:                 compassInstrument
+        y:                  5
+        x:                  85
+        size:               160
+        heading:            isNaN(flightDisplay.heading) ? 0 : flightDisplay.heading
+        visible:            mapBackground.visible && showCompass
+        z:                  mapBackground.z + 1
+        onResetRequested: {
+            y               = 5
+            x               = 85
+            size            = 160
+            tForm.xScale    = 1
+            tForm.yScale    = 1
+        }
+    }
+
+    QGCAttitudeInstrument {
+        id:                 attitudeInstrument
+        y:                  5
+        size:               160
+        rollAngle:          roll
+        pitchAngle:         pitch
+        showPitch:          showPitchIndicator
+        visible:            mapBackground.visible && showAttitudeIndicator
+        anchors.right:      root.right
+        anchors.rightMargin: 85
+        z:                  mapBackground.z + 1
+        onResetRequested: {
+            y                   = 5
+            anchors.right       = root.right
+            anchors.rightMargin = 85
+            size                = 160
+            tForm.xScale        = 1
+            tForm.yScale        = 1
+        }
+    }
 
     QGCAttitudeWidget {
-        id: attitudeWidget
-        anchors.centerIn: parent
-        rollAngle:  roll
-        pitchAngle: pitch
-        backgroundOpacity: 1.0 // mapBackground.visible ? 0.25 : 1.0
-        z:          10
+        id:                 attitudeWidget
+        anchors.centerIn:   parent
+        rollAngle:          roll
+        pitchAngle:         pitch
+        showAttitude:       showAttitudeIndicator
+        visible:            !mapBackground.visible
+        z:                  10
     }
 
     QGCPitchWidget {
-        id: pitchWidget
+        id:                 pitchWidget
+        visible:            showPitchIndicator && !mapBackground.visible
         anchors.verticalCenter: parent.verticalCenter
-        opacity:    0.5
-        pitchAngle: pitch
-        rollAngle:  roll
-        z:          20
+        pitchAngle:         pitch
+        rollAngle:          roll
+        color:              Qt.rgba(0,0,0,0)
+        size:               120
+        z:                  30
     }
 
     QGCAltitudeWidget {
-        id: altitudeWidget
-        anchors.right: parent.right
-        width:     60
-        altitude:  flightDisplay.altitudeWGS84
-        z:         30
+        id:                 altitudeWidget
+        anchors.right:      parent.right
+        width:              60
+        altitude:           flightDisplay.altitudeWGS84
+        z:                  30
     }
 
     QGCSpeedWidget {
-        id: speedWidget
-        anchors.left: parent.left
-        width:  60
-        speed:  flightDisplay.groundSpeed
-        z:      40
+        id:                 speedWidget
+        anchors.left:       parent.left
+        width:              60
+        speed:              flightDisplay.groundSpeed
+        z:                  40
     }
 
     QGCCurrentSpeed {
         id: currentSpeed
         anchors.left:       parent.left
-        width:              80
+        width:              75
         airspeed:           flightDisplay.airSpeed
         groundspeed:        flightDisplay.groundSpeed
         showAirSpeed:       true
         showGroundSpeed:    true
-        visible:            currentSpeed.showGroundSpeed || currentSpeed.showAirSpeed
+        visible:            (currentSpeed.showGroundSpeed || currentSpeed.showAirSpeed)
         z:                  50
     }
 
     QGCCurrentAltitude {
         id: currentAltitude
-        anchors.right:  parent.right
-        width:          80
-        altitude:       flightDisplay.altitudeWGS84
-        vertZ:          flightDisplay.climbRate
-        showAltitude:   true
-        showClimbRate:  true
-        visible:        (currentAltitude.showAltitude || currentAltitude.showClimbRate)
-        z:              60
+        anchors.right:      parent.right
+        width:              75
+        altitude:           flightDisplay.altitudeWGS84
+        vertZ:              flightDisplay.climbRate
+        showAltitude:       true
+        showClimbRate:      true
+        visible:            (currentAltitude.showAltitude || currentAltitude.showClimbRate)
+        z:                  60
     }
 
     QGCCompass {
-        id: compassIndicator
-        y: root.height * 0.65
-        anchors.horizontalCenter: parent.horizontalCenter
-        heading: isNaN(flightDisplay.heading) ? 0 : flightDisplay.heading
-        z:       70
+        id:                 compassIndicator
+        y:                  root.height * 0.7
+        x:                  root.width  * 0.5 - 60
+        width:              120
+        height:             120
+        heading:            isNaN(flightDisplay.heading) ? 0 : flightDisplay.heading
+        visible:            !mapBackground.visible && showCompass
+        z:                  70
     }
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.RightButton
-        onClicked: {
-            if (mouse.button == Qt.RightButton)
-            {
-                contextMenu.popup()
+    // Button at upper left corner
+    Item {
+        id:             optionsButton
+        x:              5
+        y:              5
+        width:          30
+        height:         30
+        opacity:        0.85
+        z:              1000
+        Image {
+            id:             buttomImg
+            anchors.fill:   parent
+            source:         "/qml/buttonMore.svg"
+            mipmap:         true
+            smooth:         true
+            antialiasing:   true
+            fillMode:       Image.PreserveAspectFit
+        }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton
+            onClicked: {
+                if (mouse.button == Qt.LeftButton)
+                {
+                    contextMenu.popup()
+                }
             }
         }
-        z: 100
     }
-
 }
-
