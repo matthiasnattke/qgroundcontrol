@@ -195,8 +195,6 @@ Rectangle {
                     }
 
                     VehicleRotationCal {
-                        width:          200
-                        height:         200
                         calValid:       true
                         calInProgress:  controller.gyroCalInProgress
                         imageSource:    "qrc:///qml/VehicleDown.png"
@@ -206,10 +204,10 @@ Rectangle {
             }
 
             Rectangle {
-                id:         accelCalArea
+                id:         orientationCalArea
                 width:      parent.calDisplayAreaWidth
                 height:     parent.height
-                visible:    controller.showAccelCalArea
+                visible:    controller.showOrientationCalArea
                 color:      qgcPal.windowShade
 
                 QGCLabel {
@@ -227,61 +225,45 @@ Rectangle {
                     spacing:    5
 
                     VehicleRotationCal {
-                        width:          200
-                        height:         200
-                        calValid:       controller.accelCalDownSideDone
-                        calInProgress:  controller.accelCalDownSideInProgress
-                        imageSource:    "qrc:///qml/VehicleDown.png"
+                        calValid:           controller.orientationCalDownSideDone
+                        calInProgress:      controller.orientationCalDownSideInProgress
+                        calInProgressText:  controller.calInProgressText
+                        imageSource:        "qrc:///qml/VehicleDown.png"
                     }
                     VehicleRotationCal {
-                        width:          200
-                        height:         200
-                        calValid:       controller.accelCalUpsideDownSideDone
-                        calInProgress:  controller.accelCalUpsideDownSideInProgress
-                        imageSource:    "qrc:///qml/VehicleUpsideDown.png"
+                        calValid:           controller.orientationCalUpsideDownSideDone
+                        calInProgress:      controller.orientationCalUpsideDownSideInProgress
+                        calInProgressText:  controller.calInProgressText
+                        imageSource:        "qrc:///qml/VehicleUpsideDown.png"
                     }
                     VehicleRotationCal {
-                        width:          200
-                        height:         200
-                        calValid:       controller.accelCalNoseDownSideDone
-                        calInProgress:  controller.accelCalNoseDownSideInProgress
-                        imageSource:    "qrc:///qml/VehicleNoseDown.png"
+                        calValid:           controller.orientationCalNoseDownSideDone
+                        calInProgress:      controller.orientationCalNoseDownSideInProgress
+                        calInProgressText:  controller.calInProgressText
+                        imageSource:        "qrc:///qml/VehicleNoseDown.png"
                     }
                     VehicleRotationCal {
-                        width:          200
-                        height:         200
-                        calValid:       controller.accelCalTailDownSideDone
-                        calInProgress:  controller.accelCalTailDownSideInProgress
-                        imageSource:    "qrc:///qml/VehicleTailDown.png"
+                        calValid:           controller.orientationCalTailDownSideDone
+                        calInProgress:      controller.orientationCalTailDownSideInProgress
+                        calInProgressText:  controller.calInProgressText
+                        imageSource:        "qrc:///qml/VehicleTailDown.png"
                     }
                     VehicleRotationCal {
-                        width:          200
-                        height:         200
-                        calValid:       controller.accelCalLeftSideDone
-                        calInProgress:  controller.accelCalLeftSideInProgress
-                        imageSource:    "qrc:///qml/VehicleLeft.png"
+                        calValid:           controller.orientationCalLeftSideDone
+                        calInProgress:      controller.orientationCalLeftSideInProgress
+                        calInProgressText:  controller.calInProgressText
+                        imageSource:        "qrc:///qml/VehicleLeft.png"
                     }
                     VehicleRotationCal {
-                        width:          200
-                        height:         200
-                        calValid:       controller.accelCalRightSideDone
-                        calInProgress:  controller.accelCalRightSideInProgress
-                        imageSource:    "qrc:///qml/VehicleRight.png"
+                        calValid:           controller.orientationCalRightSideDone
+                        calInProgress:      controller.orientationCalRightSideInProgress
+                        calInProgressText:  controller.calInProgressText
+                        imageSource:        "qrc:///qml/VehicleRight.png"
                     }
                 }
             }
 
             Column {
-                property Fact cal_mag0_rot: Fact { name: "CAL_MAG0_ROT" }
-                property Fact cal_mag1_rot: Fact { name: "CAL_MAG1_ROT" }
-                property Fact cal_mag2_rot: Fact { name: "CAL_MAG2_ROT" }
-
-                // Compass rotation parameter < 0 indicates either internal compass, or no compass. So in
-                // both those cases we do not show a rotation combo.
-                property bool showCompass0: cal_mag0_rot.value >= 0
-                property bool showCompass1: cal_mag1_rot.value >= 0
-                property bool showCompass2: cal_mag2_rot.value >= 0
-
                 x: parent.width - rotationColumnWidth
 
                 QGCLabel { text: "Autpilot Orientation" }
@@ -309,8 +291,8 @@ Rectangle {
                         fact:   Fact { name: "CAL_MAG0_ROT" }
                     }
                 }
-                Loader { sourceComponent: parent.showCompass0 ? compass0ComponentLabel : null }
-                Loader { sourceComponent: parent.showCompass0 ? compass0ComponentCombo : null }
+                Loader { sourceComponent: controller.showCompass0 ? compass0ComponentLabel : null }
+                Loader { sourceComponent: controller.showCompass0 ? compass0ComponentCombo : null }
 
                 // Compass 1 rotation
                 Component {
@@ -328,8 +310,8 @@ Rectangle {
                         fact:   Fact { name: "CAL_MAG1_ROT" }
                     }
                 }
-                Loader { sourceComponent: parent.showCompass1 ? compass1ComponentLabel : null }
-                Loader { sourceComponent: parent.showCompass1 ? compass1ComponentCombo : null }
+                Loader { sourceComponent: controller.showCompass1 ? compass1ComponentLabel : null }
+                Loader { sourceComponent: controller.showCompass1 ? compass1ComponentCombo : null }
 
                 // Compass 2 rotation
                 Component {
@@ -347,8 +329,8 @@ Rectangle {
                         fact:   Fact { name: "CAL_MAG2_ROT" }
                     }
                 }
-                Loader { sourceComponent: parent.showCompass2 ? compass2ComponentLabel : null }
-                Loader { sourceComponent: parent.showCompass2 ? compass2ComponentCombo : null }
+                Loader { sourceComponent: controller.showCompass2 ? compass2ComponentLabel : null }
+                Loader { sourceComponent: controller.showCompass2 ? compass2ComponentCombo : null }
             }
         }
     }

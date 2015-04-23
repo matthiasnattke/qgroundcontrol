@@ -28,7 +28,7 @@ import QtQuick.Controls.Styles 1.2
 import QGroundControl.Controls 1.0
 import QGroundControl.FactControls 1.0
 import QGroundControl.Palette 1.0
-import QGroundControl.FirmwareUpgradeController 1.0
+import QGroundControl.Controllers 1.0
 import QGroundControl.ScreenTools 1.0
 
 Rectangle {
@@ -121,7 +121,7 @@ Rectangle {
             frameVisible:	false
 			font.pointSize: qgcPal.dpiAdjustedDefaultFontPointSize
             
-			text: qsTr("Please disconnect all connections and unplug board from USB before selecting Upgrade.")
+			text: qsTr("Please disconnect all vehicles from QGroundControl before selecting Upgrade.")
 
             style: TextAreaStyle {
                 textColor: qgcPal.text

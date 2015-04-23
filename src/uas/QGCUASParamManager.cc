@@ -21,9 +21,6 @@ QGCUASParamManager* QGCUASParamManager::initWithUAS(UASInterface* uas)
 {
     mav = uas;
 
-    // Load default values and tooltips for data model
-    loadParamMetaInfoCSV();
-
     paramDataModel.setUASID(mav->getUASID());
     paramCommsMgr.initWithUAS(uas);
 
@@ -39,6 +36,8 @@ void QGCUASParamManager::connectToModelAndComms()
             this, SIGNAL(parameterStatusMsgUpdated(QString,int)));
 
     connect(&paramCommsMgr, SIGNAL(parameterListUpToDate()), this, SLOT(_parameterListUpToDate()));
+    
+    connect(&paramCommsMgr, SIGNAL(parameterListProgress(float)), this, SIGNAL(parameterListProgress(float)));
 
     // Pass along data model updates
     connect(&paramDataModel, SIGNAL(parameterUpdated(int, QString , QVariant )),
@@ -139,30 +138,6 @@ void QGCUASParamManager::setPendingParam(int compId,  const QString& paramName, 
     paramDataModel.updatePendingParamWithValue(compId,paramName,value, forceSend);
 }
 
-
-
-void QGCUASParamManager::loadParamMetaInfoCSV()
-{
-    // Load default values and tooltips
-    QString autopilot(mav->getAutopilotTypeName());
-
-    QDir appDir = QApplication::applicationDirPath();
-    appDir.cd("files");
-    QString fileName = QString("%1/%2/parameter_tooltips/tooltips.txt").arg(appDir.canonicalPath()).arg(autopilot.toLower());
-    QFile paramMetaFile(fileName);
-
-    qDebug() << "loadParamMetaInfoCSV for autopilot: " << autopilot << " from file: " << fileName;
-
-    if (!paramMetaFile.open(QIODevice::ReadOnly | QIODevice::Text))  {
-        qDebug() << "loadParamMetaInfoCSV couldn't open:" << fileName;
-        return;
-    }
-
-    QTextStream in(&paramMetaFile);
-    paramDataModel.loadParamMetaInfoFromStream(in);
-    paramMetaFile.close();
-
-}
 
 
 UASInterface* QGCUASParamManager::getUAS()

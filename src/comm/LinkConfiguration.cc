@@ -33,13 +33,16 @@ This file is part of the QGROUNDCONTROL project
 #include "TCPLink.h"
 
 #ifdef UNITTEST_BUILD
+#ifndef __android__
 #include "MockLink.h"
+#endif
 #endif
 
 #define LINK_SETTING_ROOT "LinkConfigurations"
 
 LinkConfiguration::LinkConfiguration(const QString& name)
     : _preferred(false)
+    , _dynamic(false)
 {
     _link = NULL;
     _name = name;
@@ -48,18 +51,20 @@ LinkConfiguration::LinkConfiguration(const QString& name)
 
 LinkConfiguration::LinkConfiguration(LinkConfiguration* copy)
 {
-    _link      = copy->getLink();
-    _name      = copy->name();
-    _preferred = copy->isPreferred();
+    _link       = copy->getLink();
+    _name       = copy->name();
+    _preferred  = copy->isPreferred();
+    _dynamic    = copy->isDynamic();
     Q_ASSERT(!_name.isEmpty());
 }
 
 void LinkConfiguration::copyFrom(LinkConfiguration* source)
 {
     Q_ASSERT(source != NULL);
-    _link      = source->getLink();
-    _name      = source->name();
-    _preferred = source->isPreferred();
+    _link       = source->getLink();
+    _name       = source->name();
+    _preferred  = source->isPreferred();
+    _dynamic    = source->isDynamic();
 }
 
 /*!
@@ -89,9 +94,11 @@ LinkConfiguration* LinkConfiguration::createSettings(int type, const QString& na
             config = new TCPConfiguration(name);
             break;
 #ifdef UNITTEST_BUILD
+#ifndef __android__
         case LinkConfiguration::TypeMock:
             config = new MockConfiguration(name);
             break;
+#endif
 #endif
     }
     return config;
@@ -115,9 +122,11 @@ LinkConfiguration* LinkConfiguration::duplicateSettings(LinkConfiguration* sourc
             dupe = new TCPConfiguration(dynamic_cast<TCPConfiguration*>(source));
             break;
 #ifdef UNITTEST_BUILD
+#ifndef __android__
         case TypeMock:
             dupe = new MockConfiguration(dynamic_cast<MockConfiguration*>(source));
             break;
+#endif
 #endif
     }
     return dupe;

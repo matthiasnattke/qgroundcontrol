@@ -42,7 +42,6 @@ MainToolBar::MainToolBar(QWidget* parent)
     , _currentView(ViewNone)
     , _batteryVoltage(0.0)
     , _batteryPercent(0.0)
-    , _linkSelected(false)
     , _connectionCount(0)
     , _systemArmed(false)
     , _currentHeartbeatTimeout(0)
@@ -60,19 +59,24 @@ MainToolBar::MainToolBar(QWidget* parent)
     , _showMav(true)
     , _showMessages(true)
     , _showBattery(true)
+    , _progressBarValue(0.0f)
     , _rollDownMessages(0)
 {
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     setObjectName("MainToolBar");
+#ifdef __android__
+    setMinimumHeight(120);
+    setMaximumHeight(120);
+#else
     setMinimumHeight(40);
     setMaximumHeight(40);
+#endif
     setMinimumWidth(MainWindow::instance()->minimumWidth());
     // Get rid of layout default margins
     QLayout* pl = layout();
     if(pl) {
         pl->setContentsMargins(0,0,0,0);
     }
-
     // Tool Bar Preferences
     QSettings settings;
     settings.beginGroup(TOOL_BAR_SETTINGS_GROUP);
@@ -136,76 +140,67 @@ void MainToolBar::onSetupView()
 
 void MainToolBar::onPlanView()
 {
-    setCurrentView(MainWindow::VIEW_MISSION);
-    MainWindow::instance()->loadOperatorView();
+    setCurrentView(MainWindow::VIEW_PLAN);
+    MainWindow::instance()->loadPlanView();
 }
 
 void MainToolBar::onFlyView()
 {
     setCurrentView(MainWindow::VIEW_FLIGHT);
-    MainWindow::instance()->loadPilotView();
+    MainWindow::instance()->loadFlightView();
 }
 
 void MainToolBar::onAnalyzeView()
 {
-    setCurrentView(MainWindow::VIEW_ENGINEER);
-    MainWindow::instance()->loadEngineerView();
+    setCurrentView(MainWindow::VIEW_ANALYZE);
+    MainWindow::instance()->loadAnalyzeView();
 }
 
-void MainToolBar::onConnect(QString conf)
+void MainToolBar::onDisconnect(QString conf)
 {
-    // If no connection, the role is "Connect"
-    if(_connectionCount == 0) {
-        // Connect Link
-        if(_currentConfig.isEmpty()) {
-            MainWindow::instance()->manageLinks();
-        } else {
-            // We don't want the combo box updating under our feet
-            LinkManager::instance()->suspendConfigurationUpdates(true);
-            // Create a link
-            LinkInterface* link = LinkManager::instance()->createConnectedLink(_currentConfig);
-            if(link) {
-                // Save last used connection
-                MainWindow::instance()->saveLastUsedConnection(_currentConfig);
+    if(conf.isEmpty()) {
+        // Disconnect Only Connected Link
+        int connectedCount = 0;
+        LinkInterface* connectedLink = NULL;
+        QList<LinkInterface*> links = LinkManager::instance()->getLinks();
+        foreach(LinkInterface* link, links) {
+            if (link->isConnected()) {
+                connectedCount++;
+                connectedLink = link;
             }
-            LinkManager::instance()->suspendConfigurationUpdates(false);
         }
+        Q_ASSERT(connectedCount   == 1);
+        Q_ASSERT(_connectionCount == 1);
+        Q_ASSERT(connectedLink);
+        LinkManager::instance()->disconnectLink(connectedLink);
     } else {
-        if(conf.isEmpty()) {
-            // Disconnect Only Connected Link
-            int connectedCount = 0;
-            LinkInterface* connectedLink = NULL;
-            QList<LinkInterface*> links = LinkManager::instance()->getLinks();
-            foreach(LinkInterface* link, links) {
-                if (link->isConnected()) {
-                    connectedCount++;
-                    connectedLink = link;
-                }
-            }
-            Q_ASSERT(connectedCount   == 1);
-            Q_ASSERT(_connectionCount == 1);
-            Q_ASSERT(connectedLink);
-            LinkManager::instance()->disconnectLink(connectedLink);
-        } else {
-            // Disconnect Named Connected Link
-            QList<LinkInterface*> links = LinkManager::instance()->getLinks();
-            foreach(LinkInterface* link, links) {
-                if (link->isConnected()) {
-                    if(link->getLinkConfiguration() && link->getLinkConfiguration()->name() == conf) {
-                        LinkManager::instance()->disconnectLink(link);
-                    }
+        // Disconnect Named Connected Link
+        QList<LinkInterface*> links = LinkManager::instance()->getLinks();
+        foreach(LinkInterface* link, links) {
+            if (link->isConnected()) {
+                if(link->getLinkConfiguration() && link->getLinkConfiguration()->name() == conf) {
+                    LinkManager::instance()->disconnectLink(link);
                 }
             }
         }
     }
 }
 
-void MainToolBar::onLinkConfigurationChanged(const QString& config)
+void MainToolBar::onConnect(QString conf)
 {
-    // User selected a link configuration from the combobox
-    if(_currentConfig != config) {
-        _currentConfig = config;
-        _linkSelected = true;
+    // Connect Link
+    if(conf.isEmpty()) {
+        MainWindow::instance()->manageLinks();
+    } else {
+        // We don't want the list updating under our feet
+        LinkManager::instance()->suspendConfigurationUpdates(true);
+        // Create a link
+        LinkInterface* link = LinkManager::instance()->createConnectedLink(conf);
+        if(link) {
+            // Save last used connection
+            MainWindow::instance()->saveLastUsedConnection(conf);
+        }
+        LinkManager::instance()->suspendConfigurationUpdates(false);
     }
 }
 
@@ -263,10 +258,10 @@ void MainToolBar::setCurrentView(int currentView)
 {
     ViewType_t view = ViewNone;
     switch((MainWindow::VIEW_SECTIONS)currentView) {
-        case MainWindow::VIEW_ENGINEER:
+        case MainWindow::VIEW_ANALYZE:
             view = ViewAnalyze;
             break;
-        case MainWindow::VIEW_MISSION:
+        case MainWindow::VIEW_PLAN:
             view = ViewPlan;
             break;
            case MainWindow::VIEW_FLIGHT:
@@ -312,6 +307,9 @@ void MainToolBar::_setActiveUAS(UASInterface* active)
         if(pUas) {
             disconnect(pUas, &UAS::satelliteCountChanged, this, &MainToolBar::_setSatelliteCount);
         }
+        QGCUASParamManagerInterface* paramMgr = _mav->getParamManager();
+        Q_ASSERT(paramMgr);
+        disconnect(paramMgr, SIGNAL(parameterListProgress(float)),              this, SLOT(_setProgressBarValue(float)));
     }
     // Connect new system
     _mav = active;
@@ -338,6 +336,12 @@ void MainToolBar::_setActiveUAS(UASInterface* active)
             _setSatelliteCount(pUas->getSatelliteCount(), QString(""));
             connect(pUas, &UAS::satelliteCountChanged, this, &MainToolBar::_setSatelliteCount);
         }
+        QGCUASParamManagerInterface* paramMgr = _mav->getParamManager();
+        Q_ASSERT(paramMgr);
+        connect(paramMgr, SIGNAL(parameterListProgress(float)),              this, SLOT(_setProgressBarValue(float)));
+        // Reset connection lost (if any)
+        _currentHeartbeatTimeout = 0;
+        emit heartbeatTimeoutChanged(_currentHeartbeatTimeout);
     }
     // Let toolbar know about it
     emit mavPresentChanged(_mav != NULL);
@@ -372,16 +376,14 @@ void MainToolBar::_updateBatteryRemaining(UASInterface*, double voltage, double,
 
 void MainToolBar::_updateConfigurations()
 {
-    bool resetSelected = false;
-    QString selected = _currentConfig;
     QStringList tmpList;
     QList<LinkConfiguration*> configs = LinkManager::instance()->getLinkConfigurationList();
     foreach(LinkConfiguration* conf, configs) {
         if(conf) {
-            tmpList << conf->name();
-            if((!_linkSelected && conf->isPreferred()) || selected.isEmpty()) {
-                selected = conf->name();
-                resetSelected = true;
+            if(conf->isPreferred()) {
+                tmpList.insert(0,conf->name());
+            } else {
+                tmpList << conf->name();
             }
         }
     }
@@ -389,15 +391,6 @@ void MainToolBar::_updateConfigurations()
     if(tmpList != _linkConfigurations) {
         _linkConfigurations = tmpList;
         emit configListChanged();
-    }
-    // Selection change?
-    if((selected != _currentConfig && _linkConfigurations.contains(selected)) ||
-       (selected.isEmpty())) {
-        _currentConfig = selected;
-        emit currentConfigChanged(_currentConfig);
-    }
-    if(resetSelected) {
-        _linkSelected = false;
     }
 }
 
@@ -473,64 +466,64 @@ void MainToolBar::_updateName(const QString& name)
  */
 void MainToolBar::_setSystemType(UASInterface*, unsigned int systemType)
 {
-    _systemPixmap = "qrc:/files/images/mavs/";
+    _systemPixmap = "qrc:/res/mavs/";
     switch (systemType) {
         case MAV_TYPE_GENERIC:
-            _systemPixmap += "generic.svg";
+            _systemPixmap += "Generic";
             break;
         case MAV_TYPE_FIXED_WING:
-            _systemPixmap += "fixed-wing.svg";
+            _systemPixmap += "FixedWing";
             break;
         case MAV_TYPE_QUADROTOR:
-            _systemPixmap += "quadrotor.svg";
+            _systemPixmap += "QuadRotor";
             break;
         case MAV_TYPE_COAXIAL:
-            _systemPixmap += "coaxial.svg";
+            _systemPixmap += "Coaxial";
             break;
         case MAV_TYPE_HELICOPTER:
-            _systemPixmap += "helicopter.svg";
+            _systemPixmap += "Helicopter";
             break;
         case MAV_TYPE_ANTENNA_TRACKER:
-            _systemPixmap += "antenna-tracker.svg";
+            _systemPixmap += "AntennaTracker";
             break;
         case MAV_TYPE_GCS:
-            _systemPixmap += "groundstation.svg";
+            _systemPixmap += "Groundstation";
             break;
         case MAV_TYPE_AIRSHIP:
-            _systemPixmap += "airship.svg";
+            _systemPixmap += "Airship";
             break;
         case MAV_TYPE_FREE_BALLOON:
-            _systemPixmap += "free-balloon.svg";
+            _systemPixmap += "FreeBalloon";
             break;
         case MAV_TYPE_ROCKET:
-            _systemPixmap += "rocket.svg";
+            _systemPixmap += "Rocket";
             break;
         case MAV_TYPE_GROUND_ROVER:
-            _systemPixmap += "ground-rover.svg";
+            _systemPixmap += "GroundRover";
             break;
         case MAV_TYPE_SURFACE_BOAT:
-            _systemPixmap += "surface-boat.svg";
+            _systemPixmap += "SurfaceBoat";
             break;
         case MAV_TYPE_SUBMARINE:
-            _systemPixmap += "submarine.svg";
+            _systemPixmap += "Submarine";
             break;
         case MAV_TYPE_HEXAROTOR:
-            _systemPixmap += "hexarotor.svg";
+            _systemPixmap += "HexaRotor";
             break;
         case MAV_TYPE_OCTOROTOR:
-            _systemPixmap += "octorotor.svg";
+            _systemPixmap += "OctoRotor";
             break;
         case MAV_TYPE_TRICOPTER:
-            _systemPixmap += "tricopter.svg";
+            _systemPixmap += "TriCopter";
             break;
         case MAV_TYPE_FLAPPING_WING:
-            _systemPixmap += "flapping-wing.svg";
+            _systemPixmap += "FlappingWing";
             break;
         case MAV_TYPE_KITE:
-            _systemPixmap += "kite.svg";
+            _systemPixmap += "Kite";
             break;
         default:
-            _systemPixmap += "unknown.svg";
+            _systemPixmap += "Unknown";
             break;
     }
     emit systemPixmapChanged(_systemPixmap);
@@ -644,4 +637,10 @@ void MainToolBar::_setSatLoc(UASInterface*, int fix)
         _satelliteLock = fix;
         emit satelliteLockChanged(_satelliteLock);
     }
+}
+
+void MainToolBar::_setProgressBarValue(float value)
+{
+    _progressBarValue = value;
+    emit progressBarValueChanged(value);
 }

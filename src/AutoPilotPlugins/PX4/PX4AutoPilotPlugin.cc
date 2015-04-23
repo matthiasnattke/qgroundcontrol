@@ -25,7 +25,7 @@
 #include "AutoPilotPluginManager.h"
 #include "UASManager.h"
 #include "QGCUASParamManagerInterface.h"
-#include "PX4ParameterFacts.h"
+#include "PX4ParameterLoader.h"
 #include "FlightModesComponentController.h"
 #include "AirframeComponentController.h"
 #include "QGCMessageBox.h"
@@ -79,18 +79,17 @@ PX4AutoPilotPlugin::PX4AutoPilotPlugin(UASInterface* uas, QObject* parent) :
     qmlRegisterType<FlightModesComponentController>("QGroundControl.Controllers", 1, 0, "FlightModesComponentController");
     qmlRegisterType<AirframeComponentController>("QGroundControl.Controllers", 1, 0, "AirframeComponentController");
     
-    _parameterFacts = new PX4ParameterFacts(uas, this);
+    _parameterFacts = new PX4ParameterLoader(uas, this);
     Q_CHECK_PTR(_parameterFacts);
     
-    connect(_parameterFacts, &PX4ParameterFacts::parametersReady, this, &PX4AutoPilotPlugin::_pluginReadyPreChecks);
+    connect(_parameterFacts, &PX4ParameterLoader::parametersReady, this, &PX4AutoPilotPlugin::_pluginReadyPreChecks);
     
-    PX4ParameterFacts::loadParameterFactMetaData();
+    PX4ParameterLoader::loadParameterFactMetaData();
 }
 
 PX4AutoPilotPlugin::~PX4AutoPilotPlugin()
 {
     delete _parameterFacts;
-    PX4ParameterFacts::deleteParameterFactMetaData();
 }
 
 QList<AutoPilotPluginManager::FullMode_t> PX4AutoPilotPlugin::getModes(void)
@@ -188,7 +187,7 @@ QString PX4AutoPilotPlugin::getShortModeText(uint8_t baseMode, uint32_t customMo
 
 void PX4AutoPilotPlugin::clearStaticData(void)
 {
-    PX4ParameterFacts::clearStaticData();
+    PX4ParameterLoader::clearStaticData();
 }
 
 const QVariantList& PX4AutoPilotPlugin::vehicleComponents(void)
@@ -232,22 +231,10 @@ void PX4AutoPilotPlugin::_pluginReadyPreChecks(void)
     // should be used instead.
     if (parameterExists("SENS_GYRO_XOFF")) {
         _incorrectParameterVersion = true;
-        QGCMessageBox::warning(tr("Setup"), tr("This version of GroundControl can only perform vehicle setup on a newer version of firmware. "
-                                               "Please perform a Firmware Upgrade if you wish to use Vehicle Setup."));
-    } else {
-        // Check for missing setup complete
-        foreach(const QVariant componentVariant, vehicleComponents()) {
-            VehicleComponent* component = qobject_cast<VehicleComponent*>(qvariant_cast<QObject *>(componentVariant));
-            Q_ASSERT(component);
-            
-            if (!component->setupComplete()) {
-                QGCMessageBox::warning(tr("Setup"), tr("One or more vehicle components require setup prior to flight. "
-                                                       "Please correct these by going to the Setup view."));
-                break;
-            }
-        }
-    }
-    
+        QGCMessageBox::warning("Setup", "This version of GroundControl can only perform vehicle setup on a newer version of firmware. "
+										"Please perform a Firmware Upgrade if you wish to use Vehicle Setup.");
+	}
+	
     _pluginReady = true;
     emit pluginReadyChanged(_pluginReady);
 }

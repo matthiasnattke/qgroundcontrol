@@ -32,7 +32,11 @@ This file is part of the QGROUNDCONTROL project
 #include <QList>
 #include <QApplication>
 #include <QDebug>
+#ifdef __android__
+#include "qserialportinfo.h"
+#else
 #include <QSerialPortInfo>
+#endif
 
 #include "LinkManager.h"
 #include "MainWindow.h"
@@ -85,9 +89,11 @@ LinkInterface* LinkManager::createConnectedLink(LinkConfiguration* config)
             pLink = new TCPLink(dynamic_cast<TCPConfiguration*>(config));
             break;
 #ifdef UNITTEST_BUILD
+#ifndef __android__
         case LinkConfiguration::TypeMock:
             pLink = new MockLink(dynamic_cast<MockConfiguration*>(config));
             break;
+#endif
 #endif
     }
     if(pLink) {
@@ -325,19 +331,22 @@ void LinkManager::saveLinkConfigurationList()
 {
     QSettings settings;
     settings.remove(LinkConfiguration::settingsRoot());
-    QString root(LinkConfiguration::settingsRoot());
-    settings.setValue(root + "/count", _linkConfigurations.count());
     int index = 0;
     foreach (LinkConfiguration* pLink, _linkConfigurations) {
         Q_ASSERT(pLink != NULL);
-        root = LinkConfiguration::settingsRoot();
-        root += QString("/Link%1").arg(index++);
-        settings.setValue(root + "/name", pLink->name());
-        settings.setValue(root + "/type", pLink->type());
-        settings.setValue(root + "/preferred", pLink->isPreferred());
-        // Have the instance save its own values
-        pLink->saveSettings(settings, root);
+        if(!pLink->isDynamic())
+        {
+            QString root = LinkConfiguration::settingsRoot();
+            root += QString("/Link%1").arg(index++);
+            settings.setValue(root + "/name", pLink->name());
+            settings.setValue(root + "/type", pLink->type());
+            settings.setValue(root + "/preferred", pLink->isPreferred());
+            // Have the instance save its own values
+            pLink->saveSettings(settings, root);
+        }
     }
+    QString root(LinkConfiguration::settingsRoot());
+    settings.setValue(root + "/count", index);
     emit linkConfigurationChanged();
 }
 
@@ -376,10 +385,12 @@ void LinkManager::loadLinkConfigurationList()
                                     pLink->setPreferred(preferred);
                                     break;
 #ifdef UNITTEST_BUILD
+#ifndef __android__
                                 case LinkConfiguration::TypeMock:
                                     pLink = (LinkConfiguration*)new MockConfiguration(name);
                                     pLink->setPreferred(false);
                                     break;
+#endif
 #endif
                             }
                             if(pLink) {
@@ -427,6 +438,7 @@ void LinkManager::_updateConfigurationList(void)
         return;
     }
     bool saveList = false;
+    QStringList currentPorts;
     QList<QSerialPortInfo> portList = QSerialPortInfo::availablePorts();
     // Iterate Comm Ports
     foreach (QSerialPortInfo portInfo, portList) {
@@ -439,6 +451,8 @@ void LinkManager::_updateConfigurationList(void)
         qDebug() << "serialNumber:     " << portInfo.serialNumber();
         qDebug() << "vendorIdentifier: " << portInfo.vendorIdentifier();
 #endif
+        // Save port name
+        currentPorts << portInfo.systemLocation();
         // Is this a PX4?
         if (portInfo.vendorIdentifier() == 9900) {
             SerialConfiguration* pSerial = _findSerialConfiguration(portInfo.systemLocation());
@@ -451,6 +465,7 @@ void LinkManager::_updateConfigurationList(void)
             } else {
                 // Lets create a new Serial configuration automatically
                 pSerial = new SerialConfiguration(QString("Pixhawk on %1").arg(portInfo.portName().trimmed()));
+                pSerial->setDynamic(true);
                 pSerial->setPreferred(true);
                 pSerial->setBaud(115200);
                 pSerial->setPortName(portInfo.systemLocation());
@@ -458,6 +473,45 @@ void LinkManager::_updateConfigurationList(void)
                 saveList = true;
             }
         }
+        // Is this an FTDI Chip? It could be a 3DR Modem
+        if (portInfo.vendorIdentifier() == 1027) {
+            SerialConfiguration* pSerial = _findSerialConfiguration(portInfo.systemLocation());
+            if (pSerial) {
+                //-- If this port is configured make sure it has the preferred flag set, unless someone else already has it set.
+                if(!pSerial->isPreferred() && !saveList) {
+                    pSerial->setPreferred(true);
+                    saveList = true;
+                }
+            } else {
+                // Lets create a new Serial configuration automatically (an assumption at best)
+                pSerial = new SerialConfiguration(QString("3DR Radio on %1").arg(portInfo.portName().trimmed()));
+                pSerial->setDynamic(true);
+                pSerial->setPreferred(true);
+                pSerial->setBaud(57600);
+                pSerial->setPortName(portInfo.systemLocation());
+                addLinkConfiguration(pSerial);
+                saveList = true;
+            }
+        }
+    }
+    // Now we go through the current configuration list and make sure any dynamic config has gone away
+    QList<LinkConfiguration*>  _confToDelete;
+    foreach (LinkConfiguration* pLink, _linkConfigurations) {
+        Q_ASSERT(pLink != NULL);
+        // We only care about dynamic links
+        if(pLink->isDynamic()) {
+            if(pLink->type() == LinkConfiguration::TypeSerial) {
+                SerialConfiguration* pSerial = dynamic_cast<SerialConfiguration*>(pLink);
+                if(!currentPorts.contains(pSerial->portName())) {
+                    _confToDelete.append(pSerial);
+                }
+            }
+        }
+    }
+    // Now remove all links that are gone
+    foreach (LinkConfiguration* pDelete, _confToDelete) {
+        removeLinkConfiguration(pDelete);
+        saveList = true;
     }
     // Save configuration list, which will also trigger a signal for the UI
     if(saveList) {
@@ -468,28 +522,24 @@ void LinkManager::_updateConfigurationList(void)
 bool LinkManager::containsLink(LinkInterface* link)
 {
     bool found = false;
-    
     foreach (SharedLinkInterface sharedLink, _links) {
         if (sharedLink.data() == link) {
             found = true;
             break;
         }
     }
-    
     return found;
 }
 
 bool LinkManager::anyConnectedLinks(void)
 {
     bool found = false;
-    
     foreach (SharedLinkInterface sharedLink, _links) {
         if (sharedLink.data()->isConnected()) {
             found = true;
             break;
         }
     }
-    
     return found;
 }
 
@@ -500,7 +550,6 @@ SharedLinkInterface& LinkManager::sharedPointerForLink(LinkInterface* link)
             return _links[i];
         }
     }
-    
     // This should never happen
     Q_ASSERT(false);
     return _nullSharedLink;
