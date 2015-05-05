@@ -992,7 +992,7 @@ void MainWindow::_loadCurrentViewState(void)
         case VIEW_PLAN:
             _buildPlanView();
             centerView = _planView;
-            defaultWidgets = "UNMANNED_SYSTEM_LIST_DOCKWIDGET,WAYPOINT_LIST_DOCKWIDGET";
+            defaultWidgets = "UNMANNED_SYSTEM_LIST_DOCKWIDGET,WAYPOINT_LIST_DOCKWIDGET,SWARM_CONTROL_DOCKWIDGET";
             break;
 
         case VIEW_EXPERIMENTAL_PLAN:

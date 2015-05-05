@@ -29,3 +29,4 @@ message(Qt version $$[QT_VERSION])
 !equals(QT_MAJOR_VERSION, 5) | !greaterThan(QT_MINOR_VERSION, 3) {
     error("Unsupported Qt version, 5.4+ is required")
 }
+
