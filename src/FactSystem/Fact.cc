@@ -40,29 +40,35 @@ Fact::Fact(int componentId, QString name, FactMetaData::ValueType_t type, QObjec
 
 void Fact::setValue(const QVariant& value)
 {
+    QVariant newValue;
+    
     switch (type()) {
         case FactMetaData::valueTypeInt8:
         case FactMetaData::valueTypeInt16:
         case FactMetaData::valueTypeInt32:
-            _value.setValue(QVariant(value.toInt()));
+            newValue = QVariant(value.toInt());
             break;
 
         case FactMetaData::valueTypeUint8:
         case FactMetaData::valueTypeUint16:
         case FactMetaData::valueTypeUint32:
-            _value.setValue(value.toUInt());
+            newValue = QVariant(value.toUInt());
             break;
 
         case FactMetaData::valueTypeFloat:
-            _value.setValue(value.toFloat());
+            newValue = QVariant(value.toFloat());
             break;
 
         case FactMetaData::valueTypeDouble:
-            _value.setValue(value.toDouble());
+            newValue = QVariant(value.toDouble());
             break;
     }
-    emit valueChanged(_value);
-    emit _containerValueChanged(_value);
+    
+    if (newValue != _value) {
+        _value.setValue(newValue);
+        emit valueChanged(_value);
+        emit _containerValueChanged(_value);
+    }
 }
 
 void Fact::_containerSetValue(const QVariant& value)
@@ -94,7 +100,10 @@ QString Fact::valueString(void) const
 QVariant Fact::defaultValue(void)
 {
     Q_ASSERT(_metaData);
-    return _metaData->defaultValue;
+    if (!_metaData->defaultValueAvailable()) {
+        qDebug() << "Access to unavailable default value";
+    }
+    return _metaData->defaultValue();
 }
 
 FactMetaData::ValueType_t Fact::type(void)
@@ -104,44 +113,57 @@ FactMetaData::ValueType_t Fact::type(void)
 
 QString Fact::shortDescription(void)
 {
-    if (_metaData) {
-        return _metaData->shortDescription;
-    } else {
-        return QString();
-    }
+    Q_ASSERT(_metaData);
+    return _metaData->shortDescription();
 }
 
 QString Fact::longDescription(void)
 {
-    if (_metaData) {
-        return _metaData->longDescription;
-    } else {
-        return QString();
-    }
+    Q_ASSERT(_metaData);
+    return _metaData->longDescription();
 }
 
 QString Fact::units(void)
 {
-    if (_metaData) {
-        return _metaData->units;
-    } else {
-        return QString();
-    }
+    Q_ASSERT(_metaData);
+    return _metaData->units();
 }
 
 QVariant Fact::min(void)
 {
     Q_ASSERT(_metaData);
-    return _metaData->min;
+    return _metaData->min();
 }
 
 QVariant Fact::max(void)
 {
     Q_ASSERT(_metaData);
-    return _metaData->max;
+    return _metaData->max();
+}
+
+QString Fact::group(void)
+{
+    Q_ASSERT(_metaData);
+    return _metaData->group();
 }
 
 void Fact::setMetaData(FactMetaData* metaData)
 {
     _metaData = metaData;
+}
+
+bool Fact::valueEqualsDefault(void)
+{
+    Q_ASSERT(_metaData);
+    if (_metaData->defaultValueAvailable()) {
+        return _metaData->defaultValue() == value();
+    } else {
+        return false;
+    }
+}
+
+bool Fact::defaultValueAvailable(void)
+{
+    Q_ASSERT(_metaData);
+    return _metaData->defaultValueAvailable();
 }

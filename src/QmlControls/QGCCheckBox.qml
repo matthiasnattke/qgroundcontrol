@@ -3,6 +3,7 @@ import QtQuick.Controls 1.2
 import QtQuick.Controls.Styles 1.2
 
 import QGroundControl.Palette 1.0
+import QGroundControl.ScreenTools 1.0
 
 CheckBox {
     property var __qgcPal: QGCPalette { colorGroupEnabled: enabled }
@@ -27,7 +28,8 @@ CheckBox {
             Text {
                 id:             text
                 text:           control.text
-                font.pointSize: __qgcPal.dpiAdjustedDefaultFontPointSize
+                antialiasing:   true
+                font.pointSize: ScreenTools.defaultFontPointSize
 
                 anchors.centerIn: parent
 

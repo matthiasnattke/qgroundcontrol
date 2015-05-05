@@ -84,6 +84,7 @@ WaypointEditableView::WaypointEditableView(Waypoint* wp, QWidget* parent) :
     m_ui->comboBox_frame->addItem("Global/Abs. Alt",MAV_FRAME_GLOBAL);
     m_ui->comboBox_frame->addItem("Global/Rel. Alt", MAV_FRAME_GLOBAL_RELATIVE_ALT);
     m_ui->comboBox_frame->addItem("Local(NED)",MAV_FRAME_LOCAL_NED);
+    m_ui->comboBox_frame->addItem("Local Offset(NED)",MAV_FRAME_LOCAL_OFFSET_NED);
     m_ui->comboBox_frame->addItem("Mission",MAV_FRAME_MISSION);
 
     // We do not want users to mess with the current waypoint in missions -
@@ -416,14 +417,14 @@ void WaypointEditableView::updateValues()
 
 
     // update frame
-    MAV_FRAME frame = wp->getFrame();
+    MAV_FRAME frame = (MAV_FRAME)wp->getFrame();
     int frame_index = m_ui->comboBox_frame->findData(frame);
     if (m_ui->comboBox_frame->currentIndex() != frame_index) {
         m_ui->comboBox_frame->setCurrentIndex(frame_index);
     }
 
     // Update action
-    MAV_CMD action = wp->getAction();
+    MAV_CMD action = (MAV_CMD)wp->getAction();
     int action_index = m_ui->comboBox_action->findData(action);
     if (m_ui->comboBox_action->currentIndex() != action_index)
     {
@@ -440,7 +441,7 @@ void WaypointEditableView::updateValues()
     }
 
     emit commandBroadcast(wp->getAction());
-    emit frameBroadcast(wp->getFrame());
+    emit frameBroadcast((MAV_FRAME)wp->getFrame());
     emit param1Broadcast(wp->getParam1());
     emit param2Broadcast(wp->getParam2());
     emit param3Broadcast(wp->getParam3());

@@ -29,17 +29,19 @@ import QGroundControl.Palette 1.0
 import QGroundControl.ScreenTools 1.0
 
 Rectangle {
-    property var __qgcPal: QGCPalette { colorGroupEnabled: enabled }
-    property ScreenTools __screenTools: ScreenTools { }
-
     // Indicates whether calibration is valid for this control
     property bool calValid: false
 
     // Indicates whether the control is currently being calibrated
     property bool calInProgress: false
 
+    // Text to show while calibration is in progress
+    property string calInProgressText: "Hold Still"
+
     // Image source
     property var imageSource: ""
+
+    property var __qgcPal: QGCPalette { colorGroupEnabled: enabled }
 
     width:  200
     height: 200
@@ -47,7 +49,7 @@ Rectangle {
 
     Rectangle {
         readonly property int inset: 5
-        property string calText: calInProgress ? "Hold Still" : (calValid ? "Completed" : "Incomplete")
+        property string calText: calInProgress ? calInProgressText : (calValid ? "Completed" : "Incomplete")
 
         x:      inset
         y:      inset
@@ -68,7 +70,7 @@ Rectangle {
             height:                 parent.height
             horizontalAlignment:    Text.AlignHCenter
             verticalAlignment:      Text.AlignBottom
-            font.pointSize:         __screenTools.dpiAdjustedPointSize(25);
+            font.pointSize:         ScreenTools.fontPointFactor * (25);
             font.bold:              true
             color:                  "black"
 
@@ -79,7 +81,7 @@ Rectangle {
             height:                 parent.height
             horizontalAlignment:    Text.AlignHCenter
             verticalAlignment:      Text.AlignBottom
-            font.pointSize:         __screenTools.dpiAdjustedPointSize(25);
+            font.pointSize:         ScreenTools.fontPointFactor * (25);
             color:                  calInProgress ? "yellow" : "white"
 
             text: parent.calText
