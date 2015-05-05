@@ -26,9 +26,9 @@
 //#include "RadioComponent.h"
 //#include "SensorsComponent.h"
 //#include "FlightModesComponent.h"
-#include "AutoPilotPluginManager.h"
-#include "UASManager.h"
-#include "QGCUASParamManagerInterface.h"
+//#include "AutoPilotPluginManager.h"
+//#include "UASManager.h"
+//#include "QGCUASParamManagerInterface.h"
 
 /// @file
 ///     @brief This is the AutoPilotPlugin implementatin for the MAVRIC type.
@@ -48,17 +48,16 @@ enum MAVRIC_MAV_MODE_CUSTOM
 };
 
 MAVRICAutoPilotPlugin::MAVRICAutoPilotPlugin(UASInterface* uas, QObject* parent) :
-    AutoPilotPlugin(parent),
-    _uas(uas)
+    AutoPilotPlugin(uas, parent)
 {
-    Q_UNUSED(uas);
+    Q_ASSERT(uas);
 
 
-    _parameterFacts = new GenericParameterFacts(uas, this);
+    _parameterFacts = new GenericParameterFacts(this, uas, this);
     Q_CHECK_PTR(_parameterFacts);
     
     connect(_parameterFacts, &GenericParameterFacts::parametersReady, this, &MAVRICAutoPilotPlugin::_parametersReady);
-
+    connect(_parameterFacts, &GenericParameterFacts::parameterListProgress, this, &MAVRICAutoPilotPlugin::parameterListProgress);
 }
 
 MAVRICAutoPilotPlugin::~MAVRICAutoPilotPlugin()

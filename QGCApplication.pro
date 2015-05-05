@@ -188,6 +188,7 @@ FORMS += \
     src/ui/mission/QGCMissionNavTakeoff.ui \
     src/ui/mission/QGCMissionNavWaypoint.ui \
     src/ui/mission/QGCMissionOther.ui \
+    src/ui/mission/QGCSwarmControl.ui \
     src/ui/px4_configuration/PX4RCCalibration.ui \
     src/ui/QGCCommConfiguration.ui \
     src/ui/QGCDataPlot2D.ui \
@@ -313,6 +314,7 @@ HEADERS += \
     src/ui/mission/QGCMissionNavTakeoff.h \
     src/ui/mission/QGCMissionNavWaypoint.h \
     src/ui/mission/QGCMissionOther.h \
+    src/ui/mission/QGCSwarmControl.h \
     src/ui/px4_configuration/PX4RCCalibration.h \
     src/ui/px4_configuration/RCValueWidget.h \
     src/ui/QGCCommConfiguration.h \
@@ -443,6 +445,7 @@ SOURCES += \
     src/ui/mission/QGCMissionNavTakeoff.cc \
     src/ui/mission/QGCMissionNavWaypoint.cc \
     src/ui/mission/QGCMissionOther.cc \
+    src/ui/mission/QGCSwarmControl.cpp \
     src/ui/px4_configuration/PX4RCCalibration.cc \
     src/ui/px4_configuration/RCValueWidget.cc \
     src/ui/QGCCommConfiguration.cc \
@@ -571,6 +574,7 @@ HEADERS+= \
     src/AutoPilotPlugins/AutoPilotPluginManager.h \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.h \
     src/AutoPilotPlugins/Generic/GenericParameterFacts.h \
+    src/AutoPilotPlugins/MAVRIC/MAVRICAutoPilotPlugin.h \
     src/AutoPilotPlugins/PX4/AirframeComponent.h \
     src/AutoPilotPlugins/PX4/AirframeComponentAirframes.h \
     src/AutoPilotPlugins/PX4/AirframeComponentController.h \
@@ -599,6 +603,7 @@ SOURCES += \
     src/AutoPilotPlugins/AutoPilotPluginManager.cc \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.cc \
     src/AutoPilotPlugins/Generic/GenericParameterFacts.cc \
+    src/AutoPilotPlugins/MAVRIC/MAVRICAutoPilotPlugin.cc \
     src/AutoPilotPlugins/PX4/AirframeComponent.cc \
     src/AutoPilotPlugins/PX4/AirframeComponentAirframes.cc \
     src/AutoPilotPlugins/PX4/AirframeComponentController.cc \
