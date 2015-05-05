@@ -28,7 +28,7 @@ import QtQuick.Controls.Styles 1.2
 import QGroundControl.Controls 1.0
 import QGroundControl.FactControls 1.0
 import QGroundControl.Palette 1.0
-import QGroundControl.FirmwareUpgradeController 1.0
+import QGroundControl.Controllers 1.0
 import QGroundControl.ScreenTools 1.0
 
 Rectangle {
@@ -36,7 +36,6 @@ Rectangle {
     height: 600
 
     property var qgcPal: QGCPalette { colorGroupEnabled: true }
-    property ScreenTools screenTools: ScreenTools { }
     property FirmwareUpgradeController controller: FirmwareUpgradeController {
         upgradeButton: upgradeButton
         progressBar: progressBar
@@ -51,7 +50,7 @@ Rectangle {
 
         QGCLabel {
             text: "FIRMWARE UPDATE"
-            font.pointSize: screenTools.dpiAdjustedPointSize(20);
+            font.pointSize: ScreenTools.fontPointFactor * (20);
         }
 
         Item {
@@ -119,9 +118,9 @@ Rectangle {
             height:			300
             readOnly:		true
             frameVisible:	false
-			font.pointSize: qgcPal.dpiAdjustedDefaultFontPointSize
+            font.pointSize: ScreenTools.defaultFontPointSize
             
-			text: qsTr("Please disconnect all connections and unplug board from USB before selecting Upgrade.")
+			text: qsTr("Please disconnect all vehicles from QGroundControl before selecting Upgrade.")
 
             style: TextAreaStyle {
                 textColor: qgcPal.text

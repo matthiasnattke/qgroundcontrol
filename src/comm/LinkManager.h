@@ -39,7 +39,7 @@ This file is part of the PIXHAWK project
 #include "UDPLink.h"
 #include "TCPLink.h"
 
-#ifdef UNITTEST_BUILD
+#ifdef QT_DEBUG
 #include "MockLink.h"
 #endif
 

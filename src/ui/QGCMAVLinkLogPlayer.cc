@@ -113,7 +113,7 @@ void QGCMAVLinkLogPlayer::play()
     }
     isPlaying = true;
     ui->playButton->setChecked(true);
-    ui->playButton->setIcon(QIcon(":files/images/actions/media-playback-pause.svg"));
+    ui->playButton->setIcon(QIcon(":/res/Pause"));
 }
 
 void QGCMAVLinkLogPlayer::pause()
@@ -123,7 +123,7 @@ void QGCMAVLinkLogPlayer::pause()
 
     loopTimer.stop();
     isPlaying = false;
-    ui->playButton->setIcon(QIcon(":files/images/actions/media-playback-start.svg"));
+    ui->playButton->setIcon(QIcon(":/res/Play"));
     ui->playButton->setChecked(false);
     ui->selectFileButton->setEnabled(true);
 }
@@ -317,7 +317,8 @@ bool QGCMAVLinkLogPlayer::loadLogFile(const QString& file)
     if (logLink) {
         LinkManager::instance()->_deleteLink(logLink);
     }
-    logLink = new MAVLinkSimulationLink("");
+    logLink = new MockLink();
+    LinkManager::instance()->_addLink(logLink);
 
     // Select if binary or MAVLink log format is used
     mavlinkLogFormat = file.endsWith(".mavlink");

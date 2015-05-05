@@ -12,8 +12,14 @@
 #include <QDebug>
 #include <QSettings>
 #include <QMutexLocker>
+
+#ifdef __android__
+#include "qserialport.h"
+#include "qserialportinfo.h"
+#else
 #include <QSerialPort>
 #include <QSerialPortInfo>
+#endif
 
 #include "SerialLink.h"
 #include "QGC.h"
@@ -87,6 +93,7 @@ bool SerialLink::_isBootloader()
  **/
 void SerialLink::run()
 {
+#ifndef __android__
     // Initialize the connection
     if (!_hardwareConnect(_type)) {
         // Need to error out here.
@@ -97,6 +104,7 @@ void SerialLink::run()
         _emitLinkError("Error connecting: " + err);
         return;
     }
+#endif
 
     qint64  msecs = QDateTime::currentMSecsSinceEpoch();
     qint64  initialmsecs = QDateTime::currentMSecsSinceEpoch();
@@ -249,10 +257,13 @@ bool SerialLink::_disconnect(void)
             _stopp = true;
         }
         wait(); // This will terminate the thread and close the serial port
-        return true;
+    } else {
+        _transmitBuffer.clear(); //clear the output buffer to avoid sending garbage at next connect
+        qCDebug(SerialLinkLog) << "Already disconnected";
     }
-    _transmitBuffer.clear(); //clear the output buffer to avoid sending garbage at next connect
-    qCDebug(SerialLinkLog) << "Already disconnected";
+#ifdef __android__
+    LinkManager::instance()->suspendConfigurationUpdates(false);
+#endif
     return true;
 }
 
@@ -270,6 +281,19 @@ bool SerialLink::_connect(void)
         QMutexLocker locker(&this->_stoppMutex);
         _stopp = false;
     }
+#ifdef __android__
+    LinkManager::instance()->suspendConfigurationUpdates(true);
+    // Initialize the connection
+    if (!_hardwareConnect(_type)) {
+        // Need to error out here.
+        QString err("Could not create port.");
+        if (_port) {
+            err = _port->errorString();
+        }
+        _emitLinkError("Error connecting: " + err);
+        return false;
+    }
+#endif
     start(HighPriority);
     return true;
 }
@@ -332,6 +356,9 @@ bool SerialLink::_hardwareConnect(QString &type)
 
     // After the bootloader times out, it still can take a second or so for the Pixhawk USB driver to come up and make
     // the port available for open. So we retry a few times to wait for it.
+#ifdef __android__
+    _port->open(QIODevice::ReadWrite);
+#else
     for (int openRetries = 0; openRetries < 4; openRetries++) {
         if (!_port->open(QIODevice::ReadWrite)) {
             qCDebug(SerialLinkLog) << "Port open failed, retrying";
@@ -340,6 +367,7 @@ bool SerialLink::_hardwareConnect(QString &type)
             break;
         }
     }
+#endif
     if (!_port->isOpen() ) {
         emit communicationUpdate(getName(),"Error opening port: " + _port->errorString());
         _port->close();
