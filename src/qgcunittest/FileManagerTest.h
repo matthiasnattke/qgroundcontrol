@@ -21,8 +21,8 @@
  
  ======================================================================*/
 
-#ifndef QGCUASFILEMANAGERTEST_H
-#define QGCUASFILEMANAGERTEST_H
+#ifndef FileManagerTEST_H
+#define FileManagerTEST_H
 
 #include <QObject>
 #include <QtTest/QtTest>
@@ -30,20 +30,20 @@
 #include "UnitTest.h"
 #include "MockUAS.h"
 #include "MockMavlinkFileServer.h"
-#include "QGCUASFileManager.h"
+#include "FileManager.h"
 #include "MultiSignalSpy.h"
 
 /// @file
-///     @brief QGCUASFileManager unit test
+///     @brief FileManager unit test
 ///
 ///     @author Don Gagne <don@thegagnes.com>
 
-class QGCUASFileManagerUnitTest : public UnitTest
+class FileManagerTest : public UnitTest
 {
     Q_OBJECT
     
 public:
-    QGCUASFileManagerUnitTest(void);
+    FileManagerTest(void);
     
 private slots:
     // Test case initialization
@@ -57,9 +57,10 @@ private slots:
     void _noAckTest(void);
     void _resetTest(void);
     void _listTest(void);
-    void _downloadTest(void);
-    
-    // Connected to QGCUASFileManager listEntry signal
+    void _readDownloadTest(void);
+	void _streamDownloadTest(void);
+	
+    // Connected to FileManager listEntry signal
     void listEntry(const QString& entry);
     
 private:
@@ -67,19 +68,15 @@ private:
 
     enum {
         listEntrySignalIndex = 0,
-        listCompleteSignalIndex,
-        downloadFileLengthSignalIndex,
-        downloadFileCompleteSignalIndex,
-        errorMessageSignalIndex,
+        commandCompleteSignalIndex,
+        commandErrorSignalIndex,
         maxSignalIndex
     };
     
     enum {
-        listEntrySignalMask =               1 << listEntrySignalIndex,
-        listCompleteSignalMask =            1 << listCompleteSignalIndex,
-        downloadFileLengthSignalMask =      1 << downloadFileLengthSignalIndex,
-        downloadFileCompleteSignalMask =    1 << downloadFileCompleteSignalIndex,
-        errorMessageSignalMask =            1 << errorMessageSignalIndex,
+        listEntrySignalMask =       1 << listEntrySignalIndex,
+        commandCompleteSignalMask = 1 << commandCompleteSignalIndex,
+        commandErrorSignalMask =    1 << errorMessageSignalIndex,
     };
 
     static const uint8_t    _systemIdQGC = 255;
@@ -88,7 +85,7 @@ private:
     MockUAS*                _mockUAS;
     MockMavlinkFileServer   _mockFileServer;
     
-    QGCUASFileManager*  _fileManager;
+    FileManager*  _fileManager;
 
     MultiSignalSpy*     _multiSpy;
     static const size_t _cSignals = maxSignalIndex;
@@ -96,7 +93,7 @@ private:
     
     /// @brief This is the amount of time to wait to allow the FileManager enough time to timeout waiting for an Ack.
     /// As such it must be larger than the Ack Timeout used by the FileManager.
-    static const int _ackTimerTimeoutMsecs = QGCUASFileManager::ackTimerTimeoutMsecs * 2;
+    static const int _ackTimerTimeoutMsecs = FileManager::ackTimerTimeoutMsecs * 2;
     
     QStringList _fileListReceived;
 };

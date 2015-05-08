@@ -267,7 +267,7 @@ HEADERS += \
     src/QmlControls/ParameterEditorController.h \
     src/QmlControls/ScreenTools.h \
     src/uas/QGCMAVLinkUASFactory.h \
-    src/uas/QGCUASFileManager.h \
+    src/uas/FileManager.h \
     src/uas/UAS.h \
     src/uas/UASInterface.h \
     src/uas/UASManager.h \
@@ -399,7 +399,7 @@ SOURCES += \
     src/QmlControls/ParameterEditorController.cc \
     src/QmlControls/ScreenTools.cc \
     src/uas/QGCMAVLinkUASFactory.cc \
-    src/uas/QGCUASFileManager.cc \
+    src/uas/FileManager.cc \
     src/uas/UAS.cc \
     src/uas/UASManager.cc \
     src/uas/UASMessageHandler.cc \
@@ -625,7 +625,8 @@ SOURCES += \
 # Fact System code
 
 INCLUDEPATH += \
-    src/FactSystem
+    src/FactSystem \
+    src/FactSystem/FactControls \
 
 HEADERS += \
     src/FactSystem/Fact.h \
@@ -634,6 +635,7 @@ HEADERS += \
     src/FactSystem/FactSystem.h \
     src/FactSystem/FactValidator.h \
     src/FactSystem/ParameterLoader.h \
+    src/FactSystem/FactControls/FactPanelController.h \
 
 SOURCES += \
     src/FactSystem/Fact.cc \
@@ -642,6 +644,7 @@ SOURCES += \
     src/FactSystem/FactSystem.cc \
     src/FactSystem/FactValidator.cc \
     src/FactSystem/ParameterLoader.cc \
+    src/FactSystem/FactControls/FactPanelController.cc \
 
 # Android
 
