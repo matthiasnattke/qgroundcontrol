@@ -27,32 +27,35 @@
 
 import QtQuick 2.2
 import QtQuick.Controls 1.2
-import QtQuick.Controls.Styles 1.2
 
 import QGroundControl.FactSystem 1.0
 import QGroundControl.FactControls 1.0
 import QGroundControl.Controls 1.0
 
-Column {
-    Fact { id: batVChargedFact;     name: "BAT_V_CHARGED" }
-    Fact { id: batVEmptyFact;       name: "BAT_V_EMPTY" }
-    Fact { id: batCellsFact;        name: "BAT_N_CELLS" }
+FactPanel {
+    anchors.fill: parent
 
-    anchors.fill:       parent
-    anchors.margins:    8
+    Fact { id: batVChargedFact;     name: "BAT_V_CHARGED";  onFactMissing: showMissingFactOverlay(name) }
+    Fact { id: batVEmptyFact;       name: "BAT_V_EMPTY";    onFactMissing: showMissingFactOverlay(name) }
+    Fact { id: batCellsFact;        name: "BAT_N_CELLS";    onFactMissing: showMissingFactOverlay(name) }
 
-    VehicleSummaryRow {
-        labelText: "Battery Full:"
-        valueText: batVChargedFact.valueString
-    }
+    Column {
+        anchors.fill:       parent
+        anchors.margins:    8
 
-    VehicleSummaryRow {
-        labelText: "Battery Empty:"
-        valueText: batVEmptyFact.valueString
-    }
+        VehicleSummaryRow {
+            labelText: "Battery Full:"
+            valueText: batVChargedFact.valueString
+        }
 
-    VehicleSummaryRow {
-        labelText: "Number of Cells:"
-        valueText: batCellsFact.valueString
+        VehicleSummaryRow {
+            labelText: "Battery Empty:"
+            valueText: batVEmptyFact.valueString
+        }
+
+        VehicleSummaryRow {
+            labelText: "Number of Cells:"
+            valueText: batCellsFact.valueString
+        }
     }
 }

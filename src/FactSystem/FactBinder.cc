@@ -27,12 +27,15 @@
 #include "FactBinder.h"
 #include "UASManager.h"
 #include "AutoPilotPluginManager.h"
+#include "QGCApplication.h"
+
 #include <QDebug>
 
 FactBinder::FactBinder(void) :
     _autopilotPlugin(NULL),
     _fact(NULL),
-    _componentId(FactSystem::defaultComponentId)
+    _componentId(FactSystem::defaultComponentId),
+    _factMissingSignalConnected(false)
 {
     UASInterface* uas = UASManager::instance()->getActiveUAS();
     Q_ASSERT(uas);
@@ -83,8 +86,12 @@ void FactBinder::setName(const QString& name)
             emit nameChanged();
 			emit metaDataChanged();
 		} else {
-            qWarning() << "FAILED BINDING PARAM" << name << ": PARAM DOES NOT EXIST ON SYSTEM!";
-            Q_ASSERT(false);
+            qgcApp()->reportMissingFact(name);
+            if (_factMissingSignalConnected) {
+                emit factMissing(name);
+            } else {
+                _missedFactMissingSignals << name;
+            }
         }
     }
 }
@@ -204,5 +211,29 @@ bool FactBinder::valueEqualsDefault(void)
         return _fact->valueEqualsDefault();
     } else {
         return false;
+    }
+}
+
+void FactBinder::connectNotify(const QMetaMethod & signal)
+{
+    if (signal == QMetaMethod::fromSignal(&FactBinder::factMissing)) {
+        _factMissingSignalConnected = true;
+        if (_missedFactMissingSignals.count()) {
+            QTimer::singleShot(10, this, &FactBinder::_delayedFactMissing);
+        }
+    }
+}
+
+void FactBinder::disconnectNotify(const QMetaMethod & signal)
+{
+    if (signal == QMetaMethod::fromSignal(&FactBinder::factMissing)) {
+        _factMissingSignalConnected = false;
+    }
+}
+
+void FactBinder::_delayedFactMissing(void)
+{
+    foreach (QString name, _missedFactMissingSignals) {
+        emit factMissing(name);
     }
 }

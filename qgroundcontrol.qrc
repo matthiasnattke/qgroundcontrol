@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/unittest">
-        <file alias="MockLink.params">src/qgcunittest/MockLink.params</file>
+        <file alias="MockLink.params">src/comm/MockLink.params</file>
         <file alias="FactSystemTest.qml">src/FactSystem/FactSystemTest.qml</file>
     </qresource>
 
@@ -9,6 +9,7 @@
         <file alias="QmlTest.qml">src/QmlControls/QmlTest.qml</file>
 
         <file alias="QGroundControl/FactControls/qmldir">src/FactSystem/FactControls/qmldir</file>
+        <file alias="QGroundControl/FactControls/FactPanel.qml">src/FactSystem/FactControls/FactPanel.qml</file>
         <file alias="QGroundControl/FactControls/FactLabel.qml">src/FactSystem/FactControls/FactLabel.qml</file>
         <file alias="QGroundControl/FactControls/FactTextField.qml">src/FactSystem/FactControls/FactTextField.qml</file>
         <file alias="QGroundControl/FactControls/FactCheckBox.qml">src/FactSystem/FactControls/FactCheckBox.qml</file>
@@ -31,9 +32,15 @@
         <file alias="QGroundControl/Controls/VehicleSummaryRow.qml">src/QmlControls/VehicleSummaryRow.qml</file>
         <file alias="QGroundControl/Controls/arrow-down.png">src/QmlControls/arrow-down.png</file>
         <file alias="QGroundControl/Controls/ViewWidget.qml">src/ViewWidgets/ViewWidget.qml</file>
+
+        <file alias="QGroundControl/Controls/QGCView.qml">src/QmlControls/QGCView.qml</file>
+        <file alias="QGroundControl/Controls/QGCViewPanel.qml">src/QmlControls/QGCViewPanel.qml</file>
+        <file alias="QGroundControl/Controls/QGCViewDialog.qml">src/QmlControls/QGCViewDialog.qml</file>
+
         <file alias="QGroundControl/Controls/ParameterEditor.qml">src/QmlControls/ParameterEditor.qml</file>
 
         <file alias="ParameterEditorWidget.qml">src/ViewWidgets/ParameterEditorWidget.qml</file>
+        <file alias="CustomCommandWidget.qml">src/ViewWidgets/CustomCommandWidget.qml</file>
 
         <file alias="SetupViewButtonsConnected.qml">src/VehicleSetup/SetupViewButtonsConnected.qml</file>
         <file alias="SetupViewButtonsDisconnected.qml">src/VehicleSetup/SetupViewButtonsDisconnected.qml</file>
@@ -63,6 +70,10 @@
         <file alias="VehicleRight.png">src/AutoPilotPlugins/PX4/Images/VehicleRight.png</file>
         <file alias="VehicleNoseDown.png">src/AutoPilotPlugins/PX4/Images/VehicleNoseDown.png</file>
         <file alias="VehicleTailDown.png">src/AutoPilotPlugins/PX4/Images/VehicleTailDown.png</file>
+
+        <file alias="VehicleDownRotate.png">src/AutoPilotPlugins/PX4/Images/VehicleDownRotate.png</file>
+        <file alias="VehicleLeftRotate.png">src/AutoPilotPlugins/PX4/Images/VehicleLeftRotate.png</file>
+        <file alias="VehicleNoseDownRotate.png">src/AutoPilotPlugins/PX4/Images/VehicleNoseDownRotate.png</file>
 
         <!-- Airframe component resourecs -->
         <file alias="AirframeComponent.qml">src/AutoPilotPlugins/PX4/AirframeComponent.qml</file>
@@ -113,6 +124,8 @@
         <file alias="QGroundControl/FlightControls/QGCWaypointEditor.qml">src/ui/qmlcommon/QGCWaypointEditor.qml</file>
         <file alias="QGroundControl/FlightControls/QGCMapToolButton.qml">src/ui/qmlcommon/QGCMapToolButton.qml</file>
         <file alias="QGroundControl/FlightControls/QGCArtificialHorizon.qml">src/ui/qmlcommon/QGCArtificialHorizon.qml</file>
+        <!-- QML Map Resources -->
+        <file alias="QGroundControl/FlightControls/QGCWaypoint.qml">src/ui/qmlcommon/QGCWaypoint.qml</file>
         <!-- QML Main UI Resources -->
         <file alias="compass.svg">src/ui/qmlcommon/compass.svg</file>
         <file alias="compassNeedle.svg">src/ui/qmlcommon/compassNeedle.svg</file>
@@ -156,6 +169,8 @@
         <file alias="Kill">resources/Kill.svg</file>
         <file alias="Shutdown">resources/Shutdown.svg</file>
 
+        <file alias="AntennaT">resources/Antenna_T.svg</file>
+        <file alias="AntennaRC">resources/Antenna_RC.svg</file>
         <file alias="Gps">resources/Gps.svg</file>
         <file alias="Megaphone">resources/Megaphone.png</file>
         <file alias="Yield">resources/Yield.png</file>

@@ -88,12 +88,10 @@ LinkInterface* LinkManager::createConnectedLink(LinkConfiguration* config)
         case LinkConfiguration::TypeTcp:
             pLink = new TCPLink(dynamic_cast<TCPConfiguration*>(config));
             break;
-#ifdef UNITTEST_BUILD
-#ifndef __android__
+#ifdef QT_DEBUG
         case LinkConfiguration::TypeMock:
             pLink = new MockLink(dynamic_cast<MockConfiguration*>(config));
             break;
-#endif
 #endif
     }
     if(pLink) {
@@ -384,13 +382,11 @@ void LinkManager::loadLinkConfigurationList()
                                     pLink = (LinkConfiguration*)new TCPConfiguration(name);
                                     pLink->setPreferred(preferred);
                                     break;
-#ifdef UNITTEST_BUILD
-#ifndef __android__
+#ifdef QT_DEBUG
                                 case LinkConfiguration::TypeMock:
                                     pLink = (LinkConfiguration*)new MockConfiguration(name);
                                     pLink->setPreferred(false);
                                     break;
-#endif
 #endif
                             }
                             if(pLink) {
@@ -413,6 +409,15 @@ void LinkManager::loadLinkConfigurationList()
         }
         emit linkConfigurationChanged();
     }
+    
+    // Debug buids always add MockLink automatically
+#ifdef QT_DEBUG
+    MockConfiguration* pMock = new MockConfiguration("Mock Link");
+    pMock->setDynamic(true);
+    addLinkConfiguration(pMock);
+    emit linkConfigurationChanged();
+#endif
+    
     // Enable automatic PX4 hunting
     _configurationsLoaded = true;
 }
@@ -501,9 +506,12 @@ void LinkManager::_updateConfigurationList(void)
         // We only care about dynamic links
         if(pLink->isDynamic()) {
             if(pLink->type() == LinkConfiguration::TypeSerial) {
-                SerialConfiguration* pSerial = dynamic_cast<SerialConfiguration*>(pLink);
-                if(!currentPorts.contains(pSerial->portName())) {
-                    _confToDelete.append(pSerial);
+                // Don't mess with connected link. Let it deal with the disapearing device.
+                if(pLink->getLink() == NULL) {
+                    SerialConfiguration* pSerial = dynamic_cast<SerialConfiguration*>(pLink);
+                    if(!currentPorts.contains(pSerial->portName())) {
+                        _confToDelete.append(pSerial);
+                    }
                 }
             }
         }

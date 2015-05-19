@@ -47,7 +47,6 @@ This file is part of the QGROUNDCONTROL project
 #include "WaypointList.h"
 #include "CameraView.h"
 #include "UASListWidget.h"
-#include "MAVLinkSimulationLink.h"
 #ifndef __android__
 #include "input/JoystickInput.h"
 #endif
@@ -62,12 +61,12 @@ This file is part of the QGROUNDCONTROL project
 #include "MainToolBar.h"
 #include "LogCompressor.h"
 
+#include "FlightDisplay.h"
 #include "QGCMAVLinkInspector.h"
 #include "QGCMAVLinkLogPlayer.h"
 #include "MAVLinkDecoder.h"
 #include "QGCUASFileViewMulti.h"
 #include "QGCFlightGearLink.h"
-#include "QGCToolWidget.h"
 
 class QGCMapTool;
 class QGCMAVLinkMessageSender;
@@ -77,6 +76,7 @@ class QGCStatusBar;
 class Linecharts;
 class QGCDataPlot2D;
 class QGCUASFileViewMulti;
+class FlightDisplay;
 
 /**
  * @brief Main Application Window
@@ -126,14 +126,24 @@ public:
     
     /// @brief Gets a pointer to the Main Tool Bar
     MainToolBar* getMainToolBar(void) { return _mainToolBar; }
+
+    /// @brief Gets a pointer to the Main Flight Display
+    FlightDisplay* getFlightDisplay() { return dynamic_cast<FlightDisplay*>(_flightView.data()); }
     
     QWidget* getCurrentViewWidget(void) { return _currentViewWidget; }
+
+    //! Returns the font point size factor
+    static double   fontPointFactor() { return _fontFactor; }
+    //! Returns the pixel size factor
+    static double   pixelSizeFactor() { return _pixelFactor; }
+    //! Sets pixel size factor
+    void            setPixelSizeFactor(double size);
+    //! Sets font size factor
+    void            setFontSizeFactor(double size);
 
 public slots:
     /** @brief Show the application settings */
     void showSettings();
-    /** @brief Simulate a link */
-    void simulateLink(bool simulate);
 
     /** @brief Add a new UAS */
     void UASCreated(UASInterface* uas);
@@ -153,8 +163,6 @@ public slots:
     void loadOldPlanView();
     /** @brief Load Terminal Console views */
     void loadTerminalView();
-    /** @brief Load local 3D view */
-    void loadLocal3DView();
     /** @brief Manage Links */
     void manageLinks();
 
@@ -202,6 +210,10 @@ signals:
     void valueChanged(const int uasId, const QString& name, const QString& unit, const QVariant& value, const quint64 msec);
     /** Emitted when any the Canvas elements within QML wudgets need updating */
     void repaintCanvas();
+    /** Emitted when pixel size factor changes */
+    void pixelSizeChanged();
+    /** Emitted when pixel size factor changes */
+    void fontSizeChanged();
 
 #ifdef QGC_MOUSE_ENABLED_LINUX
     /** @brief Forward X11Event to catch 3DMouse inputs */
@@ -218,14 +230,14 @@ protected:
 
     typedef enum _VIEW_SECTIONS
     {
-        VIEW_ANALYZE,         // Engineering/Analyze view mode. Used for analyzing data and modifying onboard parameters
-        VIEW_PLAN,          // New (QtQuick) Mission/Map/Plan view mode. Used for setting mission waypoints and high-level system commands.
-        VIEW_FLIGHT,           // Flight/Fly/Operate view mode. Used for 1st-person observation of the vehicle.
-        VIEW_SIMULATION,       // HIL Simulation view. Useful overview of the entire system when doing hardware-in-the-loop simulations.
-        VIEW_SETUP,            // Setup view. Used for initializing the system for operation. Includes UI for calibration, firmware updating/checking, and parameter modifcation.
-        VIEW_TERMINAL,         // Terminal interface. Used for communicating with the remote system, usually in a special configuration input mode.
-        VIEW_LOCAL3D,          // A local 3D view. Provides a local 3D view that makes visualizing 3D attitude/orientation/pose easy while in operation.
-        VIEW_EXPERIMENTAL_PLAN,      // Original (Qt Widget) Mission/Map/Plan view mode. Used for setting mission waypoints and high-level system commands.
+        VIEW_ANALYZE,           // Engineering/Analyze view mode. Used for analyzing data and modifying onboard parameters
+        VIEW_PLAN,              // New (QtQuick) Mission/Map/Plan view mode. Used for setting mission waypoints and high-level system commands.
+        VIEW_FLIGHT,            // Flight/Fly/Operate view mode. Used for 1st-person observation of the vehicle.
+        VIEW_SIMULATION,        // HIL Simulation view. Useful overview of the entire system when doing hardware-in-the-loop simulations.
+        VIEW_SETUP,             // Setup view. Used for initializing the system for operation. Includes UI for calibration, firmware updating/checking, and parameter modifcation.
+        VIEW_TERMINAL,          // Terminal interface. Used for communicating with the remote system, usually in a special configuration input mode.
+        VIEW_LOCAL3D,           // Unused
+        VIEW_EXPERIMENTAL_PLAN, // Original (Qt Widget) Mission/Map/Plan view mode. Used for setting mission waypoints and high-level system commands.
     } VIEW_SECTIONS;
 
     /** @brief Catch window resize events */
@@ -277,7 +289,6 @@ protected:
     QAction* returnUASAct;
     QAction* stopUASAct;
     QAction* killUASAct;
-    QAction* simulateUASAct;
 
 
     LogCompressor* comp;
@@ -287,8 +298,6 @@ protected:
 
 private slots:
     void _showDockWidgetAction(bool show);
-    void _loadCustomWidgetFromFile(void);
-    void _createNewCustomWidget(void);
     void _linkStateChange(LinkInterface*);
 #ifdef UNITTEST_BUILD
     void _showQmlTestWidget(void);
@@ -308,7 +317,6 @@ private:
     QPointer<QWidget> _analyzeView;
     QPointer<QWidget> _simView;
     QPointer<QWidget> _terminalView;
-    QPointer<QWidget> _local3DView;
 
     // Dock widget names
     static const char* _uasControlDockWidgetName;
@@ -316,6 +324,7 @@ private:
     static const char* _waypointsDockWidgetName;
     static const char* _mavlinkDockWidgetName;
     static const char* _parametersDockWidgetName;
+    static const char* _customCommandWidgetName;
     static const char* _filesDockWidgetName;
     static const char* _uasStatusDetailsDockWidgetName;
     static const char* _mapViewDockWidgetName;
@@ -338,14 +347,12 @@ private:
     void _buildAnalyzeView(void);
     void _buildSimView(void);
     void _buildTerminalView(void);
-    void _buildLocal3DView(void);
 
     void _storeCurrentViewState(void);
     void _loadCurrentViewState(void);
 
     void _createDockWidget(const QString& title, const QString& name, Qt::DockWidgetArea area, QWidget* innerWidget);
     void _createInnerDockWidget(const QString& widgetName);
-    void _buildCustomWidgets(void);
     void _buildCommonWidgets(void);
     void _hideAllHilDockWidgets(void);
     void _hideAllDockWidgets(void);
@@ -356,8 +363,6 @@ private:
     bool                    _lowPowerMode;           ///< If enabled, QGC reduces the update rates of all widgets
     bool                    _showStatusBar;
     QActionGroup*           _centerStackActionGroup;
-    MAVLinkSimulationLink*  _simulationLink;
-    QList<QGCToolWidget*>   _customWidgets;
     QVBoxLayout*            _centralLayout;
     QList<QObject*>         _commsWidgetList;
     QWidget*                _currentViewWidget;     ///< Currently displayed view widget
@@ -369,6 +374,9 @@ private:
     QString _getWindowStateKey();
     QString _getWindowGeometryKey();
 
+    // UI Dimension Factors
+    static double _pixelFactor;
+    static double _fontFactor;
 
 };
 

@@ -49,7 +49,6 @@
 #include "QGCMessageBox.h"
 #include "MainWindow.h"
 #include "UDPLink.h"
-#include "MAVLinkSimulationLink.h"
 #include "SerialLink.h"
 #include "QGCSingleton.h"
 #include "LinkManager.h"
@@ -59,10 +58,13 @@
 #include "QGCTemporaryFile.h"
 #include "QGCFileDialog.h"
 #include "QGCPalette.h"
-#include "ScreenTools.h"
 #include "QGCLoggingCategory.h"
 #include "ViewWidgetController.h"
 #include "ParameterEditorController.h"
+#include "CustomCommandWidgetController.h"
+
+#include "ScreenTools.h"
+#include "MavManager.h"
 
 #ifdef QGC_RTLAB_ENABLED
 #include "OpalLink.h"
@@ -85,6 +87,30 @@ const char* QGCApplication::_darkStyleFile = ":/res/styles/style-dark.css";
 const char* QGCApplication::_lightStyleFile = ":/res/styles/style-light.css";
 
 /**
+ * @brief ScreenTools creation callback
+ *
+ * This is called by the QtQuick engine for creating the singleton
+ **/
+
+static QObject* screenToolsSingletonFactory(QQmlEngine*, QJSEngine*)
+{
+    ScreenTools* screenTools = new ScreenTools;
+    return screenTools;
+}
+
+/**
+ * @brief MavManager creation callback
+ *
+ * This is called by the QtQuick engine for creating the singleton
+**/
+
+static QObject* mavManagerSingletonFactory(QQmlEngine*, QJSEngine*)
+{
+    MavManager* mavManager = new MavManager;
+    return mavManager;
+}
+
+/**
  * @brief Constructor for the main application.
  *
  * This constructor initializes and starts the whole application. It takes standard
@@ -104,8 +130,15 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting) :
     _app = this;
 
     // This prevents usage of QQuickWidget to fail since it doesn't support native widget siblings
+#ifndef __android__
     setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+#endif
 
+#ifdef __android__
+    QLoggingCategory::setFilterRules(QStringLiteral("*Log.debug=false"));
+#endif
+    
+#ifndef __android__
 #ifdef QT_DEBUG
     // First thing we want to do is set up the qtlogging.ini file. If it doesn't already exist we copy
     // it to the correct location. This way default debug builds will have logging turned off.
@@ -135,9 +168,9 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting) :
             if (loggingFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
                 QTextStream out(&loggingFile);
                 out << "[Rules]\n";
-                out << "*Log=false\n";
+                out << "*Log.debug=false\n";
                 foreach(QString category, QGCLoggingCategoryRegister::instance()->registeredCategories()) {
-                    out << category << "=false\n";
+                    out << category << ".debug=false\n";
                 }
             } else {
                 qDebug() << "Unable to create logging file" << QString(qtLoggingFile) << "in" << iniFileLocation;
@@ -145,7 +178,13 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting) :
         }
     }
 #endif
+#endif
 
+    // Set up timer for delayed missing fact display
+    _missingFactDelayedDisplayTimer.setSingleShot(true);
+    _missingFactDelayedDisplayTimer.setInterval(_missingFactDelayedDisplayTimerTimeout);
+    connect(&_missingFactDelayedDisplayTimer, &QTimer::timeout, this, &QGCApplication::_missingFactsDisplay);
+    
     // Set application information
     if (_runningUnitTests) {
         // We don't want unit tests to use the same QSettings space as the normal app. So we tweak the app
@@ -263,9 +302,14 @@ void QGCApplication::_initCommon(void)
     
     // Register our Qml objects
     qmlRegisterType<QGCPalette>("QGroundControl.Palette", 1, 0, "QGCPalette");
-    qmlRegisterType<ScreenTools>("QGroundControl.ScreenTools", 1, 0, "ScreenTools");
 	qmlRegisterType<ViewWidgetController>("QGroundControl.Controllers", 1, 0, "ViewWidgetController");
 	qmlRegisterType<ParameterEditorController>("QGroundControl.Controllers", 1, 0, "ParameterEditorController");
+    qmlRegisterType<CustomCommandWidgetController>("QGroundControl.Controllers", 1, 0, "CustomCommandWidgetController");
+    //-- Create QML Singleton Interfaces
+    qmlRegisterSingletonType<ScreenTools>("QGroundControl.ScreenTools", 1, 0, "ScreenTools", screenToolsSingletonFactory);
+    qmlRegisterSingletonType<MavManager>("QGroundControl.MavManager", 1, 0, "MavManager", mavManagerSingletonFactory);
+    //-- Register Waypoint Interface
+    qmlRegisterInterface<Waypoint>("Waypoint");
 }
 
 bool QGCApplication::_initForNormalAppBoot(void)
@@ -456,6 +500,7 @@ void QGCApplication::_createSingletons(void)
     MAVLinkProtocol* mavlink = MAVLinkProtocol::_createSingleton();
     Q_UNUSED(mavlink);
     Q_ASSERT(mavlink);
+
 }
 
 void QGCApplication::_destroySingletons(void)
@@ -585,7 +630,7 @@ void QGCApplication::_loadCurrentStyle(void)
             QRegularExpressionMatch match = regex.match(line);
             if (match.hasMatch()) {
                 //qDebug() << "found:" << line << match.captured(1);
-                adjustedLine = QString("font-size: %1pt;").arg(ScreenTools::dpiAdjustedPointSize_s(match.captured(1).toDouble()));
+                adjustedLine = QString("font-size: %1pt;").arg(ScreenTools::adjustFontPointSize_s(match.captured(1).toDouble()));
                 //qDebug() << "adjusted:" << adjustedLine;
             } else {
                 adjustedLine = line;
@@ -619,7 +664,7 @@ void QGCApplication::reconnectAfterWait(int waitSeconds)
     LinkInterface* link = linkManager->getLinks()[0];
     
     // Save the link configuration so we can restart the link laster
-    _reconnectLinkConfig = linkManager->getLinks()[0]->getLinkConfiguration();
+    _reconnectLinkConfig = LinkConfiguration::duplicateSettings(linkManager->getLinks()[0]->getLinkConfiguration());
     
     // Disconnect and wait
     
@@ -629,6 +674,35 @@ void QGCApplication::reconnectAfterWait(int waitSeconds)
 
 void QGCApplication::_reconnect(void)
 {
+    Q_ASSERT(_reconnectLinkConfig);
+    
     qgcApp()->restoreOverrideCursor();
     LinkManager::instance()->createConnectedLink(_reconnectLinkConfig);
+    _reconnectLinkConfig = NULL;
+}
+
+void QGCApplication::reportMissingFact(const QString& name)
+{
+    _missingFacts += name;
+    _missingFactDelayedDisplayTimer.start();
+}
+
+/// Called when the delay timer fires to show the missing facts warning
+void QGCApplication::_missingFactsDisplay(void)
+{
+    Q_ASSERT(_missingFacts.count());
+    
+    QString facts;
+    foreach (QString fact, _missingFacts) {
+        if (facts.isEmpty()) {
+            facts += fact;
+        } else {
+            facts += QString(", %1").arg(fact);
+        }
+    }
+    _missingFacts.clear();
+    
+    QGCMessageBox::critical("Missing Parameters",
+                            QString("Parameters missing from firmware: %1.\n\n"
+                                    "You should quit QGroundControl immediately and update your firmware.").arg(facts));
 }

@@ -36,283 +36,336 @@ import QGroundControl.Controllers 1.0
 import QGroundControl.FactSystem 1.0
 import QGroundControl.FactControls 1.0
 
-Rectangle {
-	/// true: show full information, false: for use in smaller widgets
-	property bool fullMode: true
+QGCView {
+    viewComponent: parameterList
 
-	QGCPalette { id: __qgcPal; colorGroupEnabled: true }
-	ScreenTools { id: __screenTools }
-	ParameterEditorController { id: __controller }
-	QGCLabel { id: __charWidth; text: "X"; visible: false }
+    /// true: show full information, false: for use in smaller widgets
+    property bool fullMode: true
 
-	readonly property real __leftMargin: 10
-	readonly property real __rightMargin: 20
-	readonly property int __maxParamChars: 16
+    QGCPalette { id: __qgcPal; colorGroupEnabled: true }
+    ParameterEditorController { id: __controller }
+    QGCLabel { id: __textMeasure; text: "X"; visible: false }
+    property Fact __editorDialogFact: Fact { }
 
-    color: __qgcPal.window
 
-    // We use an ExclusiveGroup to maintain the visibility of a single editing control at a time
-    ExclusiveGroup {
-        id: __exclusiveEditorGroup
-    }
+    readonly property real __leftMargin: 10
+    readonly property real __rightMargin: 20
+    readonly property int __maxParamChars: 16
 
-    Column {
-        anchors.fill:parent
+    property real __textHeight: __textMeasure.contentHeight
+    property real __textWidth:  __textMeasure.contentWidth
 
-        Row {
-            spacing:            10
-            layoutDirection:    Qt.RightToLeft
-            width:              parent.width
+    Component {
+        id: parameterList
 
-            QGCButton {
-                text:		"Clear RC to Param"
-                onClicked:	__controller.clearRCToParam()
-            }
-            QGCButton {
-                text:		"Save to file"
-				visible:	fullMode
-                onClicked:	__controller.saveToFile()
-            }
-            QGCButton {
-                text:		"Load from file"
-				visible:	fullMode
-                onClicked:	__controller.loadFromFile()
-            }
-            QGCButton {
-                id:			firstButton
-                text:		"Refresh"
-                onClicked:	__controller.refresh()
-            }
-        }
+        QGCViewPanel {
+            id: panel
 
-        Item {
-            id:		lastSpacer
-            height: 10
-            width:	5
-        }
+            Component {
+                id: factRowsComponent
 
-        ScrollView {
-            id :	scrollView
-            width:	parent.width
-            height: parent.height - (lastSpacer.y + lastSpacer.height)
+                Column {
+                    id:     factColumn
+                    x:      __leftMargin
+
+                    QGCLabel {
+                        height:				__textHeight + (ScreenTools.pixelSizeFactor * (9))
+                        text:               group
+                        verticalAlignment:	Text.AlignVCenter
+                        font.pointSize:     ScreenTools.fontPointFactor * (16);
+                    }
+
+                    Rectangle {
+                        width:  parent.width
+                        height: 1
+                        color:  __qgcPal.text
+                    }
+
+                    Repeater {
+                        model: __controller.getFactsForGroup(componentId, group)
+
+                        Column {
+                            Item {
+                                x:			__leftMargin
+                                width:      parent.width
+                                height:		__textHeight + (ScreenTools.pixelSizeFactor * (9))
+
+                                Fact {
+                                    id: modelFact
+
+                                    Component.onCompleted: {
+                                        name = modelData + ":" + componentId
+                                    }
+                                }
+
+                                QGCLabel {
+                                    id:                 nameLabel
+                                    width:              __textWidth * (__maxParamChars + 1)
+                                    height:             parent.height
+                                    verticalAlignment:	Text.AlignVCenter
+                                    text:               modelFact.name
+                                }
+
+                                QGCLabel {
+                                    id:                 valueLabel
+                                    width:              __textWidth * 20
+                                    height:             parent.height
+                                    anchors.left:       nameLabel.right
+                                    verticalAlignment:	Text.AlignVCenter
+                                    color:              modelFact.valueEqualsDefault ? __qgcPal.text : "orange"
+                                    text:               modelFact.valueString + " " + modelFact.units
+                                }
+
+                                QGCLabel {
+                                    height:             parent.height
+                                    anchors.left:       valueLabel.right
+                                    verticalAlignment:	Text.AlignVCenter
+                                    visible:            fullMode
+                                    text:               modelFact.shortDescription
+                                }
+
+                                MouseArea {
+                                    anchors.fill:       parent
+                                     acceptedButtons:   Qt.LeftButton
+
+                                    onClicked: {
+                                        __editorDialogFact = modelFact
+                                        panel.showDialog(editorDialogComponent, "Parameter Editor", fullMode ? 50 : -1, StandardButton.Cancel | StandardButton.Save)
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                x:      __leftMargin
+                                width:  factColumn.width - __leftMargin - __rightMargin
+                                height: 1
+                                color:  __qgcPal.windowShade
+                            }
+                        } // Column - Fact
+                    } // Repeater - Facts
+                } // Column - Facts
+            } // Component - factRowsComponent
 
             Column {
-                Repeater {
-                    model: __controller.componentIds
+                anchors.fill: parent
 
-                    Column {
-						id: componentColumn
+                Item {
+                    width:  parent.width
+                    height: firstButton.height
 
-						property int componentId: parseInt(modelData)
+                    QGCLabel {
+                        font.pointSize: ScreenTools.fontPointFactor * (20)
+                        visible:        fullMode
+                        text:           "PARAMETER EDITOR"
+                    }
 
-						QGCLabel {
-							text: "Component #: " + componentId.toString()
-							font.pointSize: __screenTools.dpiAdjustedPointSize(__qgcPal.defaultFontPointSize + 4);
-						}
+                    Row {
+                        spacing:            10
+                        layoutDirection:    Qt.RightToLeft
+                        width:              parent.width
 
-                        Item {
-                            height: 10
-                            width:	10
+                        QGCButton {
+                            text:		"Clear RC to Param"
+                            onClicked:	__controller.clearRCToParam()
                         }
+                        QGCButton {
+                            text:		"Save to file"
+                            visible:	fullMode
+                            onClicked:	__controller.saveToFile()
+                        }
+                        QGCButton {
+                            text:		"Load from file"
+                            visible:	fullMode
+                            onClicked:	__controller.loadFromFile()
+                        }
+                        QGCButton {
+                            id:			firstButton
+                            text:		"Refresh"
+                            onClicked:	__controller.refresh()
+                        }
+                    }
+                }
 
-                        Repeater {
-                            model: __controller.getGroupsForComponent(componentColumn.componentId)
+                Item {
+                    id:		lastSpacer
+                    height: 10
+                    width:	5
+                }
 
-                            Column {
-                                Rectangle {
-                                    id: groupRect
-                                    color:	__qgcPal.windowShade
-                                    height: groupBlock.height
-                                    width:	scrollView.viewport.width - __rightMargin
+                Item {
+                    width:  parent.width
+                    height: parent.height - (lastSpacer.y + lastSpacer.height)
 
-                                    Column {
-                                        id: groupBlock
+                    ScrollView {
+                        id :	groupScroll
+                        width:	__textWidth * 25
+                        height: parent.height
 
-                                        Rectangle {
-                                            color:	__qgcPal.windowShadeDark
-                                            height: groupLabel.height
-                                            width:	groupRect.width
+                        Column {
+                            Repeater {
+                                model: __controller.componentIds
 
-                                            QGCLabel {
-                                                id:					groupLabel
-                                                height:				contentHeight + 5
-                                                x:					__leftMargin
-                                                text:				modelData
-                                                verticalAlignment:	Text.AlignVCenter
-                                                font.pointSize:		__screenTools.dpiAdjustedPointSize(__qgcPal.defaultFontPointSize + 2);
+                                Column {
+                                    id: componentColumn
+
+                                    readonly property int componentId: parseInt(modelData)
+
+                                    QGCLabel {
+                                        height:				contentHeight + (ScreenTools.pixelSizeFactor * (9))
+                                        text:               "Component #: " + componentId.toString()
+                                        verticalAlignment:	Text.AlignVCenter
+                                        font.pointSize:     ScreenTools.fontPointFactor * (16);
+                                    }
+
+                                    Repeater {
+                                        model: __controller.getGroupsForComponent(componentColumn.componentId)
+
+                                        Column {
+                                            QGCButton {
+                                                x:		__leftMargin
+                                                width: groupScroll.width - __leftMargin - __rightMargin
+                                                text:	modelData
+
+                                                onClicked: {
+                                                    factRowsLoader.sourceComponent = null
+                                                    factRowsLoader.componentId = componentId
+                                                    factRowsLoader.group = modelData
+                                                    factRowsLoader.sourceComponent = factRowsComponent
+                                                }
                                             }
-                                        }
 
-                                        Repeater {
-                                            model: __controller.getFactsForGroup(componentColumn.componentId, modelData)
+                                            Item {
+                                                width:  1
+                                                height: ScreenTools.pixelSizeFactor * (3)
+                                            }
+                                        } // Column - Group
+                                    } // Repeater - Groups
 
-                                            Row {
-                                                spacing:	10
-                                                x:			__leftMargin
+                                    Item {
+                                        height: 10
+                                        width:	10
+                                    }
+                                } // Column - Component
+                            } // Repeater - Components
+                        } // Column - Component
+                    } // ScrollView - Groups
 
-												Fact { id: modelFact; name: modelData + ":" + componentColumn.componentId }
+                    ScrollView {
+                        id:             factScrollView
+                        anchors.left:   groupScroll.right
+                        anchors.right:  parent.right
+                        height:         parent.height
 
-                                                QGCLabel {
-                                                    text:	modelFact.name
-                                                    width:	__charWidth.contentWidth * (__maxParamChars + 2)
-                                                }
+                        Loader {
+                            id:     factRowsLoader
+                            width:  factScrollView.width
 
-                                                QGCLabel {
-
-                                                    text:   modelFact.valueString + " " + modelFact.units
-                                                    width:  __charWidth.contentWidth * 20
-                                                    height: contentHeight
-													color:	modelFact.valueEqualsDefault ? __qgcPal.text : "orange"
-
-                                                    Menu {
-                                                        id:         rightClickMenu
-                                                        visible:    false
-
-                                                        MenuItem {
-                                                            id:             resetToDefaultMenuItem
-                                                            text:           "Reset to default"
-                                                            enabled:        modelFact.defaultValueAvailable
-                                                            onTriggered:    modelFact.value = modelFact.defaultValue
-                                                        }
-                                                        MenuItem {
-                                                            text:           "Set RC to Param..."
-                                                            onTriggered: 	__controller.setRCToParam(modelData)
-                                                        }
-                                                        MenuItem {
-                                                            text:           "Properties..."
-                                                            onTriggered: 	propertiesDialog.open()
-                                                        }
-                                                    }
-
-                                                    Dialog {
-                                                        id:         propertiesDialog
-                                                        visible:    false
-                                                        title:      "Parameter Properties"
-
-                                                        contentItem: Rectangle {
-                                                            color:          __qgcPal.window
-                                                            implicitWidth:          500
-                                                            implicitHeight:         longDescription.y + longDescription.height + 20
-
-                                                                Grid {
-                                                                id:     grid
-                                                                x:      10
-                                                                y:      10
-                                                                columns: 2
-                                                                spacing: 5
-
-                                                                QGCLabel {
-                                                                    text: "Parameter:"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: modelFact.name
-                                                                }
-                                                                QGCLabel {
-                                                                    text: "Group:"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: modelFact.group
-                                                                }
-                                                                QGCLabel {
-                                                                    text: "Units:"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: modelFact.units ? modelFact.units : "none"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: "Default value:"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: modelFact.defaultValueAvailable ? modelFact.defaultValue : "none"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: "Minimum value:"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: modelFact.min
-                                                                }
-                                                                QGCLabel {
-                                                                    text: "Maximum value:"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: modelFact.max
-                                                                }
-                                                                QGCLabel {
-                                                                    text: "Description:"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: modelFact.shortDescription ? modelFact.shortDescription : "none"
-                                                                }
-                                                                QGCLabel {
-                                                                    text: "Description (long):"
-                                                                }
-                                                                QGCLabel {
-                                                                    id:         longDescription
-                                                                    width:      500 - 20 - x
-                                                                    wrapMode:   Text.WordWrap
-                                                                    text:       modelFact.longDescription ? modelFact.longDescription : "none"
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    MouseArea {
-                                                        anchors.fill:		parent
-														acceptedButtons:	Qt.LeftButton | Qt.RightButton
-
-                                                        onClicked: {
-															if (mouse.button == Qt.LeftButton) {
-																editor.checked = true
-																editor.focus = true
-															} else if (mouse.button == Qt.RightButton) {
-                                                                rightClickMenu.popup()
-															}
-                                                        }
-                                                    }
-
-                                                    FactTextField {
-                                                        id:                 editor
-                                                        y:                  (parent.height - height) / 2
-                                                        width:              parent.width
-                                                        visible:            checked
-                                                        focus:              true
-                                                        fact:               modelFact
-                                                        showUnits:          true
-                                                        onEditingFinished:  checked = false
-
-                                                        // We use an ExclusiveGroup to manage visibility
-                                                        property bool checked: false
-                                                        property ExclusiveGroup exclusiveGroup: __exclusiveEditorGroup
-                                                        onExclusiveGroupChanged: {
-                                                            if (exclusiveGroup)
-                                                                exclusiveGroup.bindCheckable(editor)
-                                                        }
-                                                    }
-                                                }
-
-                                                QGCLabel {
-                                                    text: modelFact.shortDescription
-													visible: fullMode
-                                                }
-                                            } // Row - Fact value
-                                        } // Repeater - Facts
-                                    } // Column - Fact rows
-                                } // Rectangle - Group
-
-                                Item {
-                                    height: 10
-                                    width:	10
-                                }
-                            } // Column - Group
-                        } // Repeater - Groups
-
-                        Item {
-                            height: 10
-                            width:	10
+                            property int componentId:   __controller.componentIds[0]
+                            property string group:      __controller.getGroupsForComponent(__controller.componentIds[0])[0]
+                            sourceComponent:            factRowsComponent
                         }
-                    } // Column - Component
-                } // Repeater - Components
-            } // Column - Component
-        } // ScrollView
-    } // Column - Outer
-}
+                    } // ScrollView - Facts
+                } // Item - Group ScrollView + Facts
+            } // Column - Outer
+        }
+    } // Component - Parameter List
+
+    Component {
+        id: editorDialogComponent
+
+        QGCViewDialog {
+            id:             editorDialog
+
+            property bool fullMode: true
+
+            function accept() {
+                __editorDialogFact.value = valueField.text
+                editorDialog.hideDialog()
+            }
+
+            Column {
+                spacing:        __textHeight
+                anchors.left:   parent.left
+                anchors.right:  parent.right
+
+                QGCLabel {
+                    width:      parent.width
+                    wrapMode:   Text.WordWrap
+                    text:       __editorDialogFact.shortDescription ? __editorDialogFact.shortDescription : "Description missing"
+                }
+
+                QGCLabel {
+                    width:      parent.width
+                    wrapMode:   Text.WordWrap
+                    visible:    __editorDialogFact.longDescription
+                    text:       __editorDialogFact.longDescription
+                }
+
+                QGCTextField {
+                    id:     valueField
+                    text:   __editorDialogFact.valueString
+                }
+
+                QGCLabel { text: __editorDialogFact.name }
+
+                Row {
+                    spacing: __textWidth
+
+                    QGCLabel { text: "Units:" }
+                    QGCLabel { text: __editorDialogFact.units ? __editorDialogFact.units : "none" }
+                }
+
+                Row {
+                    spacing: __textWidth
+
+                    QGCLabel { text: "Minimum value:" }
+                    QGCLabel { text: __editorDialogFact.min }
+                }
+
+                Row {
+                    spacing: __textWidth
+
+                    QGCLabel { text: "Maxmimum value:" }
+                    QGCLabel { text: __editorDialogFact.max }
+                }
+
+                Row {
+                    spacing: __textWidth
+
+                    QGCLabel { text: "Default value:" }
+                    QGCLabel { text: __editorDialogFact.defaultValueAvailable ? __editorDialogFact.defaultValue : "none" }
+                }
+
+                QGCLabel {
+                    width:      parent.width
+                    wrapMode:   Text.WordWrap
+                    text:       "Warning: Modifying parameters while vehicle is in flight can lead to vehicle instability and possible vehicle loss. " +
+                                    "Make sure you know what you are doing and double-check your values before Save!"
+                }
+            } // Column - Fact information
+
+
+            QGCButton {
+                anchors.rightMargin:    __textWidth
+                anchors.right:          rcButton.left
+                anchors.bottom:         parent.bottom
+                visible:                __editorDialogFact.defaultValueAvailable
+                text:                   "Reset to default"
+
+                onClicked: {
+                    __editorDialogFact.value = __editorDialogFact.defaultValue
+                    editorDialog.hideDialog()
+                }
+            }
+
+            QGCButton {
+                id:             rcButton
+                anchors.right:  parent.right
+                anchors.bottom: parent.bottom
+                visible:        __editorDialogFact.defaultValueAvailable
+                text:           "Set RC to Param..."
+                onClicked:      __controller.setRCToParam(__editorDialogFact.name)
+            }
+        } // Rectangle - editorDialog
+    } // Component - Editor Dialog
+} // QGCView

@@ -33,6 +33,7 @@
 #define QGCAPPLICATION_H
 
 #include <QApplication>
+#include <QTimer>
 
 #include "LinkConfiguration.h"
 
@@ -98,6 +99,10 @@ public:
     /// Disconnects the current link and waits for the specified number of seconds before reconnecting.
     void reconnectAfterWait(int waitSeconds);
     
+    /// Used to report a missing Fact. Warning will be displayed to user. Method may be called
+    /// multiple times.
+    void reportMissingFact(const QString& name);
+    
 public slots:
     /// You can connect to this slot to show an information message box from a different thread.
     void informationMessageBoxOnMainThread(const QString& title, const QString& msg);
@@ -139,6 +144,7 @@ public:
     
 private slots:
     void _reconnect(void);
+    void _missingFactsDisplay(void);
     
 private:
     void _createSingletons(void);
@@ -161,7 +167,11 @@ private:
     static const char*  _lightStyleFile;
     bool                _styleIsDark;      ///< true: dark style, false: light style
     
-    LinkConfiguration* _reconnectLinkConfig;    ///< Configuration to reconnect for reconnectAfterWai
+    LinkConfiguration* _reconnectLinkConfig;    ///< Configuration to reconnect for reconnectAfterWait
+    
+    static const int    _missingFactDelayedDisplayTimerTimeout = 1000;  ///< Timeout to wait for next missing fact to come in before display
+    QTimer              _missingFactDelayedDisplayTimer;                ///< Timer use to delay missing fact display
+    QStringList         _missingFacts;                                  ///< List of missing facts to be displayed
     
     /// Unit Test have access to creating and destroying singletons
     friend class UnitTest;

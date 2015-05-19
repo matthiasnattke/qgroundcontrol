@@ -1,5 +1,6 @@
 import QtQuick 2.2
 import QtQuick.Controls 1.2
+import QGroundControl.ScreenTools 1.0
 
 // This item can be dragged around within its parent.
 // Double click issues a signal the parent can use to
@@ -8,8 +9,8 @@ import QtQuick.Controls 1.2
 Item {
     id: root
     property bool   allowDragging:  true
-    property real   minimumWidth:   60
-    property real   minimumHeight:  60
+    property real   minimumWidth:   ScreenTools.pixelSizeFactor * (60)
+    property real   minimumHeight:  ScreenTools.pixelSizeFactor * (60)
     property alias  tForm:          tform
     signal          resetRequested()
     transform: Scale {

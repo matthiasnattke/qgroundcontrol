@@ -28,30 +28,23 @@ This file is part of the QGROUNDCONTROL project
  */
 
 import QtQuick 2.4
+import QGroundControl.ScreenTools 1.0
 
 Item {
     id: root
+    anchors.centerIn: parent
     property real rollAngle :   0
     property real pitchAngle:   0
-    property bool showAttitude: true
-
-    anchors.fill: parent
-
-    QGCArtificialHorizon {
-        rollAngle:          root.rollAngle
-        pitchAngle:         root.pitchAngle
-    }
 
     Image {
         id: rollDial
-        visible: root.showAttitude
-        anchors { bottom: root.verticalCenter; horizontalCenter: parent.horizontalCenter}
-        source: "/qml/rollDialWhite.svg"
-        mipmap: true
-        width:  260
-        fillMode: Image.PreserveAspectFit
+        anchors     { bottom: root.verticalCenter; horizontalCenter: parent.horizontalCenter}
+        source:     "/qml/rollDialWhite.svg"
+        mipmap:     true
+        width:      parent.width
+        fillMode:   Image.PreserveAspectFit
         transform: Rotation {
-            origin.x: rollDial.width  / 2
+            origin.x: rollDial.width / 2
             origin.y: rollDial.height
             angle:   -rollAngle
         }
@@ -59,21 +52,19 @@ Item {
 
     Image {
         id: pointer
-        visible: root.showAttitude
-        anchors { bottom: root.verticalCenter; horizontalCenter: parent.horizontalCenter}
-        source:             "/qml/rollPointerWhite.svg"
-        mipmap:             true
-        width:              rollDial.width
-        fillMode:           Image.PreserveAspectFit
+        anchors     { bottom: root.verticalCenter; horizontalCenter: parent.horizontalCenter}
+        source:     "/qml/rollPointerWhite.svg"
+        mipmap:     true
+        width:      rollDial.width
+        fillMode:   Image.PreserveAspectFit
     }
 
     Image {
         id:                 crossHair
-        visible:            root.showAttitude
         anchors.centerIn:   parent
         source:             "/qml/crossHair.svg"
         mipmap:             true
-        width:              260
+        width:              parent.width
         fillMode:           Image.PreserveAspectFit
     }
 }

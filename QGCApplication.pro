@@ -38,7 +38,7 @@ message(BASEDIR $$BASEDIR DESTDIR $$DESTDIR TARGET $$TARGET)
 LIBS += -L$${LOCATION_PLUGIN_DESTDIR}
 LIBS += -l$${LOCATION_PLUGIN_NAME}
 
-LinuxBuild|MacBuild|AndoidBuild {
+LinuxBuild|MacBuild|AndroidBuild {
     PRE_TARGETDEPS += $${LOCATION_PLUGIN_DESTDIR}/lib$${LOCATION_PLUGIN_NAME}.a
 }
 
@@ -103,9 +103,11 @@ DebugBuild {
     CONFIG += console
 }
 
+!AndroidBuild {
 # qextserialport should not be used by general QGroundControl code. Use QSerialPort instead. This is only
 # here to support special case Firmware Upgrade code.
 include(libs/qextserialport/src/qextserialport.pri)
+}
 
 #
 # External library configuration
@@ -149,11 +151,9 @@ INCLUDEPATH += \
     src/uas \
     src/ui \
     src/ui/configuration \
-    src/ui/designer \
     src/ui/flightdisplay \
     src/ui/linechart \
     src/ui/map \
-    src/ui/map3D \
     src/ui/mapdisplay \
     src/ui/mavlink \
     src/ui/mission \
@@ -168,13 +168,6 @@ FORMS += \
     src/ui/configuration/SerialSettingsDialog.ui \
     src/ui/configuration/terminalconsole.ui \
     src/ui/DebugConsole.ui \
-    src/ui/designer/QGCActionButton.ui \
-    src/ui/designer/QGCCommandButton.ui \
-    src/ui/designer/QGCParamSlider.ui \
-    src/ui/designer/QGCTextLabel.ui \
-    src/ui/designer/QGCToolWidget.ui \
-    src/ui/designer/QGCToolWidgetComboBox.ui \
-    src/ui/designer/QGCXYPlot.ui \
     src/ui/HDDisplay.ui \
     src/ui/Linechart.ui \
     src/ui/MainWindow.ui \
@@ -213,7 +206,6 @@ FORMS += \
     src/ui/QGCUASFileViewMulti.ui \
     src/ui/QGCUDPLinkConfiguration.ui \
     src/ui/QGCWaypointListMulti.ui \
-    src/ui/QMap3D.ui \
     src/ui/SerialSettings.ui \
     src/ui/SettingsDialog.ui \
     src/ui/uas/QGCUnconnectedInfoWidget.ui \
@@ -243,10 +235,8 @@ HEADERS += \
     src/comm/LinkInterface.h \
     src/comm/LinkManager.h \
     src/comm/MAVLinkProtocol.h \
-    src/comm/MAVLinkSimulationLink.h \
-    src/comm/MAVLinkSimulationMAV.h \
-    src/comm/MAVLinkSimulationWaypointPlanner.h \
-    src/comm/MAVLinkSwarmSimulationLink.h \
+    src/comm/MockLink.h \
+    src/comm/MockLinkMissionItemHandler.h \
     src/comm/ProtocolInterface.h \
     src/comm/QGCFlightGearLink.h \
     src/comm/QGCHilLink.h \
@@ -273,35 +263,23 @@ HEADERS += \
     src/QGCQuickWidget.h \
     src/QGCSingleton.h \
     src/QGCTemporaryFile.h \
+    src/QmlControls/MavManager.h \
     src/QmlControls/ParameterEditorController.h \
     src/QmlControls/ScreenTools.h \
     src/uas/QGCMAVLinkUASFactory.h \
-    src/uas/QGCUASFileManager.h \
-    src/uas/QGCUASParamManager.h \
-    src/uas/QGCUASParamManagerInterface.h \
+    src/uas/FileManager.h \
     src/uas/UAS.h \
     src/uas/UASInterface.h \
     src/uas/UASManager.h \
     src/uas/UASManagerInterface.h \
     src/uas/UASMessageHandler.h \
-    src/uas/UASParameterCommsMgr.h \
-    src/uas/UASParameterDataModel.h \
     src/uas/UASWaypointManager.h \
     src/ui/configuration/ApmHighlighter.h \
     src/ui/configuration/console.h \
     src/ui/configuration/SerialSettingsDialog.h \
     src/ui/configuration/terminalconsole.h \
     src/ui/DebugConsole.h \
-    src/ui/designer/QGCCommandButton.h \
-    src/ui/designer/QGCParamSlider.h \
-    src/ui/designer/QGCRadioChannelDisplay.h \
-    src/ui/designer/QGCTextLabel.h \
-    src/ui/designer/QGCToolWidget.h \
-    src/ui/designer/QGCToolWidgetComboBox.h \
-    src/ui/designer/QGCToolWidgetItem.h \
-    src/ui/designer/QGCXYPlot.h \
-    src/ui/designer/RCChannelWidget.h \
-    src/ui/flightdisplay/QGCFlightDisplay.h \
+    src/ui/flightdisplay/FlightDisplay.h \
     src/ui/HDDisplay.h \
     src/ui/HSIDisplay.h \
     src/ui/HUD.h \
@@ -374,6 +352,8 @@ HEADERS += \
     src/ui/WaypointEditableView.h \
     src/ui/WaypointList.h \
     src/ui/WaypointViewOnlyView.h \
+    src/ViewWidgets/CustomCommandWidget.h \
+    src/ViewWidgets/CustomCommandWidgetController.h \
     src/ViewWidgets/ParameterEditorWidget.h \
     src/ViewWidgets/ViewWidgetController.h \
     src/Waypoint.h \
@@ -393,10 +373,8 @@ SOURCES += \
     src/comm/LinkConfiguration.cc \
     src/comm/LinkManager.cc \
     src/comm/MAVLinkProtocol.cc \
-    src/comm/MAVLinkSimulationLink.cc \
-    src/comm/MAVLinkSimulationMAV.cc \
-    src/comm/MAVLinkSimulationWaypointPlanner.cc \
-    src/comm/MAVLinkSwarmSimulationLink.cc \
+    src/comm/MockLink.cc \
+    src/comm/MockLinkMissionItemHandler.cc \
     src/comm/QGCFlightGearLink.cc \
     src/comm/QGCJSBSimLink.cc \
     src/comm/QGCXPlaneLink.cc \
@@ -417,32 +395,21 @@ SOURCES += \
     src/QGCQuickWidget.cc \
     src/QGCSingleton.cc \
     src/QGCTemporaryFile.cc \
+    src/QmlControls/MavManager.cc \
     src/QmlControls/ParameterEditorController.cc \
     src/QmlControls/ScreenTools.cc \
     src/uas/QGCMAVLinkUASFactory.cc \
-    src/uas/QGCUASFileManager.cc \
-    src/uas/QGCUASParamManager.cc \
+    src/uas/FileManager.cc \
     src/uas/UAS.cc \
     src/uas/UASManager.cc \
     src/uas/UASMessageHandler.cc \
-    src/uas/UASParameterCommsMgr.cc \
-    src/uas/UASParameterDataModel.cc \
     src/uas/UASWaypointManager.cc \
     src/ui/configuration/ApmHighlighter.cc \
     src/ui/configuration/console.cpp \
     src/ui/configuration/SerialSettingsDialog.cc \
     src/ui/configuration/terminalconsole.cpp \
     src/ui/DebugConsole.cc \
-    src/ui/designer/QGCCommandButton.cc \
-    src/ui/designer/QGCParamSlider.cc \
-    src/ui/designer/QGCRadioChannelDisplay.cpp \
-    src/ui/designer/QGCTextLabel.cc \
-    src/ui/designer/QGCToolWidget.cc \
-    src/ui/designer/QGCToolWidgetComboBox.cc \
-    src/ui/designer/QGCToolWidgetItem.cc \
-    src/ui/designer/QGCXYPlot.cc \
-    src/ui/designer/RCChannelWidget.cc \
-    src/ui/flightdisplay/QGCFlightDisplay.cc \
+    src/ui/flightdisplay/FlightDisplay.cc \
     src/ui/HDDisplay.cc \
     src/ui/HSIDisplay.cc \
     src/ui/HUD.cc \
@@ -515,6 +482,8 @@ SOURCES += \
     src/ui/WaypointEditableView.cc \
     src/ui/WaypointList.cc \
     src/ui/WaypointViewOnlyView.cc \
+    src/ViewWidgets/CustomCommandWidget.cc \
+    src/ViewWidgets/CustomCommandWidgetController.cc \
     src/ViewWidgets/ParameterEditorWidget.cc \
     src/ViewWidgets/ViewWidgetController.cc \
     src/Waypoint.cc \
@@ -551,11 +520,7 @@ HEADERS += \
     src/qgcunittest/FlightGearTest.h \
     src/qgcunittest/MockMavlinkFileServer.h \
     src/qgcunittest/MockMavlinkInterface.h \
-    src/qgcunittest/MockQGCUASParamManager.h \
-    src/qgcunittest/MockUAS.h \
-    src/qgcunittest/MockUASManager.h \
     src/qgcunittest/MultiSignalSpy.h \
-    src/qgcunittest/QGCUASFileManagerTest.h \
     src/qgcunittest/TCPLinkTest.h \
     src/qgcunittest/TCPLoopBackServer.h \
     src/FactSystem/FactSystemTestBase.h \
@@ -566,8 +531,6 @@ HEADERS += \
     src/qgcunittest/MainWindowTest.h \
     src/qgcunittest/MavlinkLogTest.h \
     src/qgcunittest/MessageBoxTest.h \
-    src/qgcunittest/MockLink.h \
-    src/qgcunittest/MockLinkMissionItemHandler.h \
     src/qgcunittest/PX4RCCalibrationTest.h \
     src/qgcunittest/UnitTest.h \
     src/VehicleSetup/SetupViewTest.h \
@@ -575,11 +538,7 @@ HEADERS += \
 SOURCES += \
     src/qgcunittest/FlightGearTest.cc \
     src/qgcunittest/MockMavlinkFileServer.cc \
-    src/qgcunittest/MockQGCUASParamManager.cc \
-    src/qgcunittest/MockUAS.cc \
-    src/qgcunittest/MockUASManager.cc \
     src/qgcunittest/MultiSignalSpy.cc \
-    src/qgcunittest/QGCUASFileManagerTest.cc \
     src/qgcunittest/TCPLinkTest.cc \
     src/qgcunittest/TCPLoopBackServer.cc \
     src/FactSystem/FactSystemTestBase.cc \
@@ -590,8 +549,6 @@ SOURCES += \
     src/qgcunittest/MainWindowTest.cc \
     src/qgcunittest/MavlinkLogTest.cc \
     src/qgcunittest/MessageBoxTest.cc \
-    src/qgcunittest/MockLink.cc \
-    src/qgcunittest/MockLinkMissionItemHandler.cc \
     src/qgcunittest/PX4RCCalibrationTest.cc \
     src/qgcunittest/UnitTest.cc \
     src/VehicleSetup/SetupViewTest.cc \
@@ -627,11 +584,15 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/SafetyComponent.h \
     src/AutoPilotPlugins/PX4/SensorsComponent.h \
     src/AutoPilotPlugins/PX4/SensorsComponentController.h \
-    src/VehicleSetup/FirmwareUpgradeController.h \
-    src/VehicleSetup/PX4Bootloader.h \
-    src/VehicleSetup/PX4FirmwareUpgradeThread.h \
     src/VehicleSetup/SetupView.h \
     src/VehicleSetup/VehicleComponent.h \
+
+!AndroidBuild {
+HEADERS += \
+    src/VehicleSetup/FirmwareUpgradeController.h \
+    src/VehicleSetup/PX4Bootloader.h \
+    src/VehicleSetup/PX4FirmwareUpgradeThread.h
+}
 
 SOURCES += \
     src/AutoPilotPlugins/AutoPilotPlugin.cc \
@@ -651,16 +612,21 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/SafetyComponent.cc \
     src/AutoPilotPlugins/PX4/SensorsComponent.cc \
     src/AutoPilotPlugins/PX4/SensorsComponentController.cc \
-    src/VehicleSetup/FirmwareUpgradeController.cc \
-    src/VehicleSetup/PX4Bootloader.cc \
-    src/VehicleSetup/PX4FirmwareUpgradeThread.cc \
     src/VehicleSetup/SetupView.cc \
     src/VehicleSetup/VehicleComponent.cc \
+
+!AndroidBuild {
+SOURCES += \
+    src/VehicleSetup/FirmwareUpgradeController.cc \
+    src/VehicleSetup/PX4Bootloader.cc \
+    src/VehicleSetup/PX4FirmwareUpgradeThread.cc
+}
 
 # Fact System code
 
 INCLUDEPATH += \
-    src/FactSystem
+    src/FactSystem \
+    src/FactSystem/FactControls \
 
 HEADERS += \
     src/FactSystem/Fact.h \
@@ -669,6 +635,7 @@ HEADERS += \
     src/FactSystem/FactSystem.h \
     src/FactSystem/FactValidator.h \
     src/FactSystem/ParameterLoader.h \
+    src/FactSystem/FactControls/FactPanelController.h \
 
 SOURCES += \
     src/FactSystem/Fact.cc \
@@ -677,6 +644,7 @@ SOURCES += \
     src/FactSystem/FactSystem.cc \
     src/FactSystem/FactValidator.cc \
     src/FactSystem/ParameterLoader.cc \
+    src/FactSystem/FactControls/FactPanelController.cc \
 
 # Android
 
