@@ -38,7 +38,8 @@ static const SwitchListItem switchList[] = {
     { "RC_MAP_MODE_SW",     "Mode Switch:" },                // First entry must be mode switch
     { "RC_MAP_POSCTL_SW",   "Position Control Switch:" },
     { "RC_MAP_LOITER_SW",   "Loiter Switch:" },
-    { "RC_MAP_RETURN_SW",   "Return Switch:" }
+    { "RC_MAP_RETURN_SW",   "Return Switch:" },
+    { "RC_MAP_ACRO_SW",     "Acro Switch:" },
 };
 static const size_t cSwitchList = sizeof(switchList) / sizeof(switchList[0]);
 
@@ -72,7 +73,7 @@ bool FlightModesComponent::requiresSetup(void) const
 
 bool FlightModesComponent::setupComplete(void) const
 {
-    return _autopilot->getParameterFact("RC_MAP_MODE_SW")->value().toInt() != 0;
+    return _autopilot->getParameterFact(FactSystem::defaultComponentId, "RC_MAP_MODE_SW")->value().toInt() != 0;
 }
 
 QString FlightModesComponent::setupStateDescription(void) const

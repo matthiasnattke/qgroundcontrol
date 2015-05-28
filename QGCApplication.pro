@@ -150,7 +150,6 @@ INCLUDEPATH += \
     src/QmlControls \
     src/uas \
     src/ui \
-    src/ui/configuration \
     src/ui/flightdisplay \
     src/ui/linechart \
     src/ui/map \
@@ -165,9 +164,6 @@ INCLUDEPATH += \
 
 FORMS += \
     src/QGCQmlWidgetHolder.ui \
-    src/ui/configuration/SerialSettingsDialog.ui \
-    src/ui/configuration/terminalconsole.ui \
-    src/ui/DebugConsole.ui \
     src/ui/HDDisplay.ui \
     src/ui/Linechart.ui \
     src/ui/MainWindow.ui \
@@ -236,6 +232,7 @@ HEADERS += \
     src/comm/LinkManager.h \
     src/comm/MAVLinkProtocol.h \
     src/comm/MockLink.h \
+    src/comm/MockLinkFileServer.h \
     src/comm/MockLinkMissionItemHandler.h \
     src/comm/ProtocolInterface.h \
     src/comm/QGCFlightGearLink.h \
@@ -274,11 +271,6 @@ HEADERS += \
     src/uas/UASManagerInterface.h \
     src/uas/UASMessageHandler.h \
     src/uas/UASWaypointManager.h \
-    src/ui/configuration/ApmHighlighter.h \
-    src/ui/configuration/console.h \
-    src/ui/configuration/SerialSettingsDialog.h \
-    src/ui/configuration/terminalconsole.h \
-    src/ui/DebugConsole.h \
     src/ui/flightdisplay/FlightDisplay.h \
     src/ui/HDDisplay.h \
     src/ui/HSIDisplay.h \
@@ -374,6 +366,7 @@ SOURCES += \
     src/comm/LinkManager.cc \
     src/comm/MAVLinkProtocol.cc \
     src/comm/MockLink.cc \
+    src/comm/MockLinkFileServer.cc \
     src/comm/MockLinkMissionItemHandler.cc \
     src/comm/QGCFlightGearLink.cc \
     src/comm/QGCJSBSimLink.cc \
@@ -404,11 +397,6 @@ SOURCES += \
     src/uas/UASManager.cc \
     src/uas/UASMessageHandler.cc \
     src/uas/UASWaypointManager.cc \
-    src/ui/configuration/ApmHighlighter.cc \
-    src/ui/configuration/console.cpp \
-    src/ui/configuration/SerialSettingsDialog.cc \
-    src/ui/configuration/terminalconsole.cpp \
-    src/ui/DebugConsole.cc \
     src/ui/flightdisplay/FlightDisplay.cc \
     src/ui/HDDisplay.cc \
     src/ui/HSIDisplay.cc \
@@ -518,8 +506,6 @@ INCLUDEPATH += \
 
 HEADERS += \
     src/qgcunittest/FlightGearTest.h \
-    src/qgcunittest/MockMavlinkFileServer.h \
-    src/qgcunittest/MockMavlinkInterface.h \
     src/qgcunittest/MultiSignalSpy.h \
     src/qgcunittest/TCPLinkTest.h \
     src/qgcunittest/TCPLoopBackServer.h \
@@ -534,10 +520,10 @@ HEADERS += \
     src/qgcunittest/PX4RCCalibrationTest.h \
     src/qgcunittest/UnitTest.h \
     src/VehicleSetup/SetupViewTest.h \
+    src/qgcunittest/FileManagerTest.h \
 
 SOURCES += \
     src/qgcunittest/FlightGearTest.cc \
-    src/qgcunittest/MockMavlinkFileServer.cc \
     src/qgcunittest/MultiSignalSpy.cc \
     src/qgcunittest/TCPLinkTest.cc \
     src/qgcunittest/TCPLoopBackServer.cc \
@@ -552,6 +538,7 @@ SOURCES += \
     src/qgcunittest/PX4RCCalibrationTest.cc \
     src/qgcunittest/UnitTest.cc \
     src/VehicleSetup/SetupViewTest.cc \
+    src/qgcunittest/FileManagerTest.cc \
 
 } # DebugBuild|WindowsDebugAndRelease
 } # AndroidBuild
@@ -561,7 +548,8 @@ SOURCES += \
 #
 
 INCLUDEPATH += \
-    src/VehicleSetup
+    src/VehicleSetup \
+    src/AutoPilotPlugins/PX4 \
 
 FORMS += \
     src/VehicleSetup/SetupView.ui \
@@ -577,6 +565,7 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/FlightModesComponent.h \
     src/AutoPilotPlugins/PX4/FlightModesComponentController.h \
     src/AutoPilotPlugins/PX4/PowerComponent.h \
+    src/AutoPilotPlugins/PX4/PowerComponentController.h \
     src/AutoPilotPlugins/PX4/PX4AutoPilotPlugin.h \
     src/AutoPilotPlugins/PX4/PX4Component.h \
     src/AutoPilotPlugins/PX4/PX4ParameterLoader.h \
@@ -605,6 +594,7 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/FlightModesComponent.cc \
     src/AutoPilotPlugins/PX4/FlightModesComponentController.cc \
     src/AutoPilotPlugins/PX4/PowerComponent.cc \
+    src/AutoPilotPlugins/PX4/PowerComponentController.cc \
     src/AutoPilotPlugins/PX4/PX4AutoPilotPlugin.cc \
     src/AutoPilotPlugins/PX4/PX4Component.cc \
     src/AutoPilotPlugins/PX4/PX4ParameterLoader.cc \
@@ -630,7 +620,6 @@ INCLUDEPATH += \
 
 HEADERS += \
     src/FactSystem/Fact.h \
-    src/FactSystem/FactBinder.h \
     src/FactSystem/FactMetaData.h \
     src/FactSystem/FactSystem.h \
     src/FactSystem/FactValidator.h \
@@ -639,7 +628,6 @@ HEADERS += \
 
 SOURCES += \
     src/FactSystem/Fact.cc \
-    src/FactSystem/FactBinder.cc \
     src/FactSystem/FactMetaData.cc \
     src/FactSystem/FactSystem.cc \
     src/FactSystem/FactValidator.cc \

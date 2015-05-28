@@ -71,12 +71,12 @@ void SetupViewTest::_clickThrough_test(void)
     linkMgr->connectLink(link);
     QTest::qWait(5000); // Give enough time for UI to settle and heartbeats to go through
 
-    AutoPilotPlugin* autopilot = AutoPilotPluginManager::instance()->getInstanceForAutoPilotPlugin(UASManager::instance()->getActiveUAS());
+    AutoPilotPlugin* autopilot = AutoPilotPluginManager::instance()->getInstanceForAutoPilotPlugin(UASManager::instance()->getActiveUAS()).data();
     Q_ASSERT(autopilot);
     
     QSignalSpy spyPlugin(autopilot, SIGNAL(pluginReadyChanged(bool)));
     if (!autopilot->pluginReady()) {
-        QCOMPARE(spyPlugin.wait(10000), true);
+        QCOMPARE(spyPlugin.wait(60000), true);
     }
     Q_ASSERT(autopilot->pluginReady());
     

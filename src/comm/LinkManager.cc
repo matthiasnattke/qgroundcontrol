@@ -458,8 +458,8 @@ void LinkManager::_updateConfigurationList(void)
 #endif
         // Save port name
         currentPorts << portInfo.systemLocation();
-        // Is this a PX4?
-        if (portInfo.vendorIdentifier() == 9900) {
+        // Is this a PX4 and NOT in bootloader mode?
+        if (portInfo.vendorIdentifier() == 9900 && !portInfo.description().contains("BL")) {
             SerialConfiguration* pSerial = _findSerialConfiguration(portInfo.systemLocation());
             if (pSerial) {
                 //-- If this port is configured make sure it has the preferred flag set
@@ -506,9 +506,12 @@ void LinkManager::_updateConfigurationList(void)
         // We only care about dynamic links
         if(pLink->isDynamic()) {
             if(pLink->type() == LinkConfiguration::TypeSerial) {
-                SerialConfiguration* pSerial = dynamic_cast<SerialConfiguration*>(pLink);
-                if(!currentPorts.contains(pSerial->portName())) {
-                    _confToDelete.append(pSerial);
+                // Don't mess with connected link. Let it deal with the disapearing device.
+                if(pLink->getLink() == NULL) {
+                    SerialConfiguration* pSerial = dynamic_cast<SerialConfiguration*>(pLink);
+                    if(!currentPorts.contains(pSerial->portName())) {
+                        _confToDelete.append(pSerial);
+                    }
                 }
             }
         }

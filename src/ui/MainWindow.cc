@@ -62,8 +62,6 @@ This file is part of the QGROUNDCONTROL project
 #include "UASRawStatusView.h"
 #include "FlightDisplay.h"
 #include "SetupView.h"
-#include "SerialSettingsDialog.h"
-#include "terminalconsole.h"
 #include "QGCUASFileViewMulti.h"
 #include "QGCApplication.h"
 #include "QGCFileDialog.h"
@@ -119,7 +117,6 @@ const char* MainWindow::_hdd2DockWidgetName = "HEAD_DOWN_DISPLAY_2_DOCKWIDGET";
 const char* MainWindow::_pfdDockWidgetName = "PRIMARY_FLIGHT_DISPLAY_DOCKWIDGET";
 const char* MainWindow::_hudDockWidgetName = "HEAD_UP_DISPLAY_DOCKWIDGET";
 const char* MainWindow::_uasInfoViewDockWidgetName = "UAS_INFO_INFOVIEW_DOCKWIDGET";
-const char* MainWindow::_debugConsoleDockWidgetName = "COMMUNICATION_CONSOLE_DOCKWIDGET";
 
 static MainWindow* _instance = NULL;   ///< @brief MainWindow singleton
 
@@ -302,16 +299,14 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
     _ui.actionPlan->setShortcut(QApplication::translate("MainWindow", "Meta+2", 0));
     _ui.actionFlight->setShortcut(QApplication::translate("MainWindow", "Meta+3", 0));
     _ui.actionAnalyze->setShortcut(QApplication::translate("MainWindow", "Meta+4", 0));
-    _ui.actionTerminalView->setShortcut(QApplication::translate("MainWindow", "Meta+5", 0));
-    _ui.actionSimulationView->setShortcut(QApplication::translate("MainWindow", "Meta+6", 0));
+    _ui.actionSimulationView->setShortcut(QApplication::translate("MainWindow", "Meta+5", 0));
     _ui.actionFullscreen->setShortcut(QApplication::translate("MainWindow", "Meta+Return", 0));
 #else
     _ui.actionSetup->setShortcut(QApplication::translate("MainWindow", "Ctrl+1", 0));
     _ui.actionPlan->setShortcut(QApplication::translate("MainWindow", "Ctrl+2", 0));
     _ui.actionFlight->setShortcut(QApplication::translate("MainWindow", "Ctrl+3", 0));
     _ui.actionAnalyze->setShortcut(QApplication::translate("MainWindow", "Ctrl+4", 0));
-    _ui.actionTerminalView->setShortcut(QApplication::translate("MainWindow", "Ctrl+5", 0));
-    _ui.actionSimulationView->setShortcut(QApplication::translate("MainWindow", "Ctrl+6", 0));
+    _ui.actionSimulationView->setShortcut(QApplication::translate("MainWindow", "Ctrl+5", 0));
     _ui.actionFullscreen->setShortcut(QApplication::translate("MainWindow", "Ctrl+Return", 0));
 #endif
 
@@ -445,7 +440,6 @@ void MainWindow::_buildCommonWidgets(void)
         { _pfdDockWidgetName,               "Primary Flight Display",   Qt::RightDockWidgetArea },
         { _hudDockWidgetName,               "Video Downlink",           Qt::RightDockWidgetArea },
         { _uasInfoViewDockWidgetName,       "Info View",                Qt::LeftDockWidgetArea },
-        { _debugConsoleDockWidgetName,      "Communications Console",   Qt::LeftDockWidgetArea },
     };
     static const size_t cDockWidgetInfo = sizeof(rgDockWidgetInfo) / sizeof(rgDockWidgetInfo[0]);
 
@@ -503,19 +497,12 @@ void MainWindow::_buildSimView(void)
     }
 }
 
-void MainWindow::_buildTerminalView(void)
-{
-    if (!_terminalView) {
-        _terminalView = new TerminalConsole(this);
-        _terminalView->setVisible(false);
-    }
-}
-
 /// Shows or hides the specified dock widget, creating if necessary
 void MainWindow::_showDockWidget(const QString& name, bool show)
 {
     if (!_mapName2DockWidget.contains(name)) {
-        qWarning() << "Attempt to show unknown dock widget" << name;
+        // Don't show any sort of warning here. Dock Widgets which have been remove could still be in settings.
+        // Which would cause us to end up here.
         return;
     }
 
@@ -586,8 +573,6 @@ void MainWindow::_createInnerDockWidget(const QString& widgetName)
         QGCTabbedInfoView* pInfoView = new QGCTabbedInfoView(this);
         pInfoView->addSource(mavlinkDecoder);
         widget = pInfoView;
-    } else if (widgetName == _debugConsoleDockWidgetName) {
-        widget = new DebugConsole(this);
     } else {
         qWarning() << "Attempt to create unknown Inner Dock Widget" << widgetName;
     }
@@ -707,7 +692,6 @@ void MainWindow::loadSettings()
         case VIEW_FLIGHT:
         case VIEW_SIMULATION:
         case VIEW_SETUP:
-        case VIEW_TERMINAL:
             _currentView = currentViewCandidate;
             break;
         default:
@@ -773,7 +757,6 @@ void MainWindow::connectCommonActions()
     perspectives->addAction(_ui.actionSimulationView);
     perspectives->addAction(_ui.actionPlan);
     perspectives->addAction(_ui.actionSetup);
-    perspectives->addAction(_ui.actionTerminalView);
     perspectives->addAction(_ui.actionExperimentalPlanView);
     perspectives->setExclusive(true);
 
@@ -808,11 +791,6 @@ void MainWindow::connectCommonActions()
         _ui.actionSetup->setChecked(true);
         _ui.actionSetup->activate(QAction::Trigger);
     }
-    if (_currentView == VIEW_TERMINAL)
-    {
-        _ui.actionTerminalView->setChecked(true);
-        _ui.actionTerminalView->activate(QAction::Trigger);
-    }
 
     // The UAS actions are not enabled without connection to system
     _ui.actionLiftoff->setEnabled(false);
@@ -840,7 +818,6 @@ void MainWindow::connectCommonActions()
     connect(_ui.actionAnalyze, SIGNAL(triggered()), this, SLOT(loadAnalyzeView()));
     connect(_ui.actionPlan, SIGNAL(triggered()), this, SLOT(loadPlanView()));
     connect(_ui.actionExperimentalPlanView, SIGNAL(triggered()), this, SLOT(loadOldPlanView()));
-    connect(_ui.actionTerminalView,SIGNAL(triggered()),this,SLOT(loadTerminalView()));
 
     // Help Actions
     connect(_ui.actionOnline_Documentation, SIGNAL(triggered()), this, SLOT(showHelp()));
@@ -975,7 +952,7 @@ void MainWindow::_loadCurrentViewState(void)
         case VIEW_ANALYZE:
             _buildAnalyzeView();
             centerView = _analyzeView;
-            defaultWidgets = "MAVLINK_INSPECTOR_DOCKWIDGET,PARAMETER_INTERFACE_DOCKWIDGET,FILE_VIEW_DOCKWIDGET,HEAD_UP_DISPLAY_DOCKWIDGET";
+            defaultWidgets = "PARAMETER_INTERFACE_DOCKWIDGET,FILE_VIEW_DOCKWIDGET";
             break;
 
         case VIEW_FLIGHT:
@@ -987,7 +964,7 @@ void MainWindow::_loadCurrentViewState(void)
         case VIEW_PLAN:
             _buildPlanView();
             centerView = _planView;
-            defaultWidgets = "UNMANNED_SYSTEM_LIST_DOCKWIDGET,WAYPOINT_LIST_DOCKWIDGET";
+            defaultWidgets = "WAYPOINT_LIST_DOCKWIDGET";
             break;
 
         case VIEW_EXPERIMENTAL_PLAN:
@@ -1002,11 +979,6 @@ void MainWindow::_loadCurrentViewState(void)
             defaultWidgets = "UNMANNED_SYSTEM_CONTROL_DOCKWIDGET,WAYPOINT_LIST_DOCKWIDGET,PARAMETER_INTERFACE_DOCKWIDGET,PRIMARY_FLIGHT_DISPLAY_DOCKWIDGET";
             break;
 
-        case VIEW_TERMINAL:
-            _buildTerminalView();
-            centerView = _terminalView;
-            break;
-            
         default:
             Q_ASSERT(false);
             break;
@@ -1146,17 +1118,6 @@ void MainWindow::loadSetupView()
         _storeCurrentViewState();
         _currentView = VIEW_SETUP;
         _ui.actionSetup->setChecked(true);
-        _loadCurrentViewState();
-    }
-}
-
-void MainWindow::loadTerminalView()
-{
-    if (_currentView != VIEW_TERMINAL)
-    {
-        _storeCurrentViewState();
-        _currentView = VIEW_TERMINAL;
-        _ui.actionTerminalView->setChecked(true);
         _loadCurrentViewState();
     }
 }

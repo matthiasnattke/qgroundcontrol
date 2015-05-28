@@ -44,6 +44,8 @@ public:
     AirframeComponentController(void);
     ~AirframeComponentController();
     
+    Q_PROPERTY(bool showCustomConfigPanel MEMBER _showCustomConfigPanel NOTIFY showCustomConfigPanelChanged)
+    
     Q_PROPERTY(QVariantList airframeTypes MEMBER _airframeTypes CONSTANT)
     
     Q_PROPERTY(QString currentAirframeType MEMBER _currentAirframeType CONSTANT)
@@ -59,16 +61,17 @@ public:
     
 signals:
     void autostartIdChanged(int newAutostartId);
+    void showCustomConfigPanelChanged(bool show);
     
 private:
     static bool _typesRegistered;
     
-    UASInterface*       _uas;
     QVariantList        _airframeTypes;
     QString             _currentAirframeType;
     QString             _currentVehicleName;
     int                 _currentVehicleIndex;
     int                 _autostartId;
+    bool                _showCustomConfigPanel;
 };
 
 class Airframe : public QObject

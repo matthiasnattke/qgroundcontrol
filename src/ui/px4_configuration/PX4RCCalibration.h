@@ -78,7 +78,7 @@ private slots:
     
 private:
     /// @brief These identify the various controls functions. They are also used as indices into the _rgFunctioInfo
-    /// aray.
+    /// array.
     enum rcCalFunctions {
         rcCalFunctionRoll,
         rcCalFunctionPitch,
@@ -88,6 +88,7 @@ private:
         rcCalFunctionPosCtlSwitch,
         rcCalFunctionLoiterSwitch,
         rcCalFunctionReturnSwitch,
+        rcCalFunctionAcroSwitch,
         rcCalFunctionFlaps,
         rcCalFunctionAux1,
         rcCalFunctionAux2,
@@ -255,8 +256,8 @@ private:
     RCValueWidget* _rgRCValueMonitorWidget[_chanMax];   ///< Array of radio channel value widgets
     QLabel* _rgRCValueMonitorLabel[_chanMax];           ///< Array of radio channel value labels
 
-    UASInterface*       _uas;
-    AutoPilotPlugin*    _autopilot;
+    UASInterface*                   _uas;
+    QSharedPointer<AutoPilotPlugin> _autopilot;
     
     Ui::PX4RCCalibration* _ui;
     

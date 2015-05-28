@@ -24,39 +24,44 @@
 /// @file
 ///     @author Don Gagne <don@thegagnes.com>
 
-#ifndef PARAMETEREDITORCONTROLLER_H
-#define PARAMETEREDITORCONTROLLER_H
+#ifndef PowerComponentController_H
+#define PowerComponentController_H
 
 #include <QObject>
-#include <QList>
+#include <QQuickItem>
 
-#include "AutoPilotPlugin.h"
 #include "UASInterface.h"
 #include "FactPanelController.h"
 
-class ParameterEditorController : public FactPanelController
+/// Power Component MVC Controller for PowerComponent.qml.
+class PowerComponentController : public FactPanelController
 {
     Q_OBJECT
     
 public:
-    ParameterEditorController(void);
-    ~ParameterEditorController();
-
-    Q_PROPERTY(QStringList componentIds MEMBER _componentIds CONSTANT)
-	
-	Q_INVOKABLE QStringList getGroupsForComponent(int componentId);
-	Q_INVOKABLE QStringList getFactsForGroup(int componentId, QString group);
-	
-	Q_INVOKABLE void clearRCToParam(void);
-	Q_INVOKABLE void saveToFile(void);
-	Q_INVOKABLE void loadFromFile(void);
-	Q_INVOKABLE void refresh(void);
-	Q_INVOKABLE void setRCToParam(const QString& paramName);
-	
-	QList<QObject*> model(void);
-	
+    PowerComponentController(void);
+    ~PowerComponentController();
+    
+    Q_INVOKABLE void calibrateEsc(void);
+    
+signals:
+    void oldFirmware(void);
+    void newerFirmware(void);
+    void incorrectFirmwareRevReporting(void);
+    void connectBattery(void);
+    void disconnectBattery(void);
+    void batteryConnected(void);
+    void calibrationFailed(const QString& errorMessage);
+    void calibrationSuccess(const QStringList& warningMessages);
+    
+private slots:
+    void _handleUASTextMessage(int uasId, int compId, int severity, QString text);
+    
 private:
-	QStringList			_componentIds;
+    void _stopCalibration(void);
+    
+    QStringList _warningMessages;
+    static const int _neededFirmwareRev = 1;
 };
 
 #endif

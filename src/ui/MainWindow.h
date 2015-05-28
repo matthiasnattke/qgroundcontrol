@@ -53,7 +53,6 @@ This file is part of the QGROUNDCONTROL project
 #if (defined QGC_MOUSE_ENABLED_WIN) | (defined QGC_MOUSE_ENABLED_LINUX)
 #include "Mouse6dofInput.h"
 #endif // QGC_MOUSE_ENABLED_WIN
-#include "DebugConsole.h"
 #include "ParameterEditorWidget.h"
 #include "HDDisplay.h"
 #include "HSIDisplay.h"
@@ -161,8 +160,6 @@ public slots:
     void loadPlanView();
     /** @brief Load Old (Qt Widget) Map View (Mission) */
     void loadOldPlanView();
-    /** @brief Load Terminal Console views */
-    void loadTerminalView();
     /** @brief Manage Links */
     void manageLinks();
 
@@ -235,8 +232,8 @@ protected:
         VIEW_FLIGHT,            // Flight/Fly/Operate view mode. Used for 1st-person observation of the vehicle.
         VIEW_SIMULATION,        // HIL Simulation view. Useful overview of the entire system when doing hardware-in-the-loop simulations.
         VIEW_SETUP,             // Setup view. Used for initializing the system for operation. Includes UI for calibration, firmware updating/checking, and parameter modifcation.
-        VIEW_TERMINAL,          // Terminal interface. Used for communicating with the remote system, usually in a special configuration input mode.
-        VIEW_LOCAL3D,           // Unused
+        VIEW_UNUSED1,           // Unused (don't remove, or it will screw up saved settigns indices)
+        VIEW_UNUSED2,           // Unused (don't remove, or it will screw up saved settigns indices)
         VIEW_EXPERIMENTAL_PLAN, // Original (Qt Widget) Mission/Map/Plan view mode. Used for setting mission waypoints and high-level system commands.
     } VIEW_SECTIONS;
 
@@ -334,7 +331,6 @@ private:
     static const char* _pfdDockWidgetName;
     static const char* _hudDockWidgetName;
     static const char* _uasInfoViewDockWidgetName;
-    static const char* _debugConsoleDockWidgetName;
 
     QMap<QString, QDockWidget*>     _mapName2DockWidget;
     QMap<int, QDockWidget*>         _mapUasId2HilDockWidget;

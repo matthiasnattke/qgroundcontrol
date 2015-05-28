@@ -62,6 +62,10 @@
 #include "ViewWidgetController.h"
 #include "ParameterEditorController.h"
 #include "CustomCommandWidgetController.h"
+#include "FlightModesComponentController.h"
+#include "AirframeComponentController.h"
+#include "SensorsComponentController.h"
+#include "PowerComponentController.h"
 
 #include "ScreenTools.h"
 #include "MavManager.h"
@@ -181,9 +185,9 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting) :
 #endif
 
     // Set up timer for delayed missing fact display
-    _missingFactDelayedDisplayTimer.setSingleShot(true);
-    _missingFactDelayedDisplayTimer.setInterval(_missingFactDelayedDisplayTimerTimeout);
-    connect(&_missingFactDelayedDisplayTimer, &QTimer::timeout, this, &QGCApplication::_missingFactsDisplay);
+    _missingParamsDelayedDisplayTimer.setSingleShot(true);
+    _missingParamsDelayedDisplayTimer.setInterval(_missingParamsDelayedDisplayTimerTimeout);
+    connect(&_missingParamsDelayedDisplayTimer, &QTimer::timeout, this, &QGCApplication::_missingParamsDisplay);
     
     // Set application information
     if (_runningUnitTests) {
@@ -217,7 +221,10 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting) :
     ParseCmdLineOptions(argc, argv, rgCmdLineOptions, sizeof(rgCmdLineOptions)/sizeof(rgCmdLineOptions[0]), false);
 
     QSettings settings;
-
+#ifdef UNITTEST_BUILD
+    qDebug() << "Settings location" << settings.fileName();
+    Q_ASSERT(settings.isWritable());
+#endif
     // The setting will delete all settings on this boot
     fClearSettingsOptions |= settings.contains(_deleteAllSettingsKey);
 
@@ -269,8 +276,13 @@ void QGCApplication::_initCommon(void)
     QString savedFilesLocation;
     if (settings.contains(_savedFilesLocationKey)) {
         savedFilesLocation = settings.value(_savedFilesLocationKey).toString();
-    } else {
-        // No location set. Create a default one in Documents standard location.
+        if (!validatePossibleSavedFilesLocation(savedFilesLocation)) {
+            savedFilesLocation.clear();
+        }
+    }
+    
+    if (savedFilesLocation.isEmpty()) {
+        // No location set (or invalid). Create a default one in Documents standard location.
 
         QString documentsLocation = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
 
@@ -288,6 +300,7 @@ void QGCApplication::_initCommon(void)
             savedFilesLocation.clear();
         }
     }
+    qDebug() << "Saved files location" << savedFilesLocation;
     settings.setValue(_savedFilesLocationKey, savedFilesLocation);
 
     // Load application font
@@ -301,13 +314,21 @@ void QGCApplication::_initCommon(void)
     // setFont(fontDatabase.font(fontFamilyName, "Roman", 12));
     
     // Register our Qml objects
+    
     qmlRegisterType<QGCPalette>("QGroundControl.Palette", 1, 0, "QGCPalette");
+    
 	qmlRegisterType<ViewWidgetController>("QGroundControl.Controllers", 1, 0, "ViewWidgetController");
 	qmlRegisterType<ParameterEditorController>("QGroundControl.Controllers", 1, 0, "ParameterEditorController");
     qmlRegisterType<CustomCommandWidgetController>("QGroundControl.Controllers", 1, 0, "CustomCommandWidgetController");
+    qmlRegisterType<FlightModesComponentController>("QGroundControl.Controllers", 1, 0, "FlightModesComponentController");
+    qmlRegisterType<AirframeComponentController>("QGroundControl.Controllers", 1, 0, "AirframeComponentController");
+    qmlRegisterType<SensorsComponentController>("QGroundControl.Controllers", 1, 0, "SensorsComponentController");
+    qmlRegisterType<PowerComponentController>("QGroundControl.Controllers", 1, 0, "PowerComponentController");
+    
     //-- Create QML Singleton Interfaces
     qmlRegisterSingletonType<ScreenTools>("QGroundControl.ScreenTools", 1, 0, "ScreenTools", screenToolsSingletonFactory);
     qmlRegisterSingletonType<MavManager>("QGroundControl.MavManager", 1, 0, "MavManager", mavManagerSingletonFactory);
+    
     //-- Register Waypoint Interface
     qmlRegisterInterface<Waypoint>("Waypoint");
 }
@@ -401,7 +422,6 @@ QString QGCApplication::savedFilesLocation(void)
 {
     QSettings settings;
 
-    Q_ASSERT(settings.contains(_savedFilesLocationKey));
     return settings.value(_savedFilesLocationKey).toString();
 }
 
@@ -655,54 +675,28 @@ void QGCApplication::_loadCurrentStyle(void)
     restoreOverrideCursor();
 }
 
-void QGCApplication::reconnectAfterWait(int waitSeconds)
+void QGCApplication::reportMissingParameter(int componentId, const QString& name)
 {
-    LinkManager* linkManager = LinkManager::instance();
-    Q_ASSERT(linkManager);
-    
-    Q_ASSERT(linkManager->getLinks().count() == 1);
-    LinkInterface* link = linkManager->getLinks()[0];
-    
-    // Save the link configuration so we can restart the link laster
-    _reconnectLinkConfig = LinkConfiguration::duplicateSettings(linkManager->getLinks()[0]->getLinkConfiguration());
-    
-    // Disconnect and wait
-    
-    linkManager->disconnectLink(link);
-    QTimer::singleShot(waitSeconds * 1000, this, &QGCApplication::_reconnect);
+    _missingParams += QString("%1:%2").arg(componentId).arg(name);
+    _missingParamsDelayedDisplayTimer.start();
 }
 
-void QGCApplication::_reconnect(void)
+/// Called when the delay timer fires to show the missing parameters warning
+void QGCApplication::_missingParamsDisplay(void)
 {
-    Q_ASSERT(_reconnectLinkConfig);
+    Q_ASSERT(_missingParams.count());
     
-    qgcApp()->restoreOverrideCursor();
-    LinkManager::instance()->createConnectedLink(_reconnectLinkConfig);
-    _reconnectLinkConfig = NULL;
-}
-
-void QGCApplication::reportMissingFact(const QString& name)
-{
-    _missingFacts += name;
-    _missingFactDelayedDisplayTimer.start();
-}
-
-/// Called when the delay timer fires to show the missing facts warning
-void QGCApplication::_missingFactsDisplay(void)
-{
-    Q_ASSERT(_missingFacts.count());
-    
-    QString facts;
-    foreach (QString fact, _missingFacts) {
-        if (facts.isEmpty()) {
-            facts += fact;
+    QString params;
+    foreach (QString name, _missingParams) {
+        if (params.isEmpty()) {
+            params += name;
         } else {
-            facts += QString(", %1").arg(fact);
+            params += QString(", %1").arg(name);
         }
     }
-    _missingFacts.clear();
+    _missingParams.clear();
     
     QGCMessageBox::critical("Missing Parameters",
                             QString("Parameters missing from firmware: %1.\n\n"
-                                    "You should quit QGroundControl immediately and update your firmware.").arg(facts));
+                                    "You should quit QGroundControl immediately and update your firmware.").arg(params));
 }

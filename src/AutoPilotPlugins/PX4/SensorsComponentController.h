@@ -31,15 +31,15 @@
 #include <QQuickItem>
 
 #include "UASInterface.h"
-#include "AutoPilotPlugin.h"
+#include "FactPanelController.h"
 
 /// Sensors Component MVC Controller for SensorsComponent.qml.
-class SensorsComponentController : public QObject
+class SensorsComponentController : public FactPanelController
 {
     Q_OBJECT
     
 public:
-    SensorsComponentController(AutoPilotPlugin* autopilot, QObject* parent = NULL);
+    SensorsComponentController(void);
     
     Q_PROPERTY(bool fixedWing READ fixedWing CONSTANT)
     
@@ -50,6 +50,7 @@ public:
     Q_PROPERTY(QQuickItem* gyroButton MEMBER _gyroButton)
     Q_PROPERTY(QQuickItem* accelButton MEMBER _accelButton)
     Q_PROPERTY(QQuickItem* airspeedButton MEMBER _airspeedButton)
+    Q_PROPERTY(QQuickItem* levelButton MEMBER _levelButton)
     Q_PROPERTY(QQuickItem* cancelButton MEMBER _cancelButton)
     Q_PROPERTY(QQuickItem* orientationCalAreaHelpText MEMBER _orientationCalAreaHelpText)
     
@@ -85,6 +86,7 @@ public:
     Q_INVOKABLE void calibrateCompass(void);
     Q_INVOKABLE void calibrateGyro(void);
     Q_INVOKABLE void calibrateAccel(void);
+    Q_INVOKABLE void calibrateLevel(void);
     Q_INVOKABLE void calibrateAirspeed(void);
     Q_INVOKABLE void cancelCalibration(void);
     
@@ -126,15 +128,12 @@ private:
     QQuickItem* _gyroButton;
     QQuickItem* _accelButton;
     QQuickItem* _airspeedButton;
+    QQuickItem* _levelButton;
     QQuickItem* _cancelButton;
     QQuickItem* _orientationCalAreaHelpText;
     
     bool _showGyroCalArea;
     bool _showOrientationCalArea;
-    
-    bool _showCompass0;
-    bool _showCompass1;
-    bool _showCompass2;
     
     bool _gyroCalInProgress;
     bool _magCalInProgress;
@@ -167,9 +166,6 @@ private:
     
     bool _unknownFirmwareVersion;
     bool _waitingForCancel;
-    
-    AutoPilotPlugin*    _autopilot;
-    UASInterface*       _uas;
 };
 
 #endif

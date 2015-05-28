@@ -76,6 +76,7 @@ const struct PX4RCCalibration::FunctionInfo PX4RCCalibration::_rgFunctionInfo[PX
     { "RC_MAP_POSCTL_SW" },
     { "RC_MAP_LOITER_SW" },
     { "RC_MAP_RETURN_SW" },
+    { "RC_MAP_ACRO_SW" },
     { "RC_MAP_FLAPS" },
     { "RC_MAP_AUX1" },
     { "RC_MAP_AUX2" },
@@ -706,7 +707,7 @@ void PX4RCCalibration::_resetInternalCalibrationValues(void)
         enum rcCalFunctions curFunction = rgFlightModeFunctions[i];
         
         bool ok;
-        int switchChannel = _autopilot->getParameterFact(_rgFunctionInfo[curFunction].parameterName)->value().toInt(&ok);
+        int switchChannel = _autopilot->getParameterFact(FactSystem::defaultComponentId, _rgFunctionInfo[curFunction].parameterName)->value().toInt(&ok);
         Q_ASSERT(ok);
         
         // Parameter: 1-based channel, 0=not mapped
@@ -748,16 +749,16 @@ void PX4RCCalibration::_setInternalCalibrationValuesFromParameters(void)
     for (int i = 0; i < _chanMax; ++i) {
         struct ChannelInfo* info = &_rgChannelInfo[i];
         
-        info->rcTrim = _autopilot->getParameterFact(trimTpl.arg(i+1))->value().toInt(&convertOk);
+        info->rcTrim = _autopilot->getParameterFact(FactSystem::defaultComponentId, trimTpl.arg(i+1))->value().toInt(&convertOk);
         Q_ASSERT(convertOk);
         
-        info->rcMin = _autopilot->getParameterFact(minTpl.arg(i+1))->value().toInt(&convertOk);
+        info->rcMin = _autopilot->getParameterFact(FactSystem::defaultComponentId, minTpl.arg(i+1))->value().toInt(&convertOk);
         Q_ASSERT(convertOk);
 
-        info->rcMax = _autopilot->getParameterFact(maxTpl.arg(i+1))->value().toInt(&convertOk);
+        info->rcMax = _autopilot->getParameterFact(FactSystem::defaultComponentId, maxTpl.arg(i+1))->value().toInt(&convertOk);
         Q_ASSERT(convertOk);
 
-        float floatReversed = _autopilot->getParameterFact(revTpl.arg(i+1))->value().toFloat(&convertOk);
+        float floatReversed = _autopilot->getParameterFact(FactSystem::defaultComponentId, revTpl.arg(i+1))->value().toFloat(&convertOk);
         Q_ASSERT(convertOk);
         Q_ASSERT(floatReversed == 1.0f || floatReversed == -1.0f);
         info->reversed = floatReversed == -1.0f;
@@ -766,7 +767,7 @@ void PX4RCCalibration::_setInternalCalibrationValuesFromParameters(void)
     for (int i=0; i<rcCalFunctionMax; i++) {
         int32_t paramChannel;
         
-        paramChannel = _autopilot->getParameterFact(_rgFunctionInfo[i].parameterName)->value().toInt(&convertOk);
+        paramChannel = _autopilot->getParameterFact(FactSystem::defaultComponentId, _rgFunctionInfo[i].parameterName)->value().toInt(&convertOk);
         Q_ASSERT(convertOk);
         
         if (paramChannel != 0) {
@@ -876,10 +877,10 @@ void PX4RCCalibration::_writeCalibration(void)
         struct ChannelInfo* info = &_rgChannelInfo[chan];
         int                 oneBasedChannel = chan + 1;
         
-        _autopilot->getParameterFact(trimTpl.arg(oneBasedChannel))->setValue((float)info->rcTrim);
-        _autopilot->getParameterFact(minTpl.arg(oneBasedChannel))->setValue((float)info->rcMin);
-        _autopilot->getParameterFact(maxTpl.arg(oneBasedChannel))->setValue((float)info->rcMax);
-        _autopilot->getParameterFact(revTpl.arg(oneBasedChannel))->setValue(info->reversed ? -1.0f : 1.0f);
+        _autopilot->getParameterFact(FactSystem::defaultComponentId, trimTpl.arg(oneBasedChannel))->setValue((float)info->rcTrim);
+        _autopilot->getParameterFact(FactSystem::defaultComponentId, minTpl.arg(oneBasedChannel))->setValue((float)info->rcMin);
+        _autopilot->getParameterFact(FactSystem::defaultComponentId, maxTpl.arg(oneBasedChannel))->setValue((float)info->rcMax);
+        _autopilot->getParameterFact(FactSystem::defaultComponentId, revTpl.arg(oneBasedChannel))->setValue(info->reversed ? -1.0f : 1.0f);
     }
     
     // Write function mapping parameters
@@ -892,12 +893,12 @@ void PX4RCCalibration::_writeCalibration(void)
             // Note that the channel value is 1-based
             paramChannel = _rgFunctionChannelMapping[i] + 1;
         }
-        _autopilot->getParameterFact(_rgFunctionInfo[i].parameterName)->setValue(paramChannel);
+        _autopilot->getParameterFact(FactSystem::defaultComponentId, _rgFunctionInfo[i].parameterName)->setValue(paramChannel);
     }
     
     // If the RC_CHAN_COUNT parameter is available write the channel count
-    if (_autopilot->parameterExists("RC_CHAN_CNT")) {
-        _autopilot->getParameterFact("RC_CHAN_CNT")->setValue(_chanCount);
+    if (_autopilot->parameterExists(FactSystem::defaultComponentId, "RC_CHAN_CNT")) {
+        _autopilot->getParameterFact(FactSystem::defaultComponentId, "RC_CHAN_CNT")->setValue(_chanCount);
     }
     
     _stopCalibration();
