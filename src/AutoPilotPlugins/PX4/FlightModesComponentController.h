@@ -33,14 +33,15 @@
 
 #include "UASInterface.h"
 #include "AutoPilotPlugin.h"
+#include "FactPanelController.h"
 
 /// MVC Controller for FlightModesComponent.qml.
-class FlightModesComponentController : public QObject
+class FlightModesComponentController : public FactPanelController
 {
     Q_OBJECT
     
 public:
-    FlightModesComponentController(QObject* parent = NULL);
+    FlightModesComponentController(void);
     ~FlightModesComponentController();
     
     Q_PROPERTY(bool validConfiguration MEMBER _validConfiguration CONSTANT)
@@ -53,6 +54,7 @@ public:
     Q_PROPERTY(double posCtlSwitchLiveRange READ posCtlSwitchLiveRange NOTIFY switchLiveRangeChanged)
     Q_PROPERTY(double returnSwitchLiveRange READ returnSwitchLiveRange NOTIFY switchLiveRangeChanged)
     Q_PROPERTY(double offboardSwitchLiveRange READ offboardSwitchLiveRange NOTIFY switchLiveRangeChanged)
+    Q_PROPERTY(double acroSwitchLiveRange READ acroSwitchLiveRange NOTIFY switchLiveRangeChanged)
     
     Q_PROPERTY(bool sendLiveRCSwitchRanges READ sendLiveRCSwitchRanges WRITE setSendLiveRCSwitchRanges NOTIFY liveRCSwitchRangesChanged)
     
@@ -61,6 +63,7 @@ public:
     double posCtlSwitchLiveRange(void);
     double returnSwitchLiveRange(void);
     double offboardSwitchLiveRange(void);
+    double acroSwitchLiveRange(void);
     
     bool sendLiveRCSwitchRanges(void) { return _liveRCValues; }
     void setSendLiveRCSwitchRanges(bool start);
@@ -79,8 +82,6 @@ private:
     
     static const int _chanMax = 18;
     
-    UASInterface*                   _uas;
-
     QList<double>   _rcValues;
     bool            _liveRCValues;
     int             _rgRCMin[_chanMax];
@@ -90,8 +91,6 @@ private:
     bool    _validConfiguration;
     QString _configurationErrors;
     int     _channelCount;
-    
-    AutoPilotPlugin*    _autoPilotPlugin;
 };
 
 #endif

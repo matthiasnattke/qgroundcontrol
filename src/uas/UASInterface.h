@@ -243,7 +243,10 @@ public:
         StartCalibrationGyro,
         StartCalibrationMag,
         StartCalibrationAirspeed,
-        StartCalibrationAccel
+        StartCalibrationAccel,
+        StartCalibrationLevel,
+        StartCalibrationEsc,
+        StartCalibrationCopyTrims
     };
     
     /// Starts the specified calibration
@@ -351,6 +354,7 @@ public slots:
     virtual QString getBatterySpecs() = 0;
 
     /** @brief Send the full HIL state to the MAV */
+#ifndef __mobile__
     virtual void sendHilState(quint64 time_us, float roll, float pitch, float yaw, float rollspeed,
                         float pitchspeed, float yawspeed, double lat, double lon, double alt,
                         float vx, float vy, float vz, float ind_airspeed, float true_airspeed, float xacc, float yacc, float zacc) = 0;
@@ -365,6 +369,7 @@ public slots:
     /** @brief Send Optical Flow sensor message for HIL, (arguments and units accoding to mavlink documentation*/
     virtual void sendHilOpticalFlow(quint64 time_us, qint16 flow_x, qint16 flow_y, float flow_comp_m_x,
                             float flow_comp_m_y, quint8 quality, float ground_distance) = 0;
+#endif
 
     /** @brief Send command to map a RC channel to a parameter */
     virtual void sendMapRCToParam(QString param_id, float scale, float value0, quint8 param_rc_channel_index, float valueMin, float valueMax) = 0;
@@ -442,8 +447,6 @@ signals:
     void dropRateChanged(int systemId,  float receiveDrop);
     /** @brief Robot mode has changed */
     void modeChanged(int sysId, QString status, QString description);
-    /** @brief Robot armed state has changed */
-    void armingChanged(int sysId, QString armingState);
     /** @brief A command has been issued **/
     void commandSent(int command);
     /** @brief The robot is connecting **/
@@ -488,6 +491,7 @@ signals:
      * @param seconds estimated remaining flight time in seconds
      */
     void batteryChanged(UASInterface* uas, double voltage, double current, double percent, int seconds);
+    void batteryConsumedChanged(UASInterface* uas, double current_consumed);
     void statusChanged(UASInterface* uas, QString status);
     void actuatorChanged(UASInterface*, int actId, double value);
     void thrustChanged(UASInterface*, double thrust);

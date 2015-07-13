@@ -26,7 +26,9 @@
 #include "MAVLinkProtocol.h"
 #include "QGCMAVLink.h"
 #include "LinkManager.h"
+#ifndef __ios__
 #include "SerialLink.h"
+#endif
 #include <Eigen/Geometry>
 #include "AutoPilotPluginManager.h"
 #include "QGCMessageBox.h"
@@ -141,8 +143,9 @@ UAS::UAS(MAVLinkProtocol* protocol, int id) : UASInterface(),
     blockHomePositionChanges(false),
     receivedMode(false),
 
-
+#ifndef __mobile__
     simulation(0),
+#endif
 
     // The protected members.
     connectionLost(false),
@@ -239,6 +242,14 @@ UAS::UAS(MAVLinkProtocol* protocol, int id) : UASInterface(),
 */
 UAS::~UAS()
 {
+#ifndef __mobile__
+    stopHil();
+    if (simulation) {
+        // wait for the simulator to exit
+        simulation->wait();
+        simulation->deleteLater();
+    }
+#endif
     writeSettings();
 }
 
@@ -499,7 +510,7 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
             bool statechanged = false;
             bool modechanged = false;
 
-            QString audiomodeText = getAudioModeTextFor(static_cast<int>(state.base_mode));
+            QString audiomodeText = getAudioModeTextFor(state.base_mode, state.custom_mode);
 
             if ((state.system_status != this->status) && state.system_status != MAV_STATE_UNINIT)
             {
@@ -559,6 +570,19 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
         }
 
             break;
+
+        case MAVLINK_MSG_ID_BATTERY_STATUS:
+        {
+            if (multiComponentSourceDetected && wrongComponent)
+            {
+                break;
+            }
+            mavlink_battery_status_t bat_status;
+            mavlink_msg_battery_status_decode(&message, &bat_status);
+            emit batteryConsumedChanged(this, (double)bat_status.current_consumed);
+        }
+            break;
+
         case MAVLINK_MSG_ID_SYS_STATUS:
         {
             if (multiComponentSourceDetected && wrongComponent)
@@ -1442,6 +1466,7 @@ void UAS::startCalibration(UASInterface::StartCalibrationType calType)
     int airspeedCal = 0;
     int radioCal = 0;
     int accelCal = 0;
+    int escCal = 0;
     
     switch (calType) {
         case StartCalibrationGyro:
@@ -1456,8 +1481,17 @@ void UAS::startCalibration(UASInterface::StartCalibrationType calType)
         case StartCalibrationRadio:
             radioCal = 1;
             break;
+        case StartCalibrationCopyTrims:
+            radioCal = 2;
+            break;
         case StartCalibrationAccel:
             accelCal = 1;
+            break;
+        case StartCalibrationLevel:
+            accelCal = 2;
+            break;
+        case StartCalibrationEsc:
+            escCal = 1;
             break;
     }
     
@@ -1475,7 +1509,7 @@ void UAS::startCalibration(UASInterface::StartCalibrationType calType)
                                   radioCal,                         // radio cal
                                   accelCal,                         // accel cal
                                   airspeedCal,                      // airspeed cal
-                                  0);                               // unused
+                                  escCal);                          // esc cal
     sendMessage(msg);
 }
 
@@ -2381,7 +2415,8 @@ void UAS::toggleAutonomy()
 * Set the manual control commands.
 * This can only be done if the system has manual inputs enabled and is armed.
 */
-void UAS::setManualControlCommands(float roll, float pitch, float yaw, float thrust, qint8 xHat, qint8 yHat, quint16 buttons)
+#ifndef __mobile__
+void UAS::setExternalControlSetpoint(float roll, float pitch, float yaw, float thrust, qint8 xHat, qint8 yHat, quint16 buttons, quint8 joystickMode)
 {
     Q_UNUSED(xHat);
     Q_UNUSED(yHat);
@@ -2394,33 +2429,145 @@ void UAS::setManualControlCommands(float roll, float pitch, float yaw, float thr
     static quint16 manualButtons = 0;
     static quint8 countSinceLastTransmission = 0; // Track how many calls to this function have occurred since the last MAVLink transmission
 
-    // We only transmit manual command messages if the system has manual inputs enabled and is armed
-    if(((base_mode & MAV_MODE_FLAG_DECODE_POSITION_MANUAL) && (base_mode & MAV_MODE_FLAG_DECODE_POSITION_SAFETY)) || (base_mode & MAV_MODE_FLAG_HIL_ENABLED))
-    {
+    // Transmit the external setpoints only if they've changed OR if it's been a little bit since they were last transmit. To make sure there aren't issues with
+    // response rate, we make sure that a message is transmit when the commands have changed, then one more time, and then switch to the lower transmission rate
+    // if no command inputs have changed.
 
-        // Transmit the manual commands only if they've changed OR if it's been a little bit since they were last transmit. To make sure there aren't issues with
-        // response rate, we make sure that a message is transmit when the commands have changed, then one more time, and then switch to the lower transmission rate
-        // if no command inputs have changed.
-        // The default transmission rate is 50Hz, but when no inputs have changed it drops down to 5Hz.
-        bool sendCommand = false;
-        if (countSinceLastTransmission++ >= 10)
-        {
-            sendCommand = true;
-            countSinceLastTransmission = 0;
-        }
-        else if ((!isnan(roll) && roll != manualRollAngle) || (!isnan(pitch) && pitch != manualPitchAngle) ||
-                   (!isnan(yaw) && yaw != manualYawAngle) || (!isnan(thrust) && thrust != manualThrust) ||
-                   buttons != manualButtons)
-        {
-            sendCommand = true;
+    // The default transmission rate is 25Hz, but when no inputs have changed it drops down to 5Hz.
+    bool sendCommand = false;
+    if (countSinceLastTransmission++ >= 5) {
+        sendCommand = true;
+        countSinceLastTransmission = 0;
+    } else if ((!isnan(roll) && roll != manualRollAngle) || (!isnan(pitch) && pitch != manualPitchAngle) ||
+             (!isnan(yaw) && yaw != manualYawAngle) || (!isnan(thrust) && thrust != manualThrust) ||
+             buttons != manualButtons) {
+        sendCommand = true;
 
-            // Ensure that another message will be sent the next time this function is called
-            countSinceLastTransmission = 10;
-        }
+        // Ensure that another message will be sent the next time this function is called
+        countSinceLastTransmission = 10;
+    }
 
-        // Now if we should trigger an update, let's do that
-        if (sendCommand)
-        {
+    // Now if we should trigger an update, let's do that
+    if (sendCommand) {
+        // Save the new manual control inputs
+        manualRollAngle = roll;
+        manualPitchAngle = pitch;
+        manualYawAngle = yaw;
+        manualThrust = thrust;
+        manualButtons = buttons;
+
+        mavlink_message_t message;
+
+        if (joystickMode == JoystickInput::JOYSTICK_MODE_ATTITUDE) {
+            // send an external attitude setpoint command (rate control disabled)
+            float attitudeQuaternion[4];
+            mavlink_euler_to_quaternion(roll, pitch, yaw, attitudeQuaternion);
+            uint8_t typeMask = 0x7; // disable rate control
+            mavlink_msg_set_attitude_target_pack(mavlink->getSystemId(),
+                mavlink->getComponentId(),
+                &message,
+                QGC::groundTimeUsecs(),
+                this->uasId,
+                0,
+                typeMask,
+                attitudeQuaternion,
+                0,
+                0,
+                0,
+                thrust
+                );
+        } else if (joystickMode == JoystickInput::JOYSTICK_MODE_POSITION) {
+            // Send the the local position setpoint (local pos sp external message)
+            static float px = 0;
+            static float py = 0;
+            static float pz = 0;
+            //XXX: find decent scaling
+            px -= pitch;
+            py += roll;
+            pz -= 2.0f*(thrust-0.5);
+            uint16_t typeMask = (1<<11)|(7<<6)|(7<<3); // select only POSITION control
+            mavlink_msg_set_position_target_local_ned_pack(mavlink->getSystemId(),
+                    mavlink->getComponentId(),
+                    &message,
+                    QGC::groundTimeUsecs(),
+                    this->uasId,
+                    0,
+                    MAV_FRAME_LOCAL_NED,
+                    typeMask,
+                    px,
+                    py,
+                    pz,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    yaw,
+                    0
+                    );
+        } else if (joystickMode == JoystickInput::JOYSTICK_MODE_FORCE) {
+            // Send the the force setpoint (local pos sp external message)
+            float dcm[3][3];
+            mavlink_euler_to_dcm(roll, pitch, yaw, dcm);
+            const float fx = -dcm[0][2] * thrust;
+            const float fy = -dcm[1][2] * thrust;
+            const float fz = -dcm[2][2] * thrust;
+            uint16_t typeMask = (3<<10)|(7<<3)|(7<<0)|(1<<9); // select only FORCE control (disable everything else)
+            mavlink_msg_set_position_target_local_ned_pack(mavlink->getSystemId(),
+                    mavlink->getComponentId(),
+                    &message,
+                    QGC::groundTimeUsecs(),
+                    this->uasId,
+                    0,
+                    MAV_FRAME_LOCAL_NED,
+                    typeMask,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    fx,
+                    fy,
+                    fz,
+                    0,
+                    0
+                    );
+        } else if (joystickMode == JoystickInput::JOYSTICK_MODE_VELOCITY) {
+            // Send the the local velocity setpoint (local pos sp external message)
+            static float vx = 0;
+            static float vy = 0;
+            static float vz = 0;
+            static float yawrate = 0;
+            //XXX: find decent scaling
+            vx -= pitch;
+            vy += roll;
+            vz -= 2.0f*(thrust-0.5);
+            yawrate += yaw; //XXX: not sure what scale to apply here
+            uint16_t typeMask = (1<<10)|(7<<6)|(7<<0); // select only VELOCITY control
+            mavlink_msg_set_position_target_local_ned_pack(mavlink->getSystemId(),
+                    mavlink->getComponentId(),
+                    &message,
+                    QGC::groundTimeUsecs(),
+                    this->uasId,
+                    0,
+                    MAV_FRAME_LOCAL_NED,
+                    typeMask,
+                    0,
+                    0,
+                    0,
+                    vx,
+                    vy,
+                    vz,
+                    0,
+                    0,
+                    0,
+                    0,
+                    yawrate
+                    );
+        } else if (joystickMode == JoystickInput::JOYSTICK_MODE_MANUAL) {
+
             // Save the new manual control inputs
             manualRollAngle = roll;
             manualPitchAngle = pitch;
@@ -2433,21 +2580,23 @@ void UAS::setManualControlCommands(float roll, float pitch, float yaw, float thr
 
             // Calculate the new commands for roll, pitch, yaw, and thrust
             const float newRollCommand = roll * axesScaling;
-            const float newPitchCommand = pitch * axesScaling;
+            // negate pitch value because pitch is negative for pitching forward but mavlink message argument is positive for forward
+            const float newPitchCommand = -pitch * axesScaling;
             const float newYawCommand = yaw * axesScaling;
             const float newThrustCommand = thrust * axesScaling;
 
             // Send the MANUAL_COMMAND message
-            mavlink_message_t message;
             mavlink_msg_manual_control_pack(mavlink->getSystemId(), mavlink->getComponentId(), &message, this->uasId, newPitchCommand, newRollCommand, newThrustCommand, newYawCommand, buttons);
-            sendMessage(message);
-
-            // Emit an update in control values to other UI elements, like the HSI display
-            emit attitudeThrustSetPointChanged(this, roll, pitch, yaw, thrust, QGC::groundTimeMilliseconds());
         }
+
+        sendMessage(message);
+        // Emit an update in control values to other UI elements, like the HSI display
+        emit attitudeThrustSetPointChanged(this, roll, pitch, yaw, thrust, QGC::groundTimeMilliseconds());
     }
 }
+#endif
 
+#ifndef __mobile__
 void UAS::setManual6DOFControlCommands(double x, double y, double z, double roll, double pitch, double yaw)
 {
     // If system has manual inputs enabled and is armed
@@ -2481,6 +2630,7 @@ void UAS::setManual6DOFControlCommands(double x, double y, double z, double roll
         qDebug() << "3DMOUSE/MANUAL CONTROL: IGNORING COMMANDS: Set mode to MANUAL to send 3DMouse commands first";
     }
 }
+#endif
 
 /**
 * @return the type of the system
@@ -2614,6 +2764,7 @@ bool UAS::emergencyKILL()
 /**
 * If enabled, connect the flight gear link.
 */
+#ifndef __mobile__
 void UAS::enableHilFlightGear(bool enable, QString options, bool sensorHil, QObject * configuration)
 {
     Q_UNUSED(configuration);
@@ -2642,10 +2793,12 @@ void UAS::enableHilFlightGear(bool enable, QString options, bool sensorHil, QObj
         stopHil();
     }
 }
+#endif
 
 /**
 * If enabled, connect the JSBSim link.
 */
+#ifndef __mobile__
 void UAS::enableHilJSBSim(bool enable, QString options)
 {
     QGCJSBSimLink* link = dynamic_cast<QGCJSBSimLink*>(simulation);
@@ -2669,10 +2822,12 @@ void UAS::enableHilJSBSim(bool enable, QString options)
         stopHil();
     }
 }
+#endif
 
 /**
 * If enabled, connect the X-plane gear link.
 */
+#ifndef __mobile__
 void UAS::enableHilXPlane(bool enable)
 {
     QGCXPlaneLink* link = dynamic_cast<QGCXPlaneLink*>(simulation);
@@ -2694,6 +2849,7 @@ void UAS::enableHilXPlane(bool enable)
         stopHil();
     }
 }
+#endif
 
 /**
 * @param time_us Timestamp (microseconds since UNIX epoch or microseconds since system boot)
@@ -2713,6 +2869,7 @@ void UAS::enableHilXPlane(bool enable)
 * @param yacc Y acceleration (mg)
 * @param zacc Z acceleration (mg)
 */
+#ifndef __mobile__
 void UAS::sendHilGroundTruth(quint64 time_us, float roll, float pitch, float yaw, float rollspeed,
                        float pitchspeed, float yawspeed, double lat, double lon, double alt,
                        float vx, float vy, float vz, float ind_airspeed, float true_airspeed, float xacc, float yacc, float zacc)
@@ -2742,6 +2899,7 @@ void UAS::sendHilGroundTruth(quint64 time_us, float roll, float pitch, float yaw
         emit valueChanged(uasId, "IAS sim", "m/s", ind_airspeed, getUnixTime());
         emit valueChanged(uasId, "TAS sim", "m/s", true_airspeed, getUnixTime());
 }
+#endif
 
 /**
 * @param time_us Timestamp (microseconds since UNIX epoch or microseconds since system boot)
@@ -2761,6 +2919,7 @@ void UAS::sendHilGroundTruth(quint64 time_us, float roll, float pitch, float yaw
 * @param yacc Y acceleration (mg)
 * @param zacc Z acceleration (mg)
 */
+#ifndef __mobile__
 void UAS::sendHilState(quint64 time_us, float roll, float pitch, float yaw, float rollspeed,
                        float pitchspeed, float yawspeed, double lat, double lon, double alt,
                        float vx, float vy, float vz, float ind_airspeed, float true_airspeed, float xacc, float yacc, float zacc)
@@ -2797,11 +2956,13 @@ void UAS::sendHilState(quint64 time_us, float roll, float pitch, float yaw, floa
         qDebug() << __FILE__ << __LINE__ << "HIL is onboard not enabled, trying to enable.";
     }
 }
+#endif
 
 /*
 * @param abs_pressure Absolute Pressure (hPa)
 * @param diff_pressure Differential Pressure  (hPa)
 */
+#ifndef __mobile__
 void UAS::sendHilSensors(quint64 time_us, float xacc, float yacc, float zacc, float rollspeed, float pitchspeed, float yawspeed,
                                     float xmag, float ymag, float zmag, float abs_pressure, float diff_pressure, float pressure_alt, float temperature, quint32 fields_changed)
 {
@@ -2822,7 +2983,9 @@ void UAS::sendHilSensors(quint64 time_us, float xacc, float yacc, float zacc, fl
         qDebug() << __FILE__ << __LINE__ << "HIL is onboard not enabled, trying to enable.";
     }
 }
+#endif
 
+#ifndef __mobile__
 void UAS::sendHilOpticalFlow(quint64 time_us, qint16 flow_x, qint16 flow_y, float flow_comp_m_x,
                     float flow_comp_m_y, quint8 quality, float ground_distance)
 {
@@ -2855,7 +3018,9 @@ void UAS::sendHilOpticalFlow(quint64 time_us, qint16 flow_x, qint16 flow_y, floa
     }
 
 }
+#endif
 
+#ifndef __mobile__
 void UAS::sendHilGps(quint64 time_us, double lat, double lon, double alt, int fix_type, float eph, float epv, float vel, float vn, float ve, float vd, float cog, int satellites)
 {
     // Only send at 10 Hz max rate
@@ -2884,11 +3049,12 @@ void UAS::sendHilGps(quint64 time_us, double lat, double lon, double alt, int fi
         qDebug() << __FILE__ << __LINE__ << "HIL is onboard not enabled, trying to enable.";
     }
 }
-
+#endif
 
 /**
 * Connect flight gear link.
 **/
+#ifndef __mobile__
 void UAS::startHil()
 {
     if (hilEnabled) return;
@@ -2899,10 +3065,12 @@ void UAS::startHil()
     // Connect HIL simulation link
     simulation->connectSimulation();
 }
+#endif
 
 /**
 * disable flight gear link.
 */
+#ifndef __mobile__
 void UAS::stopHil()
 {
     if (simulation && simulation->isConnected()) {
@@ -2913,6 +3081,7 @@ void UAS::stopHil()
     hilEnabled = false;
     sensorHil = false;
 }
+#endif
 
 void UAS::shutdown()
 {
@@ -2972,60 +3141,63 @@ const QString& UAS::getShortState() const
 * hardware in the loop is being used.
 * @return the audio mode text for the id given.
 */
-QString UAS::getAudioModeTextFor(int id)
+QString UAS::getAudioModeTextFor(uint8_t base_mode, uint32_t custom_mode) const
 {
-    QString mode;
-    uint8_t modeid = id;
+    QString mode = AutoPilotPluginManager::instance()->getAudioModeText(base_mode, custom_mode, autopilot);
 
-    // BASE MODE DECODING
-    if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_AUTO)
+    if (mode.length() == 0)
     {
-        mode += "autonomous";
-    }
-    else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_GUIDED)
-    {
-        mode += "guided";
-    }
-    else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_STABILIZE)
-    {
-        mode += "stabilized";
-    }
-    else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_MANUAL)
-    {
-        mode += "manual";
-    }
-    else
-    {
-        // Nothing else applies, we're in preflight
-        mode += "preflight";
-    }
+        // Fall back to generic decoding
 
-    if (modeid != 0)
-    {
-        mode += " mode";
-    }
+        QString mode;
+        uint8_t modeid = base_mode;
 
-    // ARMED STATE DECODING
-    if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_SAFETY)
-    {
-        mode.append(" and armed");
-    }
+        // BASE MODE DECODING
+        if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_AUTO)
+        {
+            mode += "autonomous";
+        }
+        else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_GUIDED)
+        {
+            mode += "guided";
+        }
+        else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_STABILIZE)
+        {
+            mode += "stabilized";
+        }
+        else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_MANUAL)
+        {
+            mode += "manual";
+        }
+        else
+        {
+            // Nothing else applies, we're in preflight
+            mode += "preflight";
+        }
 
-    // HARDWARE IN THE LOOP DECODING
-    if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_HIL)
-    {
-        mode.append(" using hardware in the loop simulation");
+        if (modeid != 0)
+        {
+            mode += " mode";
+        }
+
+        // ARMED STATE DECODING
+        if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_SAFETY)
+        {
+            mode.append(" and armed");
+        }
+
+        // HARDWARE IN THE LOOP DECODING
+        if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_HIL)
+        {
+            mode.append(" using hardware in the loop simulation");
+        }
     }
 
     return mode;
 }
 
 /**
-* The mode returned can be auto, stabilized, test, manual, preflight or unknown.
-* @return the short text of the mode for the id given.
-*/
-/**
-* The mode returned can be auto, stabilized, test, manual, preflight or unknown.
+* The mode returned depends on the specific autopilot used.
 * @return the short text of the mode for the id given.
 */
 QString UAS::getShortModeTextFor(uint8_t base_mode, uint32_t custom_mode) const

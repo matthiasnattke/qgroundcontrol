@@ -40,6 +40,7 @@ class SerialLink;
 #include <QThread>
 #include <QMutex>
 #include <QString>
+
 #ifdef __android__
 #include "qserialport.h"
 #else
@@ -123,10 +124,6 @@ public:
     bool    connect(void);
     bool    disconnect(void);
 
-    void run();
-
-    static const int poll_interval = SERIAL_POLL_INTERVAL; ///< Polling interval, defined in QGCConfig.h
-
 signals: //[TODO] Refactor to Linkinterface
     void updateLink(LinkInterface*);
 
@@ -153,6 +150,7 @@ protected:
 
 private slots:
     void _rerouteDisconnected(void);
+    void _readBytes(void);
 
 private:
     // Links are only created/destroyed by LinkManager so constructor/destructor is not public

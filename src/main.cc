@@ -30,12 +30,15 @@ This file is part of the QGROUNDCONTROL project
 
 #include <QApplication>
 #include <QSslSocket>
+#ifndef __mobile__
+#include <QSerialPortInfo>
+#endif
 
 #include "QGCApplication.h"
 #include "MainWindow.h"
 #include "configuration.h"
 #ifdef QT_DEBUG
-#ifndef __android__
+#ifndef __mobile__
 #include "UnitTest.h"
 #endif
 #include "CmdLineOptParser.h"
@@ -49,6 +52,9 @@ This file is part of the QGROUNDCONTROL project
 #undef main
 #endif
 
+#ifndef __mobile__
+Q_DECLARE_METATYPE(QSerialPortInfo)
+#endif
 
 #ifdef Q_OS_WIN
 
@@ -87,9 +93,11 @@ int main(int argc, char *argv[])
 {
 
 #ifdef Q_OS_MAC
+#ifndef __ios__
     // Prevent Apple's app nap from screwing us over
     // tip: the domain can be cross-checked on the command line with <defaults domains>
     QProcess::execute("defaults write org.qgroundcontrol.qgroundcontrol NSAppSleepDisabled -bool YES");
+#endif
 #endif
 
     // install the message handler
@@ -101,8 +109,14 @@ int main(int argc, char *argv[])
     // that we use these types in signals, and without calling qRegisterMetaType we can't queue
     // these signals. In general we don't queue these signals, but we do what the warning says
     // anyway to silence the debug output.
+#ifndef __ios__
     qRegisterMetaType<QSerialPort::SerialPortError>();
+#endif
     qRegisterMetaType<QAbstractSocket::SocketError>();
+#ifndef __mobile__
+    qRegisterMetaType<QSerialPortInfo>();
+#endif
+    
     // We statically link to the google QtLocation plugin
 
 #ifdef Q_OS_WIN
@@ -158,7 +172,7 @@ int main(int argc, char *argv[])
 
     int exitCode;
 
-#ifndef __android__
+#ifndef __mobile__
 #ifdef QT_DEBUG
     if (runUnitTests) {
         if (!app->_initForUnitTests()) {

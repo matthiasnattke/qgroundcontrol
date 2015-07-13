@@ -51,6 +51,7 @@ class AutoPilotPlugin : public QObject
 
 public:
     AutoPilotPlugin(UASInterface* uas, QObject* parent);
+    ~AutoPilotPlugin();
     
 	/// true: plugin is ready for use, plugin should no longer be used
 	Q_PROPERTY(bool pluginReady READ pluginReady NOTIFY pluginReadyChanged)
@@ -60,6 +61,8 @@ public:
 
 	/// false: One or more vehicle components require setup
 	Q_PROPERTY(bool setupComplete READ setupComplete NOTIFY setupCompleteChanged)
+    
+    Q_PROPERTY(bool armed READ armed NOTIFY armedChanged)
 	
     /// Re-request the full set of parameters from the autopilot
 	Q_INVOKABLE void refreshAllParameters(void);
@@ -71,16 +74,16 @@ public:
 	Q_INVOKABLE void refreshParametersPrefix(int componentId, const QString& namePrefix);
     
 	/// Returns true if the specifed parameter exists from the default component
-	Q_INVOKABLE bool parameterExists(const QString& name);
+    Q_INVOKABLE bool parameterExists(int componentId, const QString& name);
 	
 	/// Returns all parameter names
 	/// FIXME: component id missing, generic to fact
 	QStringList parameterNames(void);
 	
 	/// Returns the specified parameter Fact from the default component
-	/// WARNING: Will assert if fact does not exists. If that possibility exists, check for existince first with
-	/// factExists.
-	Fact* getParameterFact(const QString& name);
+	/// WARNING: Returns a default Fact if parameter does not exists. If that possibility exists, check for existince first with
+	/// parameterExists.
+    Fact* getParameterFact(int componentId, const QString& name);
 	
 	/// Writes the parameter facts to the specified stream
 	void writeParametersToStream(QTextStream &stream);
@@ -110,6 +113,7 @@ public:
 	// Property accessors
 	bool pluginReady(void) { return _pluginReady; }
 	bool setupComplete(void);
+    bool armed(void);
 	
     UASInterface* uas(void) { return _uas; }
     
@@ -117,6 +121,7 @@ signals:
     void pluginReadyChanged(bool pluginReady);
 	void setupCompleteChanged(bool setupComplete);
     void parameterListProgress(float value);
+    void armedChanged(bool armed);
 	
 protected:
     /// All access to AutoPilotPugin objects is through getInstanceForAutoPilotPlugin

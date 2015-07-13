@@ -37,7 +37,7 @@ Item {
     Image {
         id: compass
         anchors.centerIn: parent
-        source: "/qml/compass.svg"
+        source: "/qmlimages/compass.svg"
         mipmap: true
         width: root.width
         fillMode: Image.PreserveAspectFit
@@ -51,15 +51,15 @@ Item {
         id: pointer
         anchors.bottom: compass.top
         anchors.horizontalCenter: root.horizontalCenter
-        source: "/qml/compassNeedle.svg"
+        source: "/qmlimages/compassNeedle.svg"
         smooth:   true
         width:    compass.width * 0.1
         fillMode: Image.PreserveAspectFit
     }
     Rectangle {
         anchors.centerIn: compass
-        width:  ScreenTools.pixelSizeFactor * (40)
-        height: ScreenTools.pixelSizeFactor * (25)
+        width:  ScreenTools.defaultFontPixelSize * (3.33)
+        height: ScreenTools.defaultFontPixelSize * (2.08)
         border.color: Qt.rgba(1,1,1,0.15)
         color: Qt.rgba(0,0,0,0.25)
         QGCLabel {

@@ -26,12 +26,12 @@ Button {
     Connections {
         target: __behavior
         onMouseXChanged: {
-            __lastGlobalMouseX = ScreenTools.mouseX
-            __lastGlobalMouseY = ScreenTools.mouseY
+            __lastGlobalMouseX = ScreenTools.mouseX()
+            __lastGlobalMouseY = ScreenTools.mouseY()
         }
         onMouseYChanged: {
-            __lastGlobalMouseX = ScreenTools.mouseX
-            __lastGlobalMouseY = ScreenTools.mouseY
+            __lastGlobalMouseX = ScreenTools.mouseX()
+            __lastGlobalMouseY = ScreenTools.mouseY()
         }
         onEntered: { __forceHoverOff; false; hoverTimer.start() }
         onExited: { __forceHoverOff; false; hoverTimer.stop() }
@@ -43,7 +43,7 @@ Button {
         repeat:     true
 
         onTriggered: {
-            if (__lastGlobalMouseX != ScreenTools.mouseX || __lastGlobalMouseY != ScreenTools.mouseY) {
+            if (__lastGlobalMouseX != ScreenTools.mouseX() || __lastGlobalMouseY != ScreenTools.mouseY()) {
                 __forceHoverOff = true
             } else {
                 __forceHoverOff = false
@@ -76,7 +76,7 @@ Button {
                 Image {
                     id: imageItem
                     visible: control.menu !== null
-                    source: "arrow-down.png"
+                    source: "/qmlimages/arrow-down.png"
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.right: parent.right
                     anchors.rightMargin: padding.right
@@ -104,7 +104,7 @@ Button {
                         id:             text
                         antialiasing:   true
                         text:           control.text
-                        font.pointSize: ScreenTools.defaultFontPointSize
+                        font.pixelSize: ScreenTools.defaultFontPixelSize
 
                         anchors.verticalCenter: parent.verticalCenter
 

@@ -40,7 +40,7 @@ AutoPilotPluginManager::AutoPilotPluginManager(QObject* parent) :
     
     // We need to track uas coming and going so that we can instantiate plugins for each uas
     connect(uasMgr, &UASManagerInterface::UASCreated, this, &AutoPilotPluginManager::_uasCreated);
-    connect(uasMgr, &UASManagerInterface::UASDeleted, this, &AutoPilotPluginManager::_uasDeleted);
+    connect(uasMgr, SIGNAL(UASDeleted(UASInterface*)), this, SLOT(_uasDeleted(UASInterface*)));
 }
 
 AutoPilotPluginManager::~AutoPilotPluginManager()
@@ -74,13 +74,13 @@ void AutoPilotPluginManager::_uasCreated(UASInterface* uas)
         case MAV_AUTOPILOT_PX4:
             plugin = new PX4AutoPilotPlugin(uas, this);
             Q_CHECK_PTR(plugin);
-            _pluginMap[MAV_AUTOPILOT_PX4][uasId] = plugin;
+            _pluginMap[MAV_AUTOPILOT_PX4][uasId] = QSharedPointer<AutoPilotPlugin>(plugin);
             break;
         case MAV_AUTOPILOT_GENERIC:
         default:
             plugin = new GenericAutoPilotPlugin(uas, this);
             Q_CHECK_PTR(plugin);
-            _pluginMap[MAV_AUTOPILOT_GENERIC][uasId] = plugin;
+            _pluginMap[MAV_AUTOPILOT_GENERIC][uasId] = QSharedPointer<AutoPilotPlugin>(plugin);
     }
 }
 
@@ -94,12 +94,12 @@ void AutoPilotPluginManager::_uasDeleted(UASInterface* uas)
     Q_ASSERT(uasId != 0);
     
     if (_pluginMap.contains(autopilotType) && _pluginMap[autopilotType].contains(uasId)) {
-        delete _pluginMap[autopilotType][uasId];
+        _pluginMap[autopilotType][uasId].clear();
         _pluginMap[autopilotType].remove(uasId);
     }
 }
 
-AutoPilotPlugin* AutoPilotPluginManager::getInstanceForAutoPilotPlugin(UASInterface* uas)
+QSharedPointer<AutoPilotPlugin> AutoPilotPluginManager::getInstanceForAutoPilotPlugin(UASInterface* uas)
 {
     Q_ASSERT(uas);
     
@@ -121,6 +121,17 @@ QList<AutoPilotPluginManager::FullMode_t> AutoPilotPluginManager::getModes(int a
         case MAV_AUTOPILOT_GENERIC:
         default:
             return GenericAutoPilotPlugin::getModes();
+    }
+}
+
+QString AutoPilotPluginManager::getAudioModeText(uint8_t baseMode, uint32_t customMode, int autopilotType) const
+{
+    switch (autopilotType) {
+        case MAV_AUTOPILOT_PX4:
+            return PX4AutoPilotPlugin::getAudioModeText(baseMode, customMode);
+        case MAV_AUTOPILOT_GENERIC:
+        default:
+            return GenericAutoPilotPlugin::getAudioModeText(baseMode, customMode);
     }
 }
 

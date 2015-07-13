@@ -191,13 +191,39 @@ QString QGCAudioWorker::_fixTextMessageForAudio(const QString& string) {
     QString match;
     QString newNumber;
     QString result = string;
-    //-- Look for modes
+    //-- Look for codified terms
+    if(result.contains("ERR ", Qt::CaseInsensitive)) {
+        result.replace("ERR ", "error ", Qt::CaseInsensitive);
+    }
+    if(result.contains("ERR:", Qt::CaseInsensitive)) {
+        result.replace("ERR:", "error.", Qt::CaseInsensitive);
+    }
     if(result.contains("POSCTL", Qt::CaseInsensitive)) {
         result.replace("POSCTL", "Position Control", Qt::CaseInsensitive);
-    } else if(result.contains("ALTCTL", Qt::CaseInsensitive)) {
+    }
+    if(result.contains("ALTCTL", Qt::CaseInsensitive)) {
         result.replace("ALTCTL", "Altitude Control", Qt::CaseInsensitive);
-    } else if(result.contains("RTL", Qt::CaseInsensitive)) {
+    }
+    if(result.contains("RTL", Qt::CaseInsensitive)) {
         result.replace("RTL", "Return To Land", Qt::CaseInsensitive);
+    }
+    if(result.contains("ACCEL ", Qt::CaseInsensitive)) {
+        result.replace("ACCEL ", "accelerometer ", Qt::CaseInsensitive);
+    }
+    if(result.contains("RC_MAP_MODE_SW", Qt::CaseInsensitive)) {
+        result.replace("RC_MAP_MODE_SW", "RC mode switch", Qt::CaseInsensitive);
+    }
+    if(result.contains("REJ.", Qt::CaseInsensitive)) {
+        result.replace("REJ.", "Rejected", Qt::CaseInsensitive);
+    }
+    if(result.contains("WP", Qt::CaseInsensitive)) {
+        result.replace("WP", "way point", Qt::CaseInsensitive);
+    }
+    if(result.contains("CMD", Qt::CaseInsensitive)) {
+        result.replace("CMD", "command", Qt::CaseInsensitive);
+    }
+    if(result.contains(" id ", Qt::CaseInsensitive)) {
+        result.replace(" id ", " eye dee ", Qt::CaseInsensitive);
     }
     int number;
     if(_getMillisecondString(string, match, number) && number > 1000) {
@@ -215,5 +241,6 @@ QString QGCAudioWorker::_fixTextMessageForAudio(const QString& string) {
         }
         result.replace(match, newNumber);
     }
+    // qDebug() << "Speech: " << result;
     return result;
 }

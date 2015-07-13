@@ -25,7 +25,6 @@
 ///     @author Don Gagne <don@thegagnes.com>
 
 #include "AutoPilotPlugin.h"
-#include "SetupView.h"
 #include "QGCApplication.h"
 #include "QGCMessageBox.h"
 #include "MainWindow.h"
@@ -40,7 +39,14 @@ AutoPilotPlugin::AutoPilotPlugin(UASInterface* uas, QObject* parent) :
     Q_ASSERT(_uas);
 	
 	connect(_uas, &UASInterface::disconnected, this, &AutoPilotPlugin::_uasDisconnected);
+    connect(_uas, &UASInterface::armingChanged, this, &AutoPilotPlugin::armedChanged);
+
 	connect(this, &AutoPilotPlugin::pluginReadyChanged, this, &AutoPilotPlugin::_pluginReadyChanged);
+}
+
+AutoPilotPlugin::~AutoPilotPlugin()
+{
+    
 }
 
 void AutoPilotPlugin::_uasDisconnected(void)
@@ -60,12 +66,6 @@ void AutoPilotPlugin::_pluginReadyChanged(bool pluginReady)
 			MainWindow* mainWindow = MainWindow::instance();
 			Q_ASSERT(mainWindow);
 			mainWindow->getMainToolBar()->onSetupView();
-			qgcApp()->processEvents(QEventLoop::ExcludeUserInputEvents);
-			QWidget* setupViewWidget = mainWindow->getCurrentViewWidget();
-			Q_ASSERT(setupViewWidget);
-			SetupView* setupView = qobject_cast<SetupView*>(setupViewWidget);
-			Q_ASSERT(setupView);
-			setupView->summaryButtonClicked();
 			qgcApp()->processEvents(QEventLoop::ExcludeUserInputEvents);
 		}
 	}
@@ -112,14 +112,14 @@ void AutoPilotPlugin::refreshParametersPrefix(int componentId, const QString& na
 	_getParameterLoader()->refreshParametersPrefix(componentId, namePrefix);
 }
 
-bool AutoPilotPlugin::parameterExists(const QString& name)
+bool AutoPilotPlugin::parameterExists(int componentId, const QString& name)
 {
-	return _getParameterLoader()->parameterExists(FactSystem::defaultComponentId, name);
+    return _getParameterLoader()->parameterExists(componentId, name);
 }
 
-Fact* AutoPilotPlugin::getParameterFact(const QString& name)
+Fact* AutoPilotPlugin::getParameterFact(int componentId, const QString& name)
 {
-	return _getParameterLoader()->getFact(FactSystem::defaultComponentId, name);
+    return _getParameterLoader()->getFact(componentId, name);
 }
 
 bool AutoPilotPlugin::factExists(FactSystem::Provider_t provider, int componentId, const QString& name)
@@ -166,4 +166,9 @@ void AutoPilotPlugin::writeParametersToStream(QTextStream &stream)
 void AutoPilotPlugin::readParametersFromStream(QTextStream &stream)
 {
 	_getParameterLoader()->readParametersFromStream(stream);
+}
+
+bool AutoPilotPlugin::armed(void)
+{
+    return _uas->isArmed();
 }

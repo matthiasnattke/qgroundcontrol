@@ -27,10 +27,12 @@ This file is part of the QGROUNDCONTROL project
  *   @author Gus Grubba <mavlink@grubba.com>
  */
 
+#include "UAS.h"
 #include "MainWindow.h"
 #include "UASManager.h"
 #include "Waypoint.h"
 #include "MavManager.h"
+#include "UASMessageHandler.h"
 
 #define UPDATE_TIMER 50
 #define DEFAULT_LAT  38.965767f
@@ -39,6 +41,12 @@ This file is part of the QGROUNDCONTROL project
 MavManager::MavManager(QObject *parent)
     : QObject(parent)
     , _mav(NULL)
+    , _currentMessageCount(0)
+    , _messageCount(0)
+    , _currentErrorCount(0)
+    , _currentWarningCount(0)
+    , _currentNormalCount(0)
+    , _currentMessageType(MessageNone)
     , _roll(0.0f)
     , _pitch(0.0f)
     , _heading(0.0f)
@@ -57,6 +65,7 @@ MavManager::MavManager(QObject *parent)
     , _refreshTimer(new QTimer(this))
     , _batteryVoltage(0.0)
     , _batteryPercent(0.0)
+    , _batteryConsumed(-1.0)
     , _systemArmed(false)
     , _currentHeartbeatTimeout(0)
     , _waypointDistance(0.0)
@@ -97,6 +106,8 @@ QString MavManager::loadSetting(const QString &name, const QString& defaultValue
 void MavManager::_forgetUAS(UASInterface* uas)
 {
     if (_mav != NULL && _mav == uas) {
+        // Stop listening for system messages
+        disconnect(UASMessageHandler::instance(), &UASMessageHandler::textMessageCountChanged,  this, &MavManager::_handleTextMessage);
         // Disconnect any previously connected active MAV
         disconnect(_mav, SIGNAL(attitudeChanged                     (UASInterface*, double,double,double,quint64)),             this, SLOT(_updateAttitude(UASInterface*, double, double, double, quint64)));
         disconnect(_mav, SIGNAL(attitudeChanged                     (UASInterface*, int,double,double,double,quint64)),         this, SLOT(_updateAttitude(UASInterface*,int,double, double, double, quint64)));
@@ -108,6 +119,7 @@ void MavManager::_forgetUAS(UASInterface* uas)
         disconnect(_mav, &UASInterface::NavigationControllerDataChanged, this, &MavManager::_updateNavigationControllerData);
         disconnect(_mav, &UASInterface::heartbeatTimeout,                this, &MavManager::_heartbeatTimeout);
         disconnect(_mav, &UASInterface::batteryChanged,                  this, &MavManager::_updateBatteryRemaining);
+        disconnect(_mav, &UASInterface::batteryConsumedChanged,          this, &MavManager::_updateBatteryConsumedChanged);
         disconnect(_mav, &UASInterface::modeChanged,                     this, &MavManager::_updateMode);
         disconnect(_mav, &UASInterface::nameChanged,                     this, &MavManager::_updateName);
         disconnect(_mav, &UASInterface::systemTypeSet,                   this, &MavManager::_setSystemType);
@@ -146,6 +158,8 @@ void MavManager::_setActiveUAS(UASInterface* uas)
         emit heartbeatTimeoutChanged();
         // Set new UAS
         _mav = uas;
+        // Listen for system messages
+        connect(UASMessageHandler::instance(), &UASMessageHandler::textMessageCountChanged, this, &MavManager::_handleTextMessage);
         // Now connect the new UAS
         connect(_mav, SIGNAL(attitudeChanged                    (UASInterface*,double,double,double,quint64)),              this, SLOT(_updateAttitude(UASInterface*, double, double, double, quint64)));
         connect(_mav, SIGNAL(attitudeChanged                    (UASInterface*,int,double,double,double,quint64)),          this, SLOT(_updateAttitude(UASInterface*,int,double, double, double, quint64)));
@@ -157,6 +171,7 @@ void MavManager::_setActiveUAS(UASInterface* uas)
         connect(_mav, &UASInterface::NavigationControllerDataChanged,   this, &MavManager::_updateNavigationControllerData);
         connect(_mav, &UASInterface::heartbeatTimeout,                  this, &MavManager::_heartbeatTimeout);
         connect(_mav, &UASInterface::batteryChanged,                    this, &MavManager::_updateBatteryRemaining);
+        connect(_mav, &UASInterface::batteryConsumedChanged,            this, &MavManager::_updateBatteryConsumedChanged);
         connect(_mav, &UASInterface::modeChanged,                       this, &MavManager::_updateMode);
         connect(_mav, &UASInterface::nameChanged,                       this, &MavManager::_updateName);
         connect(_mav, &UASInterface::systemTypeSet,                     this, &MavManager::_setSystemType);
@@ -437,6 +452,15 @@ void MavManager::_updateBatteryRemaining(UASInterface*, double voltage, double, 
     }
 }
 
+void MavManager::_updateBatteryConsumedChanged(UASInterface*, double current_consumed)
+{
+    if(_batteryConsumed != current_consumed) {
+        _batteryConsumed = current_consumed;
+        emit batteryConsumedChanged();
+    }
+}
+
+
 void MavManager::_updateState(UASInterface*, QString name, QString)
 {
     if (_currentState != name) {
@@ -622,5 +646,89 @@ void MavManager::_waypointViewOnlyListChanged()
             emit latitudeChanged();
         }
         */
+    }
+}
+
+void MavManager::_handleTextMessage(int newCount)
+{
+    // Reset?
+    if(!newCount) {
+        _currentMessageCount = 0;
+        _currentNormalCount  = 0;
+        _currentWarningCount = 0;
+        _currentErrorCount   = 0;
+        _messageCount        = 0;
+        _currentMessageType  = MessageNone;
+        emit newMessageCountChanged();
+        emit messageTypeChanged();
+        emit messageCountChanged();
+        return;
+    }
+
+    UASMessageHandler* pMh = UASMessageHandler::instance();
+    Q_ASSERT(pMh);
+    MessageType_t type = newCount ? _currentMessageType : MessageNone;
+    int errorCount     = _currentErrorCount;
+    int warnCount      = _currentWarningCount;
+    int normalCount    = _currentNormalCount;
+    //-- Add current message counts
+    errorCount  += pMh->getErrorCount();
+    warnCount   += pMh->getWarningCount();
+    normalCount += pMh->getNormalCount();
+    //-- See if we have a higher level
+    if(errorCount != _currentErrorCount) {
+        _currentErrorCount = errorCount;
+        type = MessageError;
+    }
+    if(warnCount != _currentWarningCount) {
+        _currentWarningCount = warnCount;
+        if(_currentMessageType != MessageError) {
+            type = MessageWarning;
+        }
+    }
+    if(normalCount != _currentNormalCount) {
+        _currentNormalCount = normalCount;
+        if(_currentMessageType != MessageError && _currentMessageType != MessageWarning) {
+            type = MessageNormal;
+        }
+    }
+    int count = _currentErrorCount + _currentWarningCount + _currentNormalCount;
+    if(count != _currentMessageCount) {
+        _currentMessageCount = count;
+        // Display current total new messages count
+        emit newMessageCountChanged();
+    }
+    if(type != _currentMessageType) {
+        _currentMessageType = type;
+        // Update message level
+        emit messageTypeChanged();
+    }
+    // Update message count (all messages)
+    if(newCount != _messageCount) {
+        _messageCount = newCount;
+        emit messageCountChanged();
+    }
+    QString errMsg = pMh->getLatestError();
+    if(errMsg != _latestError) {
+        _latestError = errMsg;
+        emit latestErrorChanged();
+    }
+}
+
+void MavManager::resetMessages()
+{
+    // Reset Counts
+    int count = _currentMessageCount;
+    MessageType_t type = _currentMessageType;
+    _currentErrorCount   = 0;
+    _currentWarningCount = 0;
+    _currentNormalCount  = 0;
+    _currentMessageCount = 0;
+    _currentMessageType = MessageNone;
+    if(count != _currentMessageCount) {
+        emit newMessageCountChanged();
+    }
+    if(type != _currentMessageType) {
+        emit messageTypeChanged();
     }
 }
