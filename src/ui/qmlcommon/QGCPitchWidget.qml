@@ -40,10 +40,10 @@ Rectangle {
     property real _reticleSlot:     _reticleSpacing + _reticleHeight
     property real _longDash:        size * 0.40
     property real _shortDash:       size * 0.25
-    property real _fontSize:        ScreenTools.fontPointFactor * (11);
+    property real _fontSize:        ScreenTools.defaultFontPixelSize
     height: size * 0.9
     width:  size
-    radius: ScreenTools.pixelSizeFactor * (8)
+    radius: ScreenTools.defaultFontPixelSize * (0.66)
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.verticalCenter:   parent.verticalCenter
     clip: true
@@ -70,7 +70,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         smooth: true
                         font.weight: Font.DemiBold
-                        font.pointSize: _fontSize < 1 ? 1 : _fontSize;
+                        font.pixelSize: _fontSize < 1 ? 1 : _fontSize;
                         text: _pitch
                         color: "white"
                         visible: (_pitch != 0) && ((_pitch % 10) === 0)
@@ -81,7 +81,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         smooth: true
                         font.weight: Font.DemiBold
-                        font.pointSize: _fontSize < 1 ? 1 : _fontSize;
+                        font.pixelSize: _fontSize < 1 ? 1 : _fontSize;
                         text: _pitch
                         color: "white"
                         visible: (_pitch != 0) && ((_pitch % 10) === 0)

@@ -34,21 +34,22 @@ import QGroundControl.ScreenTools 1.0
 import QGroundControl.FactSystem 1.0
 import QGroundControl.FactControls 1.0
 
-Item {
+FactPanel {
     id: __rootItem
 
-    property Component viewComponent
+    property var qgcView:               __rootItem  /// Used by Fact controls for validation dialogs
+    property bool completedSignalled:   false
+
+    property var viewPanel
 
     /// This is signalled when the top level Item reaches Component.onCompleted. This allows
     /// the view subcomponent to connect to this signal and do work once the full ui is ready
     /// to go.
     signal completed
 
-    function __showDialog(component, title, charWidth, buttons) {
+    function __setupDialogButtons(buttons) {
         __acceptButton.visible = false
         __rejectButton.visible = false
-        __dialogCharWidth = charWidth
-        __dialogTitle = title
 
         // Accept role buttons
         if (buttons & StandardButton.Ok) {
@@ -106,23 +107,69 @@ Item {
             __rejectButton.text = "Abort"
             __rejectButton.visible = true
         }
-
-        __dialogComponent = component
-        __viewPanel.enabled = false
-        __dialogOverlay.visible = true
     }
 
-    function __hideDialog() {
-        __dialogComponent = null
-        __viewPanel.enabled = true
-        __dialogOverlay.visible = false
+    function __stopAllAnimations() {
+        if (__animateHideDialog.running) {
+            __animateHideDialog.stop()
+        }
+    }
+
+    function __checkForEarlyDialog() {
+        if (!completedSignalled) {
+            console.warn("showDialog|Message called before QGCView.completed signalled")
+        }
+    }
+
+    function showDialog(component, title, charWidth, buttons) {
+        if (__checkForEarlyDialog()) {
+            return
+        }
+
+        __stopAllAnimations()
+
+        __dialogCharWidth = charWidth
+        __dialogTitle = title
+
+        __setupDialogButtons(buttons)
+
+        __dialogComponent = component
+        viewPanel.enabled = false
+        __dialogOverlay.visible = true
+
+        __animateShowDialog.start()
+    }
+
+    function showMessage(title, message, buttons) {
+        if (__checkForEarlyDialog()) {
+            return
+        }
+
+        __stopAllAnimations()
+
+        __dialogCharWidth = 50
+        __dialogTitle = title
+        __messageDialogText = message
+
+        __setupDialogButtons(buttons)
+
+        __dialogComponent = __messageDialog
+        viewPanel.enabled = false
+        __dialogOverlay.visible = true
+
+        __animateShowDialog.start()
+    }
+
+    function hideDialog() {
+        viewPanel.enabled = true
+        __animateHideDialog.start()
     }
 
     QGCPalette { id: __qgcPal; colorGroupEnabled: true }
     QGCLabel { id: __textMeasure; text: "X"; visible: false }
 
-    property real __textHeight: __textMeasure.contentHeight
-    property real __textWidth:  __textMeasure.contentWidth
+    property real defaultTextHeight: __textMeasure.contentHeight
+    property real defaultTextWidth:  __textMeasure.contentWidth
 
     /// The width of the dialog panel in characters
     property int __dialogCharWidth: 75
@@ -130,28 +177,28 @@ Item {
     /// The title for the dialog panel
     property string __dialogTitle
 
+    property string __messageDialogText
+
     property Component __dialogComponent
 
-    Component.onCompleted: completed()
-
-    Connections {
-        target: __viewPanel.item
-
-        onShowDialog: __showDialog(component, title, charWidth, buttons)
-        onHideDialog: __hideDialog()
+    function __signalCompleted() {
+        // When we use this control inside a QGCQmlWidgetHolder Component.onCompleted is signalled
+        // before the width and height are adjusted. So we need to wait for width and heigth to be
+        // set before we signal our own completed signal.
+        if (!completedSignalled && width != 0 && height != 0) {
+            completedSignalled = true
+            completed()
+        }
     }
+
+    Component.onCompleted:  __signalCompleted()
+    onWidthChanged:         __signalCompleted()
+    onHeightChanged:        __signalCompleted()
 
     Connections {
         target: __dialogComponentLoader.item
 
-        onHideDialog: __hideDialog()
-    }
-
-    Loader {
-        id:                 __viewPanel
-        anchors.fill:       parent
-        focus:              true
-        sourceComponent:    viewComponent
+        onHideDialog: __rootItem.hideDialog()
     }
 
     Item {
@@ -160,22 +207,73 @@ Item {
         anchors.fill:   parent
         z:              5000
 
+        readonly property int __animationDuration: 200
+
+        ParallelAnimation {
+            id: __animateShowDialog
+
+
+            NumberAnimation {
+                target:     __transparentSection
+                properties: "opacity"
+                from:       0.0
+                to:         0.8
+                duration:   __dialogOverlay.__animationDuration
+            }
+
+            NumberAnimation {
+                target:     __transparentSection
+                properties: "width"
+                from:       __dialogOverlay.width
+                to:         __dialogOverlay.width - __dialogPanel.width
+                duration:   __dialogOverlay.__animationDuration
+            }
+        }
+
+        ParallelAnimation {
+            id: __animateHideDialog
+
+            NumberAnimation {
+                target:     __transparentSection
+                properties: "opacity"
+                from:       0.8
+                to:         0.0
+                duration:   __dialogOverlay.__animationDuration
+            }
+
+            NumberAnimation {
+                target:     __transparentSection
+                properties: "width"
+                from:       __dialogOverlay.width - __dialogPanel.width
+                to:         __dialogOverlay.width
+                duration:   __dialogOverlay.__animationDuration
+            }
+
+            onRunningChanged: {
+                if (!running) {
+                    __dialogComponent = null
+                    __dialogOverlay.visible = false
+                }
+            }
+        }
+
         // This covers the parent with an transparent section
         Rectangle {
+            id:             __transparentSection
             anchors.top:    parent.top
             anchors.bottom: parent.bottom
             anchors.left:   parent.left
-            anchors.right:  __dialogPanel.left
-            opacity:        0.80
+            width:          parent.width
+            opacity:        0.0
             color:          __qgcPal.window
         }
 
         // This is the main dialog panel which is anchored to the right edge
         Rectangle {
             id:             __dialogPanel
-            width:          __dialogCharWidth == -1 ? parent.width : __textWidth * __dialogCharWidth
+            width:          __dialogCharWidth == -1 ? parent.width : defaultTextWidth * __dialogCharWidth
             height:         parent.height
-            anchors.right:  parent.right
+            anchors.left:   __transparentSection.right
             color:          __qgcPal.windowShadeDark
 
             Rectangle {
@@ -189,7 +287,7 @@ Item {
                 }
 
                 QGCLabel {
-                    x:                  __textWidth
+                    x:                  defaultTextWidth
                     height:             parent.height
                     verticalAlignment:	Text.AlignVCenter
                     text:               __dialogTitle
@@ -230,4 +328,12 @@ Item {
             }
         } // Rectangle - Dialog panel
     } // Item - Dialog overlay
+
+    Component {
+        id: __messageDialog
+
+        QGCViewMessage {
+            message: __messageDialogText
+        }
+    }
 }

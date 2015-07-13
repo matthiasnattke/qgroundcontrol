@@ -13,7 +13,7 @@ Button {
     text: "Button"
     property bool setupComplete: true
     property bool setupIndicator: true
-    property string imageResource: "subMenuButtonImage.png"
+    property string imageResource: "/qmlimages/subMenuButtonImage.png"
 
     style: ButtonStyle {
         id: buttonStyle
@@ -40,7 +40,7 @@ Button {
                 horizontalAlignment: TextEdit.AlignHCenter
 
                 text: control.text
-                font.pointSize: ScreenTools.defaultFontPointSize
+                font.pixelSize: ScreenTools.defaultFontPixelSize
                 antialiasing: true
                 color: __showHighlight ? __qgcPal.buttonHighlightText : __qgcPal.buttonText
 
@@ -49,7 +49,7 @@ Button {
 
                     readonly property real indicatorRadius: 4
 
-                    x: parent.width - (indicatorRadius * 2) - 5
+                    x: parent.width - (indicatorRadius * 2) - 3
                     y: (parent.height - (indicatorRadius * 2)) / 2
                     width: indicatorRadius * 2
                     height: indicatorRadius * 2

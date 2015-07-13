@@ -46,6 +46,13 @@ public:
     explicit MavManager(QObject *parent = 0);
     ~MavManager();
 
+    typedef enum {
+        MessageNone,
+        MessageNormal,
+        MessageWarning,
+        MessageError
+    } MessageType_t;
+
     enum {
         ROLL_CHANGED,
         PITCH_CHANGED,
@@ -58,10 +65,19 @@ public:
         ALTITUDEAMSL_CHANGED
     };
 
+    // Called when the message drop-down is invoked to clear current count
+    void resetMessages();
+
     Q_INVOKABLE QString     getMavIconColor();
     Q_INVOKABLE void        saveSetting (const QString &key, const QString& value);
     Q_INVOKABLE QString     loadSetting (const QString &key, const QString& defaultValue);
 
+    //-- System Messages
+    Q_PROPERTY(MessageType_t messageType        READ messageType        NOTIFY messageTypeChanged)
+    Q_PROPERTY(int          newMessageCount     READ newMessageCount    NOTIFY newMessageCountChanged)
+    Q_PROPERTY(int          messageCount        READ messageCount       NOTIFY messageCountChanged)
+    Q_PROPERTY(QString      latestError         READ latestError        NOTIFY latestErrorChanged)
+    //-- UAV Stats
     Q_PROPERTY(float        roll                READ roll               NOTIFY rollChanged)
     Q_PROPERTY(float        pitch               READ pitch              NOTIFY pitchChanged)
     Q_PROPERTY(float        heading             READ heading            NOTIFY headingChanged)
@@ -76,6 +92,7 @@ public:
     Q_PROPERTY(bool         mavPresent          READ mavPresent         NOTIFY mavPresentChanged)
     Q_PROPERTY(double       batteryVoltage      READ batteryVoltage     NOTIFY batteryVoltageChanged)
     Q_PROPERTY(double       batteryPercent      READ batteryPercent     NOTIFY batteryPercentChanged)
+    Q_PROPERTY(double       batteryConsumed     READ batteryConsumed    NOTIFY batteryConsumedChanged)
     Q_PROPERTY(bool         systemArmed         READ systemArmed        NOTIFY systemArmedChanged)
     Q_PROPERTY(QString      currentMode         READ currentMode        NOTIFY currentModeChanged)
     Q_PROPERTY(QString      systemPixmap        READ systemPixmap       NOTIFY systemPixmapChanged)
@@ -86,8 +103,13 @@ public:
     Q_PROPERTY(double       waypointDistance    READ waypointDistance   NOTIFY waypointDistanceChanged)
     Q_PROPERTY(uint16_t     currentWaypoint     READ currentWaypoint    NOTIFY currentWaypointChanged)
     Q_PROPERTY(unsigned int heartbeatTimeout    READ heartbeatTimeout   NOTIFY heartbeatTimeoutChanged)
+    //-- Waypoint management
     Q_PROPERTY(QQmlListProperty<Waypoint> waypoints READ waypoints NOTIFY waypointsChanged)
 
+    MessageType_t   messageType         () { return _currentMessageType; }
+    int             newMessageCount     () { return _currentMessageCount; }
+    int             messageCount        () { return _messageCount; }
+    QString         latestError         () { return _latestError; }
     float           roll                () { return _roll; }
     float           pitch               () { return _pitch; }
     float           heading             () { return _heading; }
@@ -103,6 +125,7 @@ public:
     int             satelliteCount      () { return _satelliteCount; }
     double          batteryVoltage      () { return _batteryVoltage; }
     double          batteryPercent      () { return _batteryPercent; }
+    double          batteryConsumed     () { return _batteryConsumed; }
     bool            systemArmed         () { return _systemArmed; }
     QString         currentMode         () { return _currentMode; }
     QString         systemPixmap        () { return _systemPixmap; }
@@ -116,6 +139,10 @@ public:
     QQmlListProperty<Waypoint> waypoints() {return QQmlListProperty<Waypoint>(this, _waypoints); }
 
 signals:
+    void messageTypeChanged     ();
+    void newMessageCountChanged ();
+    void messageCountChanged    ();
+    void latestErrorChanged     ();
     void rollChanged            ();
     void pitchChanged           ();
     void headingChanged         ();
@@ -130,6 +157,7 @@ signals:
     void mavPresentChanged      ();
     void batteryVoltageChanged  ();
     void batteryPercentChanged  ();
+    void batteryConsumedChanged ();
     void systemArmedChanged     ();
     void heartbeatTimeoutChanged();
     void currentModeChanged     ();
@@ -144,6 +172,7 @@ signals:
     void waypointsChanged       ();
 
 private slots:
+    void _handleTextMessage                 (int newCount);
     /** @brief Attitude from main autopilot / system state */
     void _updateAttitude                    (UASInterface* uas, double roll, double pitch, double yaw, quint64 timestamp);
     /** @brief Attitude from one specific component / redundant autopilot */
@@ -158,6 +187,7 @@ private slots:
     void _setActiveUAS                      (UASInterface* uas);
     void _checkUpdate                       ();
     void _updateBatteryRemaining            (UASInterface*, double voltage, double, double percent, int);
+    void _updateBatteryConsumedChanged      (UASInterface*, double current_consumed);
     void _updateArmingState                 (bool armed);
     void _updateState                       (UASInterface* system, QString name, QString description);
     void _updateMode                        (int system, QString name, QString description);
@@ -178,6 +208,13 @@ private:
 
 private:
     UASInterface*   _mav;
+    int             _currentMessageCount;
+    int             _messageCount;
+    int             _currentErrorCount;
+    int             _currentWarningCount;
+    int             _currentNormalCount;
+    MessageType_t   _currentMessageType;
+    QString         _latestError;
     float           _roll;
     float           _pitch;
     float           _heading;
@@ -197,6 +234,7 @@ private:
     QList<int>      _changes;
     double          _batteryVoltage;
     double          _batteryPercent;
+    double          _batteryConsumed;
     bool            _systemArmed;
     QString         _currentState;
     QString         _currentMode;

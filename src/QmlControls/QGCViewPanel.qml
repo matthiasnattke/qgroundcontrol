@@ -30,11 +30,9 @@ import QtQuick.Controls 1.3
 import QGroundControl.Palette 1.0
 import QGroundControl.Controls 1.0
 
-Rectangle {
-    QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
+import QGroundControl.FactSystem 1.0
+import QGroundControl.FactControls 1.0
 
-    signal showDialog(Component component, string title, int charWidth, int buttons)
-    signal hideDialog
+FactPanel {
 
-    color: qgcPal.window
 }

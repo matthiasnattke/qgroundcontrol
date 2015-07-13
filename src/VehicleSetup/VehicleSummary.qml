@@ -45,8 +45,8 @@ Rectangle {
         anchors.fill: parent
 
         QGCLabel {
-            text: "VEHICLE SUMMARY"
-            font.pointSize: ScreenTools.fontPointFactor * (20);
+            text:           "VEHICLE SUMMARY"
+            font.pixelSize: ScreenTools.largeFontPixelSize
         }
 
         Item {
@@ -58,13 +58,13 @@ Rectangle {
         QGCLabel {
             width:			parent.width
 			wrapMode:		Text.WordWrap
-			color:			autopilot.setupComplete ? qgcPal.text : "red"
-            font.pointSize: autopilot.setupComplete ? ScreenTools.defaultFontPointSize : ScreenTools.fontPointFactor * (20)
-			text: autopilot.setupComplete ?
-						"Below you will find a summary of the settings for your vehicle. To the left are the setup buttons for deatiled settings for each component." :
-						"WARNING: One or more of your vehicle's components require setup prior to flight. It will be shown with a red circular indicator below. " +
-							"Find the matching setup button to the left and click it to get to the setup screen you need to complete. " +
-							"Once all indicators go green you will be ready to fly."
+			color:			setupComplete ? qgcPal.text : "red"
+            font.pixelSize: setupComplete ? ScreenTools.defaultFontPixelSize : ScreenTools.mediumFontPixelSize
+			text:           setupComplete ?
+                                "Below you will find a summary of the settings for your vehicle. To the left are the setup menus for each component." :
+                                "WARNING: Your vehicle requires setup prior to flight. Please resolve the items marked in red using the menu on the left."
+
+            property bool setupComplete: autopilot && autopilot.setupComplete
         }
 
         Item {
@@ -78,7 +78,7 @@ Rectangle {
             spacing: 10
 
             Repeater {
-                model: autopilot.vehicleComponents
+                model: autopilot ? autopilot.vehicleComponents : 0
 
                 // Outer summary item rectangle
                 Rectangle {

@@ -34,12 +34,13 @@ import QGroundControl.ScreenTools 1.0
 
 Item {
     Loader {
-        property FlightModesComponentController controller: FlightModesComponentController { }
+        id:                 loader
+        anchors.fill:       parent
+        sourceComponent:    controller.validConfiguration ? validComponent : invalidComponent
+
+        property FlightModesComponentController controller: FlightModesComponentController { factPanel: loader.item }
         property QGCPalette qgcPal: QGCPalette { colorGroupEnabled: true }
         property bool loading: true
-
-        anchors.fill: parent
-        sourceComponent: controller.validConfiguration ? validComponent : invalidComponent
 
         onLoaded: loading = false
     }
@@ -47,29 +48,31 @@ Item {
     Component {
         id: validComponent
 
-        Rectangle {
-            Fact { id: rc_map_throttle;     name: "RC_MAP_THROTTLE" }
-            Fact { id: rc_map_yaw;          name: "RC_MAP_YAW" }
-            Fact { id: rc_map_pitch;        name: "RC_MAP_PITCH" }
-            Fact { id: rc_map_roll;         name: "RC_MAP_ROLL" }
-            Fact { id: rc_map_flaps;        name: "RC_MAP_FLAPS" }
-            Fact { id: rc_map_aux1;         name: "RC_MAP_AUX1" }
-            Fact { id: rc_map_aux2;         name: "RC_MAP_AUX2" }
+        FactPanel {
+            property Fact rc_map_throttle:      controller.getParameterFact(-1, "RC_MAP_THROTTLE")
+            property Fact rc_map_yaw:           controller.getParameterFact(-1, "RC_MAP_YAW")
+            property Fact rc_map_pitch:         controller.getParameterFact(-1, "RC_MAP_PITCH")
+            property Fact rc_map_roll:          controller.getParameterFact(-1, "RC_MAP_ROLL")
+            property Fact rc_map_flaps:         controller.getParameterFact(-1, "RC_MAP_FLAPS")
+            property Fact rc_map_aux1:          controller.getParameterFact(-1, "RC_MAP_AUX1")
+            property Fact rc_map_aux2:          controller.getParameterFact(-1, "RC_MAP_AUX2")
 
-            Fact { id: rc_map_mode_sw;      name: "RC_MAP_MODE_SW" }
-            Fact { id: rc_map_posctl_sw;    name: "RC_MAP_POSCTL_SW" }
-            Fact { id: rc_map_return_sw;    name: "RC_MAP_RETURN_SW" }
-            Fact { id: rc_map_offboard_sw;  name: "RC_MAP_OFFB_SW" }
-            Fact { id: rc_map_loiter_sw;    name: "RC_MAP_LOITER_SW" }
+            property Fact rc_map_mode_sw:       controller.getParameterFact(-1, "RC_MAP_MODE_SW")
+            property Fact rc_map_posctl_sw:     controller.getParameterFact(-1, "RC_MAP_POSCTL_SW")
+            property Fact rc_map_return_sw:     controller.getParameterFact(-1, "RC_MAP_RETURN_SW")
+            property Fact rc_map_offboard_sw:   controller.getParameterFact(-1, "RC_MAP_OFFB_SW")
+            property Fact rc_map_loiter_sw:     controller.getParameterFact(-1, "RC_MAP_LOITER_SW")
+            property Fact rc_map_acro_sw:       controller.getParameterFact(-1, "RC_MAP_ACRO_SW")
 
-            Fact { id: rc_assist_th;        name: "RC_ASSIST_TH" }
-            Fact { id: rc_posctl_th;        name: "RC_POSCTL_TH" }
-            Fact { id: rc_auto_th;          name: "RC_AUTO_TH" }
-            Fact { id: rc_loiter_th;        name: "RC_LOITER_TH" }
-            Fact { id: rc_return_th;        name: "RC_RETURN_TH" }
-            Fact { id: rc_offboard_th;      name: "RC_OFFB_TH" }
+            property Fact rc_assist_th:         controller.getParameterFact(-1, "RC_ASSIST_TH")
+            property Fact rc_posctl_th:         controller.getParameterFact(-1, "RC_POSCTL_TH")
+            property Fact rc_auto_th:           controller.getParameterFact(-1, "RC_AUTO_TH")
+            property Fact rc_loiter_th:         controller.getParameterFact(-1, "RC_LOITER_TH")
+            property Fact rc_return_th:         controller.getParameterFact(-1, "RC_RETURN_TH")
+            property Fact rc_offboard_th:       controller.getParameterFact(-1, "RC_OFFB_TH")
+            property Fact rc_acro_th:           controller.getParameterFact(-1, "RC_ACRO_TH")
 
-            Fact { id: rc_th_user;          name: "RC_TH_USER" }
+            property Fact rc_th_user:           controller.getParameterFact(-1, "RC_TH_USER")
 
             property int throttleChannel:   rc_map_throttle.value
             property int yawChannel:        rc_map_yaw.value
@@ -84,6 +87,7 @@ Item {
             property int returnChannel:     rc_map_return_sw.value
             property int offboardChannel:   rc_map_offboard_sw.value
             property int loiterChannel:     rc_map_loiter_sw.value
+            property int acroChannel:       rc_map_acro_sw.value
 
             property real rcThUserValue: rc_th_user.value
 
@@ -97,9 +101,6 @@ Item {
             readonly property int progressBarHeight: 200
 
             anchors.fill: parent
-
-
-            color: qgcPal.window
 
             Component {
                 id: dragHandle
@@ -136,7 +137,7 @@ Item {
                 id: unassignedModeTileComponent
 
                 Rectangle {
-                    Fact { id: fact; name: tileParam }
+                    property Fact fact: controller.getParameterFact(-1, tileParam)
                     property bool dragEnabled: fact.value == 0
 
                     id:             outerRect
@@ -222,7 +223,8 @@ Item {
                 id: assignedModeTileComponent
 
                 Rectangle {
-                    Fact { id: fact; name: tileDragEnabled ? tileParam : "" }
+                    Fact{ id: nullFact }
+                    property Fact fact: tileDragEnabled ? controller.getParameterFact(-1, tileParam) : nullFact
 
                     width:          tileWidth
                     height:         tileHeight
@@ -278,6 +280,7 @@ Item {
             onOffboardChannelChanged: if (!inRedistribution) redistributeThresholds()
             onLoiterChannelChanged: if (!inRedistribution) redistributeThresholds()
             onPosCtlChannelChanged: if (!inRedistribution) redistributeThresholds()
+            onAcroChannelChanged: if (!inRedistribution) redistributeThresholds()
             onRcThUserValue: if (!inRedistribution) redistributeThresholds()
 
             function redistributeThresholds() {
@@ -291,9 +294,11 @@ Item {
 
                     var loiterOnModeSwitch = modeChannel == loiterChannel
                     var posCtlOnModeSwitch = modeChannel == posCtlChannel
+                    var acroOnModeSwitch = modeChannel == acroChannel
 
                     positions += loiterOnModeSwitch ? 1 : 0
                     positions += posCtlOnModeSwitch ? 1 : 0
+                    positions += acroOnModeSwitch ? 1 : 0
 
                     var increment = 1.0 / positions
                     var currentThreshold = 0.0
@@ -301,12 +306,18 @@ Item {
                     // Make sure we don't re-enter
                     inRedistribution = true
 
+                    if (acroOnModeSwitch) {
+                        currentThreshold += increment
+                        rc_acro_th.value = currentThreshold
+                    }
+
                     currentThreshold += increment
                     rc_assist_th.value = currentThreshold
                     if (posCtlOnModeSwitch) {
                         currentThreshold += increment
                         rc_posctl_th.value = currentThreshold
                     }
+
                     currentThreshold += increment
                     rc_auto_th.value = currentThreshold
                     if (loiterOnModeSwitch) {
@@ -356,6 +367,16 @@ Item {
 
                     inRedistribution = false
                 }
+
+                if (acroChannel != 0 & acroChannel != modeChannel) {
+                    inRedistribution = true
+
+                    // If only two positions don't set threshold at midrange. Setting to 0.25
+                    // allows for this channel to work with either two or three position switch
+                    rc_acro_th.value = 0.25
+
+                    inRedistribution = false
+                }
             }
 
             Column {
@@ -363,14 +384,14 @@ Item {
 
                 QGCLabel {
                     text: "FLIGHT MODES CONFIG"
-                    font.pointSize: ScreenTools.fontPointFactor * (20);
+                    font.pixelSize: ScreenTools.largeFontPixelSize
                 }
 
                 Item { height: 20; width: 10 } // spacer
 
                 QGCLabel {
                     width: parent.width
-                    text: "The Main Mode, Loiter and PostCtl switches can be assigned to any channel which is not currently being used for attitude control. The Return and Offboard switches must be assigned to their seperate channel. " +
+                    text: "The Main Mode, Loiter, PostCtl and Acro switches can be assigned to any channel which is not currently being used for attitude control. The Return and Offboard switches must be assigned to their seperate channel. " +
                             "All channels are displayed below. " +
                             "You can drag Flight Modes from the Flight Modes section below to a channel and drop it there. You can also drag switches assigned to a channel " +
                             "to another channel or back to the Unassigned Switches section. The Switch Display section at the very bottom will show you the results of your Flight Mode setup."
@@ -404,9 +425,10 @@ Item {
                             property bool returnMapped:     channel == returnChannel
                             property bool offboardMapped:   channel == offboardChannel
                             property bool loiterMapped:     channel == loiterChannel
+                            property bool acroMapped:       channel == acroChannel
 
                             property bool nonFlightModeMapping: throttleMapped | yawMapped | pitchMapped | rollMapped | flapsMapped | aux1Mapped | aux2Mapped
-                            property bool unassignedMapping: !(nonFlightModeMapping | modeMapped | posCtlMapped | returnMapped | offboardMapped | loiterMapped)
+                            property bool unassignedMapping: !(nonFlightModeMapping | modeMapped | posCtlMapped | returnMapped | offboardMapped | loiterMapped | acroMapped)
                             property bool singleSwitchMapping: returnMapped | offboardMapped
 
                             id:     channelTarget
@@ -555,6 +577,16 @@ Item {
                                     visible:            posCtlMapped
                                     sourceComponent:    assignedModeTileComponent
                                 }
+                                Loader {
+                                    property string tileLabel:          "Acro/Stabilize"
+                                    property bool tileVisible:          visible
+                                    property bool tileDragEnabled:      true
+                                    property string tileParam:          "RC_MAP_ACRO_SW"
+                                    property bool singleSwitchRequired: false
+
+                                    visible:            acroMapped
+                                    sourceComponent:    assignedModeTileComponent
+                                }
                             }
 
                             DropArea {
@@ -609,6 +641,12 @@ Item {
                         sourceComponent:                    unassignedModeTileComponent
                     }
                     Loader {
+                        property string tileLabel:          "Acro/Stabilize"
+                        property string tileParam:          "RC_MAP_ACRO_SW"
+                        property bool singleSwitchRequired: false
+                        sourceComponent:                    unassignedModeTileComponent
+                    }
+                    Loader {
                         property string tileLabel:          "Return"
                         property string tileParam:          "RC_MAP_RETURN_SW"
                         property bool singleSwitchRequired: true
@@ -625,10 +663,10 @@ Item {
                 Item { height: 20; width: 10 } // spacer
 
                 FactCheckBox {
-                    checkedValue: 0
+                    checkedValue:   0
                     uncheckedValue: 1
-                    fact: rc_th_user
-                    text: "Allow setup to generate the thresholds for the flight mode positions within a switch (recommended)"
+                    fact:           rc_th_user
+                    text:           "Allow setup to generate the thresholds for the flight mode positions within a switch (recommended)"
                 }
 
                 Item { height: 20; width: 10 } // spacer
@@ -640,8 +678,9 @@ Item {
                         text: "Switch Display"
                     }
                     QGCCheckBox {
-                        checked: controller.sendLiveRCSwitchRanges
-                        text: "Show live RC display"
+                        checked:    controller.sendLiveRCSwitchRanges
+                        text:       "Show live RC display"
+
                         onClicked: {
                             controller.sendLiveRCSwitchRanges = checked
                         }
@@ -651,11 +690,12 @@ Item {
                 Item { height: 20; width: 10 } // spacer
 
                 Row {
-                    property bool modeSwitchVisible: modeChannel != 0
-                    property bool loiterSwitchVisible: loiterChannel != 0 && loiterChannel != modeChannel && loiterChannel != returnChannel
-                    property bool posCtlSwitchVisible: posCtlChannel != 0 && posCtlChannel != modeChannel
-                    property bool returnSwitchVisible: returnChannel != 0
-                    property bool offboardSwitchVisible: offboardChannel != 0
+                    property bool modeSwitchVisible:        modeChannel != 0
+                    property bool loiterSwitchVisible:      loiterChannel != 0 && loiterChannel != modeChannel && loiterChannel != returnChannel
+                    property bool posCtlSwitchVisible:      posCtlChannel != 0 && posCtlChannel != modeChannel
+                    property bool acroSwitchVisible:        acroChannel != 0 && acroChannel != modeChannel
+                    property bool returnSwitchVisible:      returnChannel != 0
+                    property bool offboardSwitchVisible:    offboardChannel != 0
 
                     width:      parent.width
                     spacing:    20
@@ -724,6 +764,14 @@ Item {
                                     visible:                modeChannel == posCtlChannel
                                     horizontalAlignment:    Text.AlignRight
                                     text:                   "Assist: AltCtl"
+                                }
+
+                                QGCLabel {
+                                    width:                  parent.width
+                                    y:                      (parent.height * (1.0 - rc_acro_th.value)) - (implicitHeight / 2)
+                                    visible:                modeChannel == acroChannel
+                                    horizontalAlignment:    Text.AlignRight
+                                    text:                   "Acro/Stabilize"
                                 }
 
                                 QGCLabel {
@@ -809,6 +857,39 @@ Item {
                     }
 
                     Column {
+                        visible: parent.acroSwitchVisible
+
+                        QGCLabel { text: "Acro/Stabilize Switch" }
+
+                        Row {
+                            Item {
+                                height: progressBarHeight
+                                width:  150
+
+                                QGCLabel {
+                                    width:                  parent.width
+                                    y:                      (parent.height * (1.0 - rc_acro_th.value)) - (implicitHeight / 2)
+                                    horizontalAlignment:    Text.AlignRight
+                                    text:                   "Acro/Stabilize"
+                                }
+
+                                QGCLabel {
+                                    width:                  parent.width
+                                    y:                      parent.height - (implicitHeight / 2)
+                                    horizontalAlignment:    Text.AlignRight
+                                    text:                   "Manual"
+                                }
+                            }
+
+                            ProgressBar {
+                                height:         progressBarHeight
+                                orientation:    Qt.Vertical
+                                value:          controller.acroSwitchLiveRange
+                            }
+                        }
+                    }
+
+                    Column {
                         visible: parent.returnSwitchVisible
 
                         QGCLabel { text: "Return Switch" }
@@ -828,7 +909,6 @@ Item {
                                 QGCLabel {
                                     width:                  parent.width
                                     y:                      parent.height - (implicitHeight / 2)
-                                    visible:                returnChannel != loiterChannel
                                     horizontalAlignment:    Text.AlignRight
                                     text:                   "Return Off"
                                 }
@@ -856,7 +936,7 @@ Item {
                                     width:                  parent.width
                                     y:                      (parent.height * (1.0 - rc_return_th.value)) - (implicitHeight / 2)
                                     horizontalAlignment:    Text.AlignRight
-                                    text:                   "Offboad"
+                                    text:                   "Offboard"
                                 }
 
                                 QGCLabel {
@@ -883,7 +963,7 @@ Item {
     Component {
         id: invalidComponent
 
-        Rectangle {
+        FactPanel {
             anchors.fill: parent
             color: qgcPal.window
 
@@ -892,8 +972,8 @@ Item {
                 spacing: 20
 
                 QGCLabel {
-                    text: "FLIGHT MODES CONFIG"
-                    font.pointSize: ScreenTools.fontPointFactor * (20);
+                    text:           "FLIGHT MODES CONFIG"
+                    font.pixelSize: ScreenTools.largeFontPixelSize
                 }
 
                 QGCLabel {

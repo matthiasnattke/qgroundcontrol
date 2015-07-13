@@ -28,9 +28,10 @@
 
 const AirframeComponentAirframes::AirframeInfo_t AirframeComponentAirframes::_rgAirframeInfoStandardPlane[] = {
     { "Multiplex Easystar 1/2", 2100 },
-    { "Hobbyking Bixler 1/2",   2101 },
+    { "Generic AERT",           2101 },
     { "3DR Skywalker",          2102 },
     { "Skyhunter (1800 mm)",    2103 },
+    { "Generic AETR",           2104 },
     { NULL,                     0 }
 };
 
@@ -96,15 +97,15 @@ const AirframeComponentAirframes::AirframeInfo_t AirframeComponentAirframes::_rg
 };
 
 const AirframeComponentAirframes::AirframeType_t AirframeComponentAirframes::rgAirframeTypes[] = {
-    { "Standard Airplane",  "qrc:/qml/AirframeStandardPlane.png",   AirframeComponentAirframes::_rgAirframeInfoStandardPlane },
-    { "Flying Wing",        "qrc:/qml/AirframeFlyingWing.png",      AirframeComponentAirframes::_rgAirframeInfoFlyingWing },
-    { "QuadRotor X",        "qrc:/qml/AirframeQuadRotorX.png",      AirframeComponentAirframes::_rgAirframeInfoQuadRotorX },
-    { "QuadRotor +",        "qrc:/qml/AirframeQuadRotorPlus.png",   AirframeComponentAirframes::_rgAirframeInfoQuadRotorPlus },
-    { "HexaRotor X",        "qrc:/qml/AirframeHexaRotorX.png",      AirframeComponentAirframes::_rgAirframeInfoHexaRotorX },
-    { "HexaRotor +",        "qrc:/qml/AirframeHexaRotorPlus.png",   AirframeComponentAirframes::_rgAirframeInfoHexaRotorPlus },
-    { "OctoRotor X",        "qrc:/qml/AirframeOctoRotorX.png",      AirframeComponentAirframes::_rgAirframeInfoOctoRotorX },
-    { "OctoRotor +",        "qrc:/qml/AirframeOctoRotorPlus.png",   AirframeComponentAirframes::_rgAirframeInfoOctoRotorPlus },
-    { "QuadRotor H",        "qrc:/qml/AirframeQuadRotorH.png",      AirframeComponentAirframes::_rgAirframeInfoQuadRotorH },
-    { "Simulation",         "qrc:/qml/AirframeSimulation.png",      AirframeComponentAirframes::_rgAirframeInfoSimulation },
+    { "Standard Airplane",  "qrc:/qmlimages/AirframeStandardPlane.png",   AirframeComponentAirframes::_rgAirframeInfoStandardPlane },
+    { "Flying Wing",        "qrc:/qmlimages/AirframeFlyingWing.png",      AirframeComponentAirframes::_rgAirframeInfoFlyingWing },
+    { "QuadRotor X",        "qrc:/qmlimages/AirframeQuadRotorX.png",      AirframeComponentAirframes::_rgAirframeInfoQuadRotorX },
+    { "QuadRotor +",        "qrc:/qmlimages/AirframeQuadRotorPlus.png",   AirframeComponentAirframes::_rgAirframeInfoQuadRotorPlus },
+    { "HexaRotor X",        "qrc:/qmlimages/AirframeHexaRotorX.png",      AirframeComponentAirframes::_rgAirframeInfoHexaRotorX },
+    { "HexaRotor +",        "qrc:/qmlimages/AirframeHexaRotorPlus.png",   AirframeComponentAirframes::_rgAirframeInfoHexaRotorPlus },
+    { "OctoRotor X",        "qrc:/qmlimages/AirframeOctoRotorX.png",      AirframeComponentAirframes::_rgAirframeInfoOctoRotorX },
+    { "OctoRotor +",        "qrc:/qmlimages/AirframeOctoRotorPlus.png",   AirframeComponentAirframes::_rgAirframeInfoOctoRotorPlus },
+    { "QuadRotor H",        "qrc:/qmlimages/AirframeQuadRotorH.png",      AirframeComponentAirframes::_rgAirframeInfoQuadRotorH },
+    { "Simulation",         "qrc:/qmlimages/AirframeSimulation.png",      AirframeComponentAirframes::_rgAirframeInfoSimulation },
     { NULL,                 NULL,                                   NULL }
 };

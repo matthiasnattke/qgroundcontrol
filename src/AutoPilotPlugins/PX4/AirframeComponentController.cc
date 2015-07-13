@@ -38,30 +38,26 @@
 bool AirframeComponentController::_typesRegistered = false;
 
 AirframeComponentController::AirframeComponentController(void) :
-    _uas(NULL),
     _currentVehicleIndex(0),
     _autostartId(0),
     _showCustomConfigPanel(false)
 {
-    _uas = UASManager::instance()->getActiveUAS();
-    Q_ASSERT(_uas);
-
     if (!_typesRegistered) {
         _typesRegistered = true;
         qmlRegisterUncreatableType<AirframeType>("QGroundControl.Controllers", 1, 0, "AiframeType", "Can only reference AirframeType");
         qmlRegisterUncreatableType<Airframe>("QGroundControl.Controllers", 1, 0, "Aiframe", "Can only reference Airframe");
     }
     
-    QStringList usedFacts;
-    usedFacts << "SYS_AUTOSTART" << "SYS_AUTOCONFIG";
-    if (!_allFactsExists(usedFacts)) {
+    QStringList usedParams;
+    usedParams << "SYS_AUTOSTART" << "SYS_AUTOCONFIG";
+    if (!_allParametersExists(FactSystem::defaultComponentId, usedParams)) {
         return;
     }
     
     // Load up member variables
     
     bool autostartFound = false;
-    _autostartId = _autopilot->getParameterFact("SYS_AUTOSTART")->value().toInt();
+    _autostartId = getParameterFact(FactSystem::defaultComponentId, "SYS_AUTOSTART")->value().toInt();
     
     for (const AirframeComponentAirframes::AirframeType_t* pType=&AirframeComponentAirframes::rgAirframeTypes[0]; pType->name != NULL; pType++) {
         AirframeType* airframeType = new AirframeType(pType->name, pType->imageResource, this);
@@ -101,24 +97,26 @@ void AirframeComponentController::changeAutostart(void)
 		return;
 	}
 	
-    _autopilot->getParameterFact("SYS_AUTOSTART")->setValue(_autostartId);
-    _autopilot->getParameterFact("SYS_AUTOCONFIG")->setValue(1);
-    
     qgcApp()->setOverrideCursor(Qt::WaitCursor);
     
-    // Wait for the parameters to flow through system
+    getParameterFact(-1, "SYS_AUTOSTART")->setValue(_autostartId);
+    getParameterFact(-1, "SYS_AUTOCONFIG")->setValue(1);
+    
+    // FactSystem doesn't currently have a mechanism to wait for the parameters to come backf from the board.
+    // So instead we wait for enough time for the parameters to hoepfully make it to the board.
     qgcApp()->processEvents(QEventLoop::ExcludeUserInputEvents);
-    QGC::SLEEP::sleep(1);
+    QGC::SLEEP::sleep(3);
     qgcApp()->processEvents(QEventLoop::ExcludeUserInputEvents);
     
-    // Reboot board and reconnect
+    // Reboot board
     
     _uas->executeCommand(MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN, 1, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0);
     qgcApp()->processEvents(QEventLoop::ExcludeUserInputEvents);
     QGC::SLEEP::sleep(1);
     qgcApp()->processEvents(QEventLoop::ExcludeUserInputEvents);
+    LinkManager::instance()->disconnectAll();
     
-    qgcApp()->reconnectAfterWait(5);
+    qgcApp()->restoreOverrideCursor();
 }
 
 AirframeType::AirframeType(const QString& name, const QString& imageResource, QObject* parent) :

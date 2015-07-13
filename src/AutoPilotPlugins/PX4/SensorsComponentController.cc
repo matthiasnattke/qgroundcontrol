@@ -32,14 +32,14 @@
 #include <QVariant>
 #include <QQmlProperty>
 
-SensorsComponentController::SensorsComponentController(AutoPilotPlugin* autopilot, QObject* parent) :
-    QObject(parent),
+SensorsComponentController::SensorsComponentController(void) :
     _statusLog(NULL),
     _progressBar(NULL),
     _compassButton(NULL),
     _gyroButton(NULL),
     _accelButton(NULL),
     _airspeedButton(NULL),
+    _levelButton(NULL),
     _cancelButton(NULL),
     _showOrientationCalArea(false),
     _gyroCalInProgress(false),
@@ -64,25 +64,15 @@ SensorsComponentController::SensorsComponentController(AutoPilotPlugin* autopilo
     _orientationCalNoseDownSideInProgress(false),
     _orientationCalTailDownSideInProgress(false),
     _orientationCalDownSideRotate(false),
+    _orientationCalUpsideDownSideRotate(false),
     _orientationCalLeftSideRotate(false),
+    _orientationCalRightSideRotate(false),
     _orientationCalNoseDownSideRotate(false),
+    _orientationCalTailDownSideRotate(false),
     _unknownFirmwareVersion(false),
-    _waitingForCancel(false),
-    _autopilot(autopilot)
+    _waitingForCancel(false)
 {
-    Q_ASSERT(_autopilot);
-    Q_ASSERT(_autopilot->pluginReady());
-    
-    _uas = _autopilot->uas();
-    Q_ASSERT(_uas);
-    
-    // Mag rotation parameters are optional
-    _showCompass0 = _autopilot->parameterExists("CAL_MAG0_ROT") &&
-                        _autopilot->getParameterFact("CAL_MAG0_ROT")->value().toInt() >= 0;
-    _showCompass1 = _autopilot->parameterExists("CAL_MAG1_ROT") &&
-                        _autopilot->getParameterFact("CAL_MAG1_ROT")->value().toInt() >= 0;
-    _showCompass2 = _autopilot->parameterExists("CAL_MAG2_ROT") &&
-                        _autopilot->getParameterFact("CAL_MAG2_ROT")->value().toInt() >= 0;
+
 }
 
 /// Appends the specified text to the status log area in the ui
@@ -114,6 +104,7 @@ void SensorsComponentController::_startVisualCalibration(void)
     _gyroButton->setEnabled(false);
     _accelButton->setEnabled(false);
     _airspeedButton->setEnabled(false);
+    _levelButton->setEnabled(false);
     _cancelButton->setEnabled(true);
     
     _progressBar->setProperty("value", 0);
@@ -127,6 +118,7 @@ void SensorsComponentController::_stopCalibration(SensorsComponentController::St
     _gyroButton->setEnabled(true);
     _accelButton->setEnabled(true);
     _airspeedButton->setEnabled(true);
+    _levelButton->setEnabled(true);
     _cancelButton->setEnabled(false);
     
     if (code == StopCalibrationSuccess) {
@@ -199,6 +191,12 @@ void SensorsComponentController::calibrateAccel(void)
     _uas->startCalibration(UASInterface::StartCalibrationAccel);
 }
 
+void SensorsComponentController::calibrateLevel(void)
+{
+    _startLogCalibration();
+    _uas->startCalibration(UASInterface::StartCalibrationLevel);
+}
+
 void SensorsComponentController::calibrateAirspeed(void)
 {
     _startLogCalibration();
@@ -247,9 +245,11 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
         
         // Split version number and cal type
         QStringList parts = text.split(" ");
-        if (parts.count() != 2 && parts[0].toInt() != 1) {
+        if (parts.count() != 2 && parts[0].toInt() != _supportedFirmwareCalVersion) {
             _unknownFirmwareVersion = true;
-            qDebug() << "Unknown cal firmware version, using log";
+            QString msg = "Unsupported calibration firmware version, using log";
+            _appendStatusLog(msg);
+            qDebug() << msg;
             return;
         }
         
@@ -292,7 +292,10 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
             } else if (text == "mag") {
                 _magCalInProgress = true;
                 _orientationCalDownSideVisible = true;
+                _orientationCalUpsideDownSideVisible = true;
                 _orientationCalLeftSideVisible = true;
+                _orientationCalRightSideVisible = true;
+                _orientationCalTailDownSideVisible = true;
                 _orientationCalNoseDownSideVisible = true;
             } else if (text == "gyro") {
                 _gyroCalInProgress = true;
@@ -319,6 +322,9 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
             }
         } else if (side == "up") {
             _orientationCalUpsideDownSideInProgress = true;
+            if (_magCalInProgress) {
+                _orientationCalUpsideDownSideRotate = true;
+            }
         } else if (side == "left") {
             _orientationCalLeftSideInProgress = true;
             if (_magCalInProgress) {
@@ -326,6 +332,9 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
             }
         } else if (side == "right") {
             _orientationCalRightSideInProgress = true;
+            if (_magCalInProgress) {
+                _orientationCalRightSideRotate = true;
+            }
         } else if (side == "front") {
             _orientationCalNoseDownSideInProgress = true;
             if (_magCalInProgress) {
@@ -333,6 +342,9 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
             }
         } else if (side == "back") {
             _orientationCalTailDownSideInProgress = true;
+            if (_magCalInProgress) {
+                _orientationCalTailDownSideRotate = true;
+            }
         }
         
         if (_magCalInProgress) {
@@ -400,6 +412,15 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
 
 void SensorsComponentController::_refreshParams(void)
 {
+    QStringList fastRefreshList;
+    
+    // We ask for a refresh on these first so that the rotation combo show up as fast as possible
+    fastRefreshList << "CAL_MAG0_ID" << "CAL_MAG1_ID" << "CAL_MAG2_ID" << "CAL_MAG0_ROT" << "CAL_MAG1_ROT" << "CAL_MAG2_ROT";
+    foreach (QString paramName, fastRefreshList) {
+        _autopilot->refreshParameter(FactSystem::defaultComponentId, paramName);
+    }
+    
+    // Now ask for all to refresh
     _autopilot->refreshParametersPrefix(FactSystem::defaultComponentId, "CAL_");
     _autopilot->refreshParametersPrefix(FactSystem::defaultComponentId, "SENS_");
 }
@@ -408,7 +429,9 @@ bool SensorsComponentController::fixedWing(void)
 {
     UASInterface* uas = _autopilot->uas();
     Q_ASSERT(uas);
-    return uas->getSystemType() == MAV_TYPE_FIXED_WING;
+    return uas->getSystemType() == MAV_TYPE_FIXED_WING ||
+            uas->getSystemType() == MAV_TYPE_VTOL_DUOROTOR ||
+            uas->getSystemType() == MAV_TYPE_VTOL_QUADROTOR;
 }
 
 void SensorsComponentController::_updateAndEmitShowOrientationCalArea(bool show)

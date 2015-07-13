@@ -71,12 +71,12 @@ void SetupViewTest::_clickThrough_test(void)
     linkMgr->connectLink(link);
     QTest::qWait(5000); // Give enough time for UI to settle and heartbeats to go through
 
-    AutoPilotPlugin* autopilot = AutoPilotPluginManager::instance()->getInstanceForAutoPilotPlugin(UASManager::instance()->getActiveUAS());
+    AutoPilotPlugin* autopilot = AutoPilotPluginManager::instance()->getInstanceForAutoPilotPlugin(UASManager::instance()->getActiveUAS()).data();
     Q_ASSERT(autopilot);
     
     QSignalSpy spyPlugin(autopilot, SIGNAL(pluginReadyChanged(bool)));
     if (!autopilot->pluginReady()) {
-        QCOMPARE(spyPlugin.wait(10000), true);
+        QCOMPARE(spyPlugin.wait(60000), true);
     }
     Q_ASSERT(autopilot->pluginReady());
     
@@ -92,16 +92,22 @@ void SetupViewTest::_clickThrough_test(void)
     Q_ASSERT(setupView);
 
     // Click through fixed buttons
-    setupView->firmwareButtonClicked();
+    qDebug() << "Showing firmware";
+    setupView->showFirmware();
     QTest::qWait(1000);
-    setupView->parametersButtonClicked();
+    qDebug() << "Showing parameters";
+    setupView->showParameters();
     QTest::qWait(1000);
-    setupView->summaryButtonClicked();
+    qDebug() << "Showing summary";
+    setupView->showSummary();
     QTest::qWait(1000);
     
     const QVariantList& components = autopilot->vehicleComponents();
     foreach(QVariant varComponent, components) {
-        setupView->setupButtonClicked(varComponent);
+        VehicleComponent* component = qobject_cast<VehicleComponent*>(qvariant_cast<QObject *>(varComponent));
+        qDebug() << "Showing" << component->name();
+        setupView->showVehicleComponentSetup(component);
+        QTest::qWait(1000);
     }
 
     // On MainWindow close we should get a message box telling the user to disconnect first. Disconnect will then pop

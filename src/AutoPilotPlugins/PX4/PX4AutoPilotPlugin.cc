@@ -40,6 +40,7 @@ enum PX4_CUSTOM_MAIN_MODE {
     PX4_CUSTOM_MAIN_MODE_AUTO,
     PX4_CUSTOM_MAIN_MODE_ACRO,
     PX4_CUSTOM_MAIN_MODE_OFFBOARD,
+    PX4_CUSTOM_MAIN_MODE_STABILIZED,
 };
 
 enum PX4_CUSTOM_SUB_MODE_AUTO {
@@ -75,9 +76,6 @@ PX4AutoPilotPlugin::PX4AutoPilotPlugin(UASInterface* uas, QObject* parent) :
 {
     Q_ASSERT(uas);
     
-    qmlRegisterType<FlightModesComponentController>("QGroundControl.Controllers", 1, 0, "FlightModesComponentController");
-    qmlRegisterType<AirframeComponentController>("QGroundControl.Controllers", 1, 0, "AirframeComponentController");
-    
     _parameterFacts = new PX4ParameterLoader(this, uas, this);
     Q_CHECK_PTR(_parameterFacts);
     
@@ -101,6 +99,18 @@ QList<AutoPilotPluginManager::FullMode_t> PX4AutoPilotPlugin::getModes(void)
     px4_cm.data = 0;
     px4_cm.main_mode = PX4_CUSTOM_MAIN_MODE_MANUAL;
     fullMode.baseMode = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED | MAV_MODE_FLAG_MANUAL_INPUT_ENABLED;
+    fullMode.customMode = px4_cm.data;
+    modeList << fullMode;
+
+    px4_cm.data = 0;
+    px4_cm.main_mode = PX4_CUSTOM_MAIN_MODE_ACRO;
+    fullMode.baseMode = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED | MAV_MODE_FLAG_MANUAL_INPUT_ENABLED;
+    fullMode.customMode = px4_cm.data;
+    modeList << fullMode;
+
+    px4_cm.data = 0;
+    px4_cm.main_mode = PX4_CUSTOM_MAIN_MODE_STABILIZED;
+    fullMode.baseMode = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED | MAV_MODE_FLAG_MANUAL_INPUT_ENABLED | MAV_MODE_FLAG_STABILIZE_ENABLED;
     fullMode.customMode = px4_cm.data;
     modeList << fullMode;
     
@@ -131,6 +141,63 @@ QList<AutoPilotPluginManager::FullMode_t> PX4AutoPilotPlugin::getModes(void)
     return modeList;
 }
 
+QString PX4AutoPilotPlugin::getAudioModeText(uint8_t baseMode, uint32_t customMode)
+{
+    QString mode;
+
+    Q_ASSERT(baseMode & MAV_MODE_FLAG_CUSTOM_MODE_ENABLED);
+
+    if (baseMode & MAV_MODE_FLAG_CUSTOM_MODE_ENABLED) {
+        union px4_custom_mode px4_mode;
+        px4_mode.data = customMode;
+
+        if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_MANUAL) {
+            mode = "manual";
+        } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_ACRO) {
+            mode = "caro";
+        } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_STABILIZED) {
+            mode = "stabilized";
+        } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_ALTCTL) {
+            mode = "altitude control";
+        } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_POSCTL) {
+            mode = "position control";
+        } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_AUTO) {
+            mode = "auto and ";
+            if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_READY) {
+                mode += "ready";
+            } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_TAKEOFF) {
+                mode += "taking off";
+            } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_LOITER) {
+                mode += "loitering";
+            } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_MISSION) {
+                mode += "following waypoints";
+            } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_RTL) {
+                mode += "returning to land";
+            } else if (px4_mode.sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_LAND) {
+                mode += "landing";
+            }
+        } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_OFFBOARD) {
+            mode = "offboard controlled";
+        }
+
+        if (baseMode != 0)
+        {
+            mode += " mode";
+        }
+
+        // ARMED STATE DECODING
+        if (baseMode & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_SAFETY)
+        {
+            mode.append(" and armed");
+        }
+
+    } else {
+        mode = "";
+    }
+
+    return mode;
+}
+
 QString PX4AutoPilotPlugin::getShortModeText(uint8_t baseMode, uint32_t customMode)
 {
     QString mode;
@@ -143,6 +210,10 @@ QString PX4AutoPilotPlugin::getShortModeText(uint8_t baseMode, uint32_t customMo
         
         if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_MANUAL) {
             mode = "|MANUAL";
+        } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_ACRO) {
+            mode = "|ACRO";
+        } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_STABILIZED) {
+            mode = "|STAB";
         } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_ALTCTL) {
             mode = "|ALTCTL";
         } else if (px4_mode.main_mode == PX4_CUSTOM_MAIN_MODE_POSCTL) {
@@ -235,7 +306,7 @@ void PX4AutoPilotPlugin::_pluginReadyPreChecks(void)
     // Check for older parameter version set
     // FIXME: Firmware is moving to version stamp parameter set. Once that is complete the version stamp
     // should be used instead.
-    if (parameterExists("SENS_GYRO_XOFF")) {
+    if (parameterExists(FactSystem::defaultComponentId, "SENS_GYRO_XOFF")) {
         _incorrectParameterVersion = true;
         QGCMessageBox::warning("Setup", "This version of GroundControl can only perform vehicle setup on a newer version of firmware. "
 										"Please perform a Firmware Upgrade if you wish to use Vehicle Setup.");

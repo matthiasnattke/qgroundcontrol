@@ -34,8 +34,8 @@ import QGroundControl.ScreenTools 1.0
 QGCMovableItem {
     id:                     root
     property real heading:  0
-    property real size:     ScreenTools.pixelSizeFactor * (120)
-    property real _fontSize: ScreenTools.fontPointFactor * (12)
+    property real size:     ScreenTools.defaultFontPixelSize * (10)
+    property int _fontSize: ScreenTools.defaultFontPixelSize
     width:                  size
     height:                 size
     Rectangle {
@@ -45,7 +45,7 @@ QGCMovableItem {
     }
     Image {
         id:                 pointer
-        source:             "/qml/compassInstrumentAirplane.svg"
+        source:             "/qmlimages/compassInstrumentAirplane.svg"
         mipmap:             true
         width:              size * 0.75
         fillMode:           Image.PreserveAspectFit
@@ -58,7 +58,7 @@ QGCMovableItem {
     }
     Image {
         id:                 compassDial
-        source:             "/qml/compassInstrumentDial.svg"
+        source:             "/qmlimages/compassInstrumentDial.svg"
         mipmap:             true
         fillMode:           Image.PreserveAspectFit
         anchors.fill:       parent
@@ -72,7 +72,7 @@ QGCMovableItem {
         QGCLabel {
             text:           heading.toFixed(0)
             font.weight:    Font.DemiBold
-            font.pointSize: _fontSize < 1 ? 1 : _fontSize;
+            font.pixelSize: _fontSize < 1 ? 1 : _fontSize;
             color: "white"
             anchors.centerIn: parent
         }
