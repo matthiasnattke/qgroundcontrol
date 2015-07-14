@@ -312,7 +312,8 @@ HEADERS += \
     src/ui/mission/QGCMissionNavTakeoff.h \
     src/ui/mission/QGCMissionNavWaypoint.h \
     src/ui/mission/QGCMissionOther.h \
-    src/ui/mission/QGCSwarmControl.h \    src/ui/QGCCommConfiguration.h \
+    src/ui/mission/QGCSwarmControl.h \    
+    src/ui/QGCCommConfiguration.h \
     src/ui/QGCDataPlot2D.h \
     src/ui/QGCLinkConfiguration.h \
     src/ui/QGCMainWindowAPConfigurator.h \
@@ -441,7 +442,8 @@ SOURCES += \
     src/ui/mission/QGCMissionNavTakeoff.cc \
     src/ui/mission/QGCMissionNavWaypoint.cc \
     src/ui/mission/QGCMissionOther.cc \
-    src/ui/mission/QGCSwarmControl.cpp \    src/ui/QGCCommConfiguration.cc \
+    src/ui/mission/QGCSwarmControl.cpp \
+    src/ui/QGCCommConfiguration.cc \
     src/ui/QGCDataPlot2D.cc \
     src/ui/QGCLinkConfiguration.cc \
     src/ui/QGCMainWindowAPConfigurator.cc \

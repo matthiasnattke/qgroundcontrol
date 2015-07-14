@@ -80,7 +80,7 @@ void AutoPilotPluginManager::_uasCreated(UASInterface* uas)
         case MAV_AUTOPILOT_MAVRIC:
             plugin = new MAVRICAutoPilotPlugin(uas,this);
             Q_CHECK_PTR(plugin);
-            _pluginMap[MAV_AUTOPILOT_MAVRIC][uasId] = plugin;
+            _pluginMap[MAV_AUTOPILOT_MAVRIC][uasId] = QSharedPointer<AutoPilotPlugin>(plugin);
             break;
         case MAV_AUTOPILOT_GENERIC:
         default:
