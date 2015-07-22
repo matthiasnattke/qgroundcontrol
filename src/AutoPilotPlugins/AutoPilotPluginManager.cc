@@ -29,6 +29,7 @@
 #include "MAVRIC/MAVRICAutoPilotPlugin.h"
 #include "Generic/GenericAutoPilotPlugin.h"
 #include "QGCApplication.h"
+#include "QGCMessageBox.h"
 #include "UASManager.h"
 
 IMPLEMENT_QGC_SINGLETON(AutoPilotPluginManager, AutoPilotPluginManager)
@@ -87,6 +88,9 @@ void AutoPilotPluginManager::_uasCreated(UASInterface* uas)
             plugin = new GenericAutoPilotPlugin(uas, this);
             Q_CHECK_PTR(plugin);
             _pluginMap[MAV_AUTOPILOT_GENERIC][uasId] = QSharedPointer<AutoPilotPlugin>(plugin);
+            QGCMessageBox::warning("Partial Support AutoPilot",
+                                   "Warning: You have connected QGroundControl to a firmware flight stack which is only partially supported. "
+                                   "If you are using the APM Flight Stack it is currently recommended to use Mission Planner, APM Planner or Tower as your ground control station.");
     }
 }
 
