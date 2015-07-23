@@ -114,6 +114,9 @@ protected:
     QMap<UASInterface*,QListWidgetItem*> uasToItemRemote;
     QMap<QListWidgetItem*,UASInterface*> itemToUasRemote;    
 
+    QMap<QListWidgetItem*,int> itemToID;
+    QMap<QListWidgetItem*,int> itemToIDRemote;
+
     UASInterface *uas_previous;
 
     QTimer updateTimer; ///< Only update at 1 Hz to not overload the GUI

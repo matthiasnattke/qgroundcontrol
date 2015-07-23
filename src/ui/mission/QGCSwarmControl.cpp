@@ -233,8 +233,36 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
 
         item->setForeground(uas->getColor());
 
-        ui->listWidget->addItem(item);
-        ui->listWidget->sortItems();
+        int id = ((uas->getUASID()-1)%10)+1;
+        itemToID[item] = id;
+
+        int i = 0;
+        bool inserted = false;
+        if (ui->listWidget->count() == 0)
+        {
+            ui->listWidget->addItem(item);
+        }
+        else
+        {
+            QListWidgetItem* itemSwap;
+            while (i < ui->listWidget->count() && !inserted)
+            {
+                itemSwap = ui->listWidget->item(i);
+                if (itemToID[itemSwap] > itemToID[item])
+                {
+                    ui->listWidget->insertItem(i,item);
+                    inserted = true;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+            if (!inserted)
+            {
+                ui->listWidget->addItem(item);
+            }
+        }
 
         uasToItemMapping[uas] = item;
         itemToUasMapping[item] = uas;
@@ -250,8 +278,36 @@ void QGCSwarmControl::UASCreated(UASInterface* uas)
         uasToItemRemote[uas] = itemRemote;
         itemToUasRemote[itemRemote] = uas;
 
-        ui->remoteList->addItem(itemRemote);
-        ui->remoteList->sortItems();
+        itemToIDRemote[itemRemote] = id;
+
+        
+        if (ui->remoteList->count() == 0)
+        {
+            ui->remoteList->addItem(itemRemote);
+        }
+        else
+        {
+            i = 0;
+            inserted = false;
+            QListWidgetItem* itemSwapRemote;
+            while (i < ui->remoteList->count() && !inserted)
+            {
+                itemSwapRemote = ui->remoteList->item(i);
+                if (itemToIDRemote[itemSwapRemote] > itemToIDRemote[itemRemote])
+                {
+                    ui->remoteList->insertItem(i,itemRemote);
+                    inserted = true;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+            if (!inserted)
+            {
+                ui->remoteList->addItem(itemRemote);
+            }
+        }
 
         if(!mode_init)
         {
