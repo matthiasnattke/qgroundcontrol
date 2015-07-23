@@ -115,16 +115,40 @@ QGCSwarmControl::QGCSwarmControl(QWidget *parent) :
 
 QGCSwarmControl::~QGCSwarmControl()
 {
-    QListWidgetItem* item;
-    foreach(UASInterface* uasRemove, UASManager::instance()->getUASList())
-    {
-        item = uasToItemMapping[uasRemove];
-        if (!item)
-        {
-            RemoveUAS(uasRemove);
-        }
-    }
+    qDebug() << "deleting SwarmControl";
 
+    QMap<UASInterface*,QListWidgetItem*>::iterator ite;
+    for(ite=uasToItemMapping.begin(); ite!=uasToItemMapping.end();++ite)
+    {
+        delete ite.value();
+        ite.value() = NULL;
+    }
+    uasToItemMapping.clear();
+
+    qDebug() << "deleted uasToItemMapping";
+
+    for(ite=uasToItemRemote.begin(); ite!=uasToItemRemote.end();++ite)
+    {
+        delete ite.value();
+        ite.value() = NULL;
+    }
+    uasToItemRemote.clear();
+
+    qDebug() << "deleted uasToItemRemote";
+
+    itemToUasMapping.clear();
+    itemToUasRemote.clear();
+
+    qDebug() << "deleted itemToUasMapping";
+
+    itemToID.clear();
+    itemToIDRemote.clear();
+
+    qDebug() << "deleted itemToID";
+
+    _modeList.clear();
+
+    qDebug() << "end deleting SwarmControl";
 
     delete ui;
 }
@@ -342,6 +366,8 @@ void QGCSwarmControl::updateModesList(UASInterface* uas)
 
 void QGCSwarmControl::RemoveUAS(UASInterface* uas)
 {
+    qDebug() << "Removing UAS from SwarmControl";
+
     QListWidgetItem* item = uasToItemMapping[uas];
     uasToItemMapping.remove(uas);
 
@@ -358,6 +384,8 @@ void QGCSwarmControl::RemoveUAS(UASInterface* uas)
 
     ui->remoteList->takeItem(ui->remoteList->row(item));
     delete item;
+
+    qDebug() << "End removing UAS from SwarmControl";
 }
 
 void QGCSwarmControl::ListWidgetClicked(QListWidgetItem* item)
