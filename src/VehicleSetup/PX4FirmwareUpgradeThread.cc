@@ -136,25 +136,23 @@ bool PX4FirmwareUpgradeThreadWorker::_findBoardFromPorts(QSerialPortInfo& portIn
     bool found = false;
     
     foreach (QSerialPortInfo info, QSerialPortInfo::availablePorts()) {
-#if 0
         qCDebug(FirmwareUpgradeLog) << "Serial Port --------------";
         qCDebug(FirmwareUpgradeLog) << "\tport name:" << info.portName();
         qCDebug(FirmwareUpgradeLog) << "\tdescription:" << info.description();
         qCDebug(FirmwareUpgradeLog) << "\tsystem location:" << info.systemLocation();
         qCDebug(FirmwareUpgradeLog) << "\tvendor ID:" << info.vendorIdentifier();
         qCDebug(FirmwareUpgradeLog) << "\tproduct ID:" << info.productIdentifier();
-#endif
         
         if (!info.portName().isEmpty()) {
             switch (info.vendorIdentifier()) {
                 case SerialPortIds::px4VendorId:
-                    if (info.productIdentifier() == SerialPortIds::pixhawkFMUV2ProductId) {
+                    if (info.productIdentifier() == SerialPortIds::pixhawkFMUV2ProductId || info.productIdentifier() == SerialPortIds::pixhawkFMUV2OldBootloaderProductId) {
                         qCDebug(FirmwareUpgradeLog) << "Found PX4 FMU V2";
                         type = FoundBoardPX4FMUV2;
                         found = true;
                     } else if (info.productIdentifier() == SerialPortIds::pixhawkFMUV1ProductId) {
                         qCDebug(FirmwareUpgradeLog) << "Found PX4 FMU V1";
-                        type = FoundBoardPX4FMUV2;
+                        type = FoundBoardPX4FMUV1;
                         found = true;
                     } else if (info.productIdentifier() == SerialPortIds::px4FlowProductId) {
                         qCDebug(FirmwareUpgradeLog) << "Found PX4 Flow";
@@ -173,6 +171,19 @@ bool PX4FirmwareUpgradeThreadWorker::_findBoardFromPorts(QSerialPortInfo& portIn
                         found = true;
                     }
                     break;
+            }
+            if (!found) {
+                // Fall back to port name matching which could lead to incorrect board mapping. But in some cases the
+                // vendor and product id do not come through correctly so this is used as a last chance detection method.
+                if (info.description() == "PX4 FMU v2.x" || info.description() == "PX4 BL FMU v2.x") {
+                    qCDebug(FirmwareUpgradeLog) << "Found PX4 FMU V2 (by name matching fallback)";
+                    type = FoundBoardPX4FMUV2;
+                    found = true;
+                } else if (info.description() == "PX4 FMU v1.x" || info.description() == "PX4 BL FMU v1.x") {
+                    qCDebug(FirmwareUpgradeLog) << "Found PX4 FMU V1 (by name matching fallback)";
+                    type = FoundBoardPX4FMUV1;
+                    found = true;
+                }
             }
         }
         

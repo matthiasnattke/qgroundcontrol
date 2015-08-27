@@ -28,6 +28,7 @@
 #include "AutoPilotPluginManager.h"
 #include "UASInterface.h"
 #include "PX4ParameterLoader.h"
+#include "PX4AirframeLoader.h"
 #include "AirframeComponent.h"
 #include "RadioComponent.h"
 #include "FlightModesComponent.h"
@@ -52,9 +53,6 @@ public:
     // Overrides from AutoPilotPlugin
     virtual const QVariantList& vehicleComponents(void);
 
-    static QList<AutoPilotPluginManager::FullMode_t> getModes(void);
-    static QString getAudioModeText(uint8_t baseMode, uint32_t customMode);
-    static QString getShortModeText(uint8_t baseMode, uint32_t customMode);
     static void clearStaticData(void);
     
     // These methods should only be used by objects within the plugin
@@ -72,7 +70,8 @@ private:
 	// Overrides from AutoPilotPlugin
 	virtual ParameterLoader* _getParameterLoader(void) { return _parameterFacts; }
 	
-    PX4ParameterLoader*      _parameterFacts;
+    PX4ParameterLoader*     _parameterFacts;
+    PX4AirframeLoader*      _airframeFacts;
     QVariantList            _components;
     AirframeComponent*      _airframeComponent;
     RadioComponent*         _radioComponent;

@@ -83,8 +83,10 @@ G_END_DECLS
 #endif
 #include "AutoPilotPlugin.h"
 #include "VehicleComponent.h"
-
 #include "MavManager.h"
+#include "FirmwarePluginManager.h"
+#include "Generic/GenericFirmwarePlugin.h"
+#include "PX4/PX4FirmwarePlugin.h"
 
 #ifdef QGC_RTLAB_ENABLED
 #include "OpalLink.h"
@@ -160,6 +162,7 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
     , _runningUnitTests(unitTesting)
     , _styleIsDark(true)
     , _pMavManager(NULL)
+	, _fakeMobile(false)
 {
     Q_ASSERT(_app == NULL);
     _app = this;
@@ -177,6 +180,7 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
     CmdLineOpt_t rgCmdLineOptions[] = {
         { "--clear-settings",   &fClearSettingsOptions, QString() },
         { "--full-logging",     &fullLogging,           QString() },
+		{ "--fake-mobile",      &_fakeMobile,           QString() },
         // Add additional command line option flags here
     };
     
@@ -563,10 +567,25 @@ void QGCApplication::_createSingletons(void)
 {
     // The order here is important since the singletons reference each other
 
+    // No dependencies
+    FirmwarePlugin* firmwarePlugin = GenericFirmwarePlugin::_createSingleton();
+    Q_UNUSED(firmwarePlugin);
+    Q_ASSERT(firmwarePlugin);
+    
+    // No dependencies
+    firmwarePlugin = PX4FirmwarePlugin::_createSingleton();
+    
+    // No dependencies
+    FirmwarePluginManager* firmwarePluginManager = FirmwarePluginManager::_createSingleton();
+    Q_UNUSED(firmwarePluginManager);
+    Q_ASSERT(firmwarePluginManager);
+    
+    // No dependencies
     GAudioOutput* audio = GAudioOutput::_createSingleton();
     Q_UNUSED(audio);
     Q_ASSERT(audio);
 
+    // No dependencies
     LinkManager* linkManager = LinkManager::_createSingleton();
     Q_UNUSED(linkManager);
     Q_ASSERT(linkManager);
@@ -626,6 +645,9 @@ void QGCApplication::_destroySingletons(void)
     UASManager::_deleteSingleton();
     LinkManager::_deleteSingleton();
     GAudioOutput::_deleteSingleton();
+    FirmwarePluginManager::_deleteSingleton();
+    GenericFirmwarePlugin::_deleteSingleton();
+    PX4FirmwarePlugin::_deleteSingleton();
 }
 
 void QGCApplication::informationMessageBoxOnMainThread(const QString& title, const QString& msg)
@@ -771,4 +793,14 @@ void QGCApplication::setMavManager(MavManager* pMgr)
 MavManager* QGCApplication::getMavManager()
 {
     return _pMavManager;
+}
+
+void QGCApplication::showToolBarMessage(const QString& message)
+{
+    MainWindow* mainWindow = MainWindow::instance();
+    if (mainWindow) {
+        mainWindow->getMainToolBar()->showToolBarMessage(message);
+    } else {
+        QGCMessageBox::information("", message);
+    }
 }

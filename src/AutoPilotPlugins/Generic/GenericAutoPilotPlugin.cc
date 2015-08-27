@@ -38,61 +38,6 @@ GenericAutoPilotPlugin::GenericAutoPilotPlugin(UASInterface* uas, QObject* paren
     connect(_parameterFacts, &GenericParameterFacts::parameterListProgress, this, &GenericAutoPilotPlugin::parameterListProgress);
 }
 
-QList<AutoPilotPluginManager::FullMode_t> GenericAutoPilotPlugin::getModes(void)
-{
-    AutoPilotPluginManager::FullMode_t fullMode;
-    QList<AutoPilotPluginManager::FullMode_t> modeList;
-
-    fullMode.customMode = 0;
-    
-    fullMode.baseMode = MAV_MODE_FLAG_MANUAL_INPUT_ENABLED;
-    modeList << fullMode;
-    
-    fullMode.baseMode = MAV_MODE_FLAG_MANUAL_INPUT_ENABLED | MAV_MODE_FLAG_STABILIZE_ENABLED;
-    modeList << fullMode;
-    
-    fullMode.baseMode = MAV_MODE_FLAG_MANUAL_INPUT_ENABLED | MAV_MODE_FLAG_STABILIZE_ENABLED | MAV_MODE_FLAG_GUIDED_ENABLED;
-    modeList << fullMode;
-
-    fullMode.baseMode = MAV_MODE_FLAG_AUTO_ENABLED | MAV_MODE_FLAG_STABILIZE_ENABLED | MAV_MODE_FLAG_GUIDED_ENABLED;
-    modeList << fullMode;
-    
-    return modeList;
-}
-
-QString GenericAutoPilotPlugin::getAudioModeText(uint8_t baseMode, uint32_t customMode)
-{
-    Q_UNUSED(baseMode);
-    Q_UNUSED(customMode);
-
-    QString mode = "";
-
-    return mode;
-}
-
-QString GenericAutoPilotPlugin::getShortModeText(uint8_t baseMode, uint32_t customMode)
-{
-    Q_UNUSED(customMode);
-    
-    QString mode;
-    
-    // use base_mode - not autopilot-specific
-    if (baseMode == 0) {
-        mode = "|PREFLIGHT";
-    } else if (baseMode & MAV_MODE_FLAG_DECODE_POSITION_AUTO) {
-        mode = "|AUTO";
-    } else if (baseMode & MAV_MODE_FLAG_DECODE_POSITION_MANUAL) {
-        mode = "|MANUAL";
-        if (baseMode & MAV_MODE_FLAG_DECODE_POSITION_GUIDED) {
-            mode += "|GUIDED";
-        } else if (baseMode & MAV_MODE_FLAG_DECODE_POSITION_STABILIZE) {
-            mode += "|STABILIZED";
-        }
-    }
-    
-    return mode;
-}
-
 void GenericAutoPilotPlugin::clearStaticData(void)
 {
     // No Static data yet

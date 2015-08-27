@@ -120,25 +120,22 @@
         <file alias="MapDisplay.qml">src/ui/mapdisplay/MapDisplay.qml</file>
         <file alias="QGroundControl/FlightControls/QGCAltitudeWidget.qml">src/ui/qmlcommon/QGCAltitudeWidget.qml</file>
         <file alias="QGroundControl/FlightControls/QGCArtificialHorizon.qml">src/ui/qmlcommon/QGCArtificialHorizon.qml</file>
-        <file alias="QGroundControl/FlightControls/QGCAttitudeInstrument.qml">src/ui/qmlcommon/QGCAttitudeInstrument.qml</file>
         <file alias="QGroundControl/FlightControls/QGCAttitudeWidget.qml">src/ui/qmlcommon/QGCAttitudeWidget.qml</file>
-        <file alias="QGroundControl/FlightControls/QGCCompass.qml">src/ui/qmlcommon/QGCCompass.qml</file>
-        <file alias="QGroundControl/FlightControls/QGCCompassInstrument.qml">src/ui/qmlcommon/QGCCompassInstrument.qml</file>
+        <file alias="QGroundControl/FlightControls/QGCAttitudeHUD.qml">src/ui/qmlcommon/QGCAttitudeHUD.qml</file>
+        <file alias="QGroundControl/FlightControls/QGCCompassWidget.qml">src/ui/qmlcommon/QGCCompassWidget.qml</file>
+        <file alias="QGroundControl/FlightControls/QGCCompassHUD.qml">src/ui/qmlcommon/QGCCompassHUD.qml</file>
         <file alias="QGroundControl/FlightControls/QGCCurrentAltitude.qml">src/ui/qmlcommon/QGCCurrentAltitude.qml</file>
         <file alias="QGroundControl/FlightControls/QGCCurrentSpeed.qml">src/ui/qmlcommon/QGCCurrentSpeed.qml</file>
         <file alias="QGroundControl/FlightControls/QGCHudMessage.qml">src/ui/qmlcommon/QGCHudMessage.qml</file>
         <file alias="QGroundControl/FlightControls/QGCMapBackground.qml">src/ui/qmlcommon/QGCMapBackground.qml</file>
         <file alias="QGroundControl/FlightControls/QGCMapToolButton.qml">src/ui/qmlcommon/QGCMapToolButton.qml</file>
-        <file alias="QGroundControl/FlightControls/QGCPitchWidget.qml">src/ui/qmlcommon/QGCPitchWidget.qml</file>
+        <file alias="QGroundControl/FlightControls/QGCPitchIndicator.qml">src/ui/qmlcommon/QGCPitchIndicator.qml</file>
         <file alias="QGroundControl/FlightControls/QGCSlider.qml">src/ui/qmlcommon/QGCSlider.qml</file>
         <file alias="QGroundControl/FlightControls/QGCSpeedWidget.qml">src/ui/qmlcommon/QGCSpeedWidget.qml</file>
         <file alias="QGroundControl/FlightControls/QGCVideoBackground.qml">src/ui/qmlcommon/QGCVideoBackground.qml</file>
         <file alias="QGroundControl/FlightControls/QGCWaypointEditor.qml">src/ui/qmlcommon/QGCWaypointEditor.qml</file>
         <file alias="QGroundControl/FlightControls/qmldir">src/ui/qmlcommon/qmldir</file>
         <file alias="QGroundControl/FlightControls/QGCWaypoint.qml">src/ui/qmlcommon/QGCWaypoint.qml</file>
-    </qresource>
-    <qresource prefix="/AutoPilotPlugins/PX4">
-        <file alias="ParameterFactMetaData.xml">src/AutoPilotPlugins/PX4/ParameterFactMetaData.xml</file>
     </qresource>
     <qresource prefix="/res">
         <file alias="LeftArrow">resources/LeftArrow.svg</file>
@@ -246,5 +243,9 @@
     </qresource>
     <qresource prefix="/res/audio">
         <file alias="Alert">resources/audio/alert.wav</file>
+    </qresource>
+    <qresource prefix="/AutoPilotPlugins/PX4">
+        <file alias="AirframeFactMetaData.xml">src/AutoPilotPlugins/PX4/AirframeFactMetaData.xml</file>
+        <file alias="ParameterFactMetaData.xml">src/AutoPilotPlugins/PX4/ParameterFactMetaData.xml</file>
     </qresource>
 </RCC>

@@ -18,6 +18,9 @@
 #include <cmath>
 #include <qmath.h>
 
+#include <limits>
+#include <cstdlib>
+
 #include "UAS.h"
 #include "LinkInterface.h"
 #include "UASManager.h"
@@ -30,7 +33,7 @@
 #include "SerialLink.h"
 #endif
 #include <Eigen/Geometry>
-#include "AutoPilotPluginManager.h"
+#include "FirmwarePluginManager.h"
 #include "QGCMessageBox.h"
 #include "QGCLoggingCategory.h"
 
@@ -45,7 +48,7 @@ QGC_LOGGING_CATEGORY(UASLog, "UASLog")
 * creating the UAS.
 */
 
-UAS::UAS(MAVLinkProtocol* protocol, int id) : UASInterface(),
+UAS::UAS(MAVLinkProtocol* protocol, int id, MAV_AUTOPILOT autopilotType) : UASInterface(),
     lipoFull(4.2f),
     lipoEmpty(3.5f),
     uasId(id),
@@ -57,7 +60,7 @@ UAS::UAS(MAVLinkProtocol* protocol, int id) : UASInterface(),
     name(""),
     type(MAV_TYPE_GENERIC),
     airframe(QGC_AIRFRAME_GENERIC),
-    autopilot(-1),
+    autopilot(autopilotType),
     systemIsArmed(false),
     base_mode(0),
     custom_mode(0),
@@ -143,6 +146,23 @@ UAS::UAS(MAVLinkProtocol* protocol, int id) : UASInterface(),
     blockHomePositionChanges(false),
     receivedMode(false),
 
+    // Initialize HIL sensor noise variances to 0.  If user wants corrupted sensor values they will need to set them
+    // Note variances calculated from flight case from this log: http://dash.oznet.ch/view/MRjW8NUNYQSuSZkbn8dEjY
+    // TODO: calibrate stand-still pixhawk variances
+    xacc_var(1.2914f),
+    yacc_var(0.7048f),
+    zacc_var(1.9577f),
+    rollspeed_var(0.8126f),
+    pitchspeed_var(0.6145f),
+    yawspeed_var(0.5852f),
+    xmag_var(0.4786f),
+    ymag_var(0.4566f),
+    zmag_var(0.3333f),
+    abs_pressure_var(1.1604f),
+    diff_pressure_var(1.1604f),
+    pressure_alt_var(1.1604f),
+    temperature_var(1.4290f),
+
 #ifndef __mobile__
     simulation(0),
 #endif
@@ -165,6 +185,8 @@ UAS::UAS(MAVLinkProtocol* protocol, int id) : UASInterface(),
         componentMulti[i] = false;
     }
 
+    connect(this, &UAS::_sendMessageOnThread, this, &UAS::_sendMessage, Qt::QueuedConnection);
+    connect(this, &UAS::_sendMessageOnThreadLink, this, &UAS::_sendMessageLink, Qt::QueuedConnection);
     connect(mavlink, SIGNAL(messageReceived(LinkInterface*,mavlink_message_t)), &fileManager, SLOT(receiveMessage(LinkInterface*,mavlink_message_t)));
 
     // Store a list of available actions for this UAS.
@@ -263,7 +285,6 @@ void UAS::writeSettings()
     settings.beginGroup(QString("MAV%1").arg(uasId));
     settings.setValue("NAME", this->name);
     settings.setValue("AIRFRAME", this->airframe);
-    settings.setValue("AP_TYPE", this->autopilot);
     settings.setValue("BATTERY_SPECS", getBatterySpecs());
     settings.endGroup();
 }
@@ -278,7 +299,6 @@ void UAS::readSettings()
     settings.beginGroup(QString("MAV%1").arg(uasId));
     this->name = settings.value("NAME", this->name).toString();
     this->airframe = settings.value("AIRFRAME", this->airframe).toInt();
-    this->autopilot = settings.value("AP_TYPE", this->autopilot).toInt();
     if (settings.contains("BATTERY_SPECS"))
     {
         setBatterySpecs(settings.value("BATTERY_SPECS").toString());
@@ -295,7 +315,6 @@ void UAS::deleteSettings()
 {
     this->name = "";
     this->airframe = QGC_AIRFRAME_GENERIC;
-    this->autopilot = -1;
     warnLevelPercent = UAS_DEFAULT_BATTERY_WARNLEVEL;
 }
 
@@ -510,7 +529,7 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
             bool statechanged = false;
             bool modechanged = false;
 
-            QString audiomodeText = getAudioModeTextFor(state.base_mode, state.custom_mode);
+            QString audiomodeText = FirmwarePluginManager::instance()->firmwarePluginForAutopilot((MAV_AUTOPILOT)autopilot)->flightMode(state.base_mode, state.custom_mode);
 
             if ((state.system_status != this->status) && state.system_status != MAV_STATE_UNINIT)
             {
@@ -536,11 +555,10 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
                 modechanged = true;
                 this->base_mode = state.base_mode;
                 this->custom_mode = state.custom_mode;
-                shortModeText = getShortModeTextFor(this->base_mode, this->custom_mode);
-
+                shortModeText = FirmwarePluginManager::instance()->firmwarePluginForAutopilot((MAV_AUTOPILOT)autopilot)->flightMode(base_mode, custom_mode);
                 emit modeChanged(this->getUASID(), shortModeText, "");
 
-                modeAudio = " is now in " + audiomodeText;
+                modeAudio = " is now in " + audiomodeText + "flight mode";
             }
 
             // We got the mode
@@ -1493,6 +1511,9 @@ void UAS::startCalibration(UASInterface::StartCalibrationType calType)
         case StartCalibrationEsc:
             escCal = 1;
             break;
+        case StartCalibrationUavcanEsc:
+            escCal = 2;
+            break;
     }
     
     mavlink_message_t msg;
@@ -1530,6 +1551,54 @@ void UAS::stopCalibration(void)
                                   0,                                // accel cal
                                   0,                                // airspeed cal
                                   0);                               // unused
+    sendMessage(msg);
+}
+
+void UAS::startBusConfig(UASInterface::StartBusConfigType calType)
+{
+    int actuatorCal = 0;
+
+    switch (calType) {
+        case StartBusConfigActuators:
+            actuatorCal = 1;
+            break;
+    }
+
+    mavlink_message_t msg;
+    mavlink_msg_command_long_pack(mavlink->getSystemId(),
+                                  mavlink->getComponentId(),
+                                  &msg,
+                                  uasId,
+                                  0,                                // target component
+                                  MAV_CMD_PREFLIGHT_UAVCAN,    // command id
+                                  0,                                // 0=first transmission of command
+                                  actuatorCal,                      // actuators
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0);
+    sendMessage(msg);
+}
+
+void UAS::stopBusConfig(void)
+{
+    mavlink_message_t msg;
+    mavlink_msg_command_long_pack(mavlink->getSystemId(),
+                                  mavlink->getComponentId(),
+                                  &msg,
+                                  uasId,
+                                  0,                                // target component
+                                  MAV_CMD_PREFLIGHT_UAVCAN,    // command id
+                                  0,                                // 0=first transmission of command
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0);
     sendMessage(msg);
 }
 
@@ -1729,6 +1798,15 @@ void UAS::setModeArm(uint8_t newBaseMode, uint32_t newCustomMode)
 */
 void UAS::sendMessage(mavlink_message_t message)
 {
+    emit _sendMessageOnThread(message);
+}
+
+/**
+* Send a message to every link that is connected.
+* @param message that is to be sent
+*/
+void UAS::_sendMessage(mavlink_message_t message)
+{
     if (!LinkManager::instance())
     {
         qDebug() << "LINKMANAGER NOT AVAILABLE!";
@@ -1756,6 +1834,16 @@ void UAS::sendMessage(mavlink_message_t message)
 * @message that is to be sent
 */
 void UAS::sendMessage(LinkInterface* link, mavlink_message_t message)
+{
+    emit _sendMessageOnThreadLink(link, message);
+}
+
+/**
+* Send a message to the link that is connected.
+* @param link that the message will be sent to
+* @message that is to be sent
+*/
+void UAS::_sendMessageLink(LinkInterface* link, mavlink_message_t message)
 {
     if(!link) return;
     // Create buffer
@@ -2221,17 +2309,17 @@ void UAS::processParamValueMsg(mavlink_message_t& msg, const QString& paramName,
 
         case MAV_PARAM_TYPE_UINT8:
             if (getAutopilotType() == MAV_AUTOPILOT_ARDUPILOTMEGA) {
-                paramValue = QVariant(QChar((unsigned char)paramUnion.param_float));
+                paramValue = QVariant((unsigned short)paramUnion.param_float);
             } else {
-                paramValue = QVariant(QChar((unsigned char)paramUnion.param_uint8));
+                paramValue = QVariant(paramUnion.param_uint8);
             }
             break;
 
         case MAV_PARAM_TYPE_INT8:
             if (getAutopilotType() == MAV_AUTOPILOT_ARDUPILOTMEGA) {
-                paramValue = QVariant(QChar((char)paramUnion.param_float));
+                paramValue = QVariant((short)paramUnion.param_float);
             } else  {
-                paramValue = QVariant(QChar((char)paramUnion.param_int8));
+                paramValue = QVariant(paramUnion.param_int8);
             }
             break;
 
@@ -2838,6 +2926,21 @@ void UAS::enableHilXPlane(bool enable)
         }
         qDebug() << "CREATED NEW XPLANE LINK";
         simulation = new QGCXPlaneLink(this);
+
+        float noise_scaler = 0.1f;
+        xacc_var = noise_scaler * 1.2914f;
+        yacc_var = noise_scaler * 0.7048f;
+        zacc_var = noise_scaler * 1.9577f;
+        rollspeed_var = noise_scaler * 0.8126f;
+        pitchspeed_var = noise_scaler * 0.6145f;
+        yawspeed_var = noise_scaler * 0.5852f;
+        xmag_var = noise_scaler * 0.4786f;
+        ymag_var = noise_scaler * 0.4566f;
+        zmag_var = noise_scaler * 0.3333f;
+        abs_pressure_var = noise_scaler * 1.1604f;
+        diff_pressure_var = noise_scaler * 0.6604f;
+        pressure_alt_var = noise_scaler * 1.1604f;
+        temperature_var = noise_scaler * 2.4290f;
     }
     // Connect X-Plane Link
     if (enable)
@@ -2958,6 +3061,42 @@ void UAS::sendHilState(quint64 time_us, float roll, float pitch, float yaw, floa
 }
 #endif
 
+#ifndef __mobile__
+float UAS::addZeroMeanNoise(float truth_meas, float noise_var)
+{
+    /* Calculate normally distributed variable noise with mean = 0 and variance = noise_var.  Calculated according to 
+    Box-Muller transform */
+    static const float epsilon = std::numeric_limits<float>::min(); //used to ensure non-zero uniform numbers
+    static const float two_pi = 2.0f * 3.14159265358979323846f; // 2*pi
+    static float z0; //calculated normal distribution random variables with mu = 0, var = 1;
+    float u1, u2;        //random variables generated from c++ rand();
+    
+    /*Generate random variables in range (0 1] */
+    do
+    {
+        //TODO seed rand() with srand(time) but srand(time should be called once on startup)
+        //currently this will generate repeatable random noise
+        u1 = rand() * (1.0 / RAND_MAX);
+        u2 = rand() * (1.0 / RAND_MAX);
+    }
+    while ( u1 <= epsilon );  //Have a catch to ensure non-zero for log()
+
+    z0 = sqrt(-2.0 * log(u1)) * cos(two_pi * u2); //calculate normally distributed variable with mu = 0, var = 1
+    
+    //TODO add bias term that changes randomly to simulate accelerometer and gyro bias the exf should handle these
+    //as well
+    float noise = z0 * (noise_var*noise_var); //calculate normally distributed variable with mu = 0, std = var^2  
+    
+    //Finally gaurd against any case where the noise is not real
+    if(std::isfinite(noise)){
+            return truth_meas + noise;
+    }
+    else{
+        return truth_meas;
+    }
+}
+#endif
+
 /*
 * @param abs_pressure Absolute Pressure (hPa)
 * @param diff_pressure Differential Pressure  (hPa)
@@ -2968,11 +3107,25 @@ void UAS::sendHilSensors(quint64 time_us, float xacc, float yacc, float zacc, fl
 {
     if (this->base_mode & MAV_MODE_FLAG_HIL_ENABLED)
     {
+        float xacc_corrupt = addZeroMeanNoise(xacc, xacc_var);
+        float yacc_corrupt = addZeroMeanNoise(yacc, yacc_var);
+        float zacc_corrupt = addZeroMeanNoise(zacc, zacc_var);
+        float rollspeed_corrupt = addZeroMeanNoise(rollspeed,rollspeed_var);
+        float pitchspeed_corrupt = addZeroMeanNoise(pitchspeed,pitchspeed_var);
+        float yawspeed_corrupt = addZeroMeanNoise(yawspeed,yawspeed_var);
+        float xmag_corrupt = addZeroMeanNoise(xmag, xmag_var);
+        float ymag_corrupt = addZeroMeanNoise(ymag, ymag_var);
+        float zmag_corrupt = addZeroMeanNoise(zmag, zmag_var);
+        float abs_pressure_corrupt = addZeroMeanNoise(abs_pressure,abs_pressure_var);
+        float diff_pressure_corrupt = addZeroMeanNoise(diff_pressure, diff_pressure_var);
+        float pressure_alt_corrupt = addZeroMeanNoise(pressure_alt, pressure_alt_var);
+        float temperature_corrupt = addZeroMeanNoise(temperature,temperature_var);
+
         mavlink_message_t msg;
         mavlink_msg_hil_sensor_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg,
-                                   time_us, xacc, yacc, zacc, rollspeed, pitchspeed, yawspeed,
-                                     xmag, ymag, zmag, abs_pressure, diff_pressure, pressure_alt, temperature,
-                                     fields_changed);
+                                   time_us, xacc_corrupt, yacc_corrupt, zacc_corrupt, rollspeed_corrupt, pitchspeed_corrupt,
+                                    yawspeed_corrupt, xmag_corrupt, ymag_corrupt, zmag_corrupt, abs_pressure_corrupt, 
+                                    diff_pressure_corrupt, pressure_alt_corrupt, temperature_corrupt, fields_changed);
         sendMessage(msg);
         lastSendTimeSensors = QGC::groundTimeMilliseconds();
     }
@@ -3134,101 +3287,6 @@ QString UAS::getUASName(void) const
 const QString& UAS::getShortState() const
 {
     return shortStateText;
-}
-
-/**
-* The mode can be autonomous, guided, manual or armed. It will also return if
-* hardware in the loop is being used.
-* @return the audio mode text for the id given.
-*/
-QString UAS::getAudioModeTextFor(uint8_t base_mode, uint32_t custom_mode) const
-{
-    QString mode = AutoPilotPluginManager::instance()->getAudioModeText(base_mode, custom_mode, autopilot);
-
-    if (mode.length() == 0)
-    {
-        // Fall back to generic decoding
-
-        QString mode;
-        uint8_t modeid = base_mode;
-
-        // BASE MODE DECODING
-        if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_AUTO)
-        {
-            mode += "autonomous";
-        }
-        else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_GUIDED)
-        {
-            mode += "guided";
-        }
-        else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_STABILIZE)
-        {
-            mode += "stabilized";
-        }
-        else if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_MANUAL)
-        {
-            mode += "manual";
-        }
-        else
-        {
-            // Nothing else applies, we're in preflight
-            mode += "preflight";
-        }
-
-        if (modeid != 0)
-        {
-            mode += " mode";
-        }
-
-        // ARMED STATE DECODING
-        if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_SAFETY)
-        {
-            mode.append(" and armed");
-        }
-
-        // HARDWARE IN THE LOOP DECODING
-        if (modeid & (uint8_t)MAV_MODE_FLAG_DECODE_POSITION_HIL)
-        {
-            mode.append(" using hardware in the loop simulation");
-        }
-    }
-
-    return mode;
-}
-
-/**
-* The mode returned depends on the specific autopilot used.
-* @return the short text of the mode for the id given.
-*/
-QString UAS::getShortModeTextFor(uint8_t base_mode, uint32_t custom_mode) const
-{
-    QString mode = AutoPilotPluginManager::instance()->getShortModeText(base_mode, custom_mode, autopilot);
-
-    if (mode.length() == 0)
-    {
-        mode = "|UNKNOWN";
-        qDebug() << __FILE__ << __LINE__ << " Unknown mode: base_mode=" << base_mode << " custom_mode=" << custom_mode << " autopilot=" << autopilot;
-    }
-
-    // ARMED STATE DECODING
-    if (base_mode & MAV_MODE_FLAG_DECODE_POSITION_SAFETY)
-    {
-        mode.prepend("A");
-    }
-    else
-    {
-        mode.prepend("D");
-    }
-
-    // HARDWARE IN THE LOOP DECODING
-    if (base_mode & MAV_MODE_FLAG_DECODE_POSITION_HIL)
-    {
-        mode.prepend("HIL:");
-    }
-
-    //qDebug() << "base_mode=" << base_mode << " custom_mode=" << custom_mode << " autopilot=" << autopilot << ": " << mode;
-
-    return mode;
 }
 
 const QString& UAS::getShortMode() const
@@ -3413,4 +3471,15 @@ bool UAS::_containsLink(LinkInterface* link)
     }
 
     return false;
+}
+
+bool UAS::isLogReplay(void)
+{
+    QList<LinkInterface*> links = getLinks();
+    
+    if (links.count() == 1) {
+        return links[0]->isLogReplay();
+    } else {
+        return false;
+    }
 }

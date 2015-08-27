@@ -38,6 +38,7 @@ This file is part of the QGROUNDCONTROL project
 #include "FlightDisplay.h"
 #include "QGCApplication.h"
 #include "MavManager.h"
+#include "AutoPilotPluginManager.h"
 
 MainToolBar::MainToolBar(QWidget* parent)
     : QGCQmlWidgetHolder(parent)
@@ -56,6 +57,7 @@ MainToolBar::MainToolBar(QWidget* parent)
     , _telemetryRRSSI(0)
     , _telemetryLRSSI(0)
     , _rollDownMessages(0)
+    , _toolbarMessageVisible(false)
 {
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     setObjectName("MainToolBar");
@@ -92,6 +94,8 @@ MainToolBar::MainToolBar(QWidget* parent)
         SLOT(_telemetryChanged(LinkInterface*, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned)));
     connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(_setActiveUAS(UASInterface*)));
     connect(UASManager::instance(), SIGNAL(UASDeleted(UASInterface*)),   this, SLOT(_forgetUAS(UASInterface*)));
+    
+    connect(this, &MainToolBar::heightChanged, this, &MainToolBar::_heightChanged);
 }
 
 MainToolBar::~MainToolBar()
@@ -395,4 +399,50 @@ void MainToolBar::_setProgressBarValue(float value)
 {
     _progressBarValue = value;
     emit progressBarValueChanged(value);
+}
+
+void MainToolBar::_heightChanged(double height)
+{
+    setMinimumHeight(height);
+    setMaximumHeight(height);
+}
+
+void MainToolBar::showToolBarMessage(const QString& message)
+{
+    _toolbarMessageQueueMutex.lock();
+    
+    if (_toolbarMessageQueue.count() == 0 && !_toolbarMessageVisible) {
+        QTimer::singleShot(500, this, &MainToolBar::_delayedShowToolBarMessage);
+    }
+    
+    _toolbarMessageQueue += message;
+    
+    _toolbarMessageQueueMutex.unlock();
+}
+
+void MainToolBar::_delayedShowToolBarMessage(void)
+{
+    QString messages;
+    
+    if (!_toolbarMessageVisible) {
+        _toolbarMessageQueueMutex.lock();
+        
+        foreach (QString message, _toolbarMessageQueue) {
+            messages += message + "\n";
+        }
+        _toolbarMessageQueue.clear();
+        
+        _toolbarMessageQueueMutex.unlock();
+        
+        if (!messages.isEmpty()) {
+            _toolbarMessageVisible = true;
+            emit showMessage(messages);
+        }
+    }
+}
+
+void MainToolBar::onToolBarMessageClosed(void)
+{
+    _toolbarMessageVisible = false;
+    _delayedShowToolBarMessage();
 }
