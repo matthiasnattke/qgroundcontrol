@@ -63,6 +63,11 @@ public:
      * @brief Get (html) formatted text (in the form: "[11:44:21.137 - COMP:50] Info: [pm] sending list")
      */
     QString getFormatedText()   { return _formatedText; }
+    /**
+     * @return true: This message is a of a severity which is considered an error
+     */
+    bool severityIsError();
+    
 private:
     UASMessage(int componentid, int severity, QString text);
     void _setFormatedText(const QString formatedText) { _formatedText = formatedText; }
@@ -76,6 +81,7 @@ class UASMessageHandler : public QGCSingleton
 {
     Q_OBJECT
     DECLARE_QGC_SINGLETON(UASMessageHandler, UASMessageHandler)
+    
 public:
     explicit UASMessageHandler(QObject *parent = 0);
     ~UASMessageHandler();
@@ -100,6 +106,10 @@ public:
      */
     int getErrorCount();
     /**
+     * @brief Get error message count (never reset)
+     */
+    int getErrorCountTotal();
+    /**
      * @brief Get warning message count (Resets count once read)
      */
     int getWarningCount();
@@ -111,6 +121,10 @@ public:
      * @brief Get latest error message
      */
     QString getLatestError()   { return _latestError; }
+    
+    /// Begin to show message which are errors in the toolbar
+    void showErrorsInToolbar(void) { _showErrorsInToolbar = true; }
+    
 public slots:
     /**
      * @brief Set currently active UAS
@@ -125,6 +139,7 @@ public slots:
      * @param text Message Text
      */
     void handleTextMessage(int uasid, int componentid, int severity, QString text);
+    
 signals:
     /**
      * @brief Sent out when new message arrives
@@ -136,15 +151,18 @@ signals:
      * @param count The new message count
      */
     void textMessageCountChanged(int count);
+    
 private:
     // Stores the UAS that we're currently receiving messages from.
     UASInterface* _activeUAS;
     QVector<UASMessage*> _messages;
-    QMutex _mutex;
-    int _errorCount;
-    int _warningCount;
-    int _normalCount;
+    QMutex  _mutex;
+    int     _errorCount;
+    int     _errorCountTotal;
+    int     _warningCount;
+    int     _normalCount;
     QString _latestError;
+    bool    _showErrorsInToolbar;
 };
 
 #endif // QGCMESSAGEHANDLER_H

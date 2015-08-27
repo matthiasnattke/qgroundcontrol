@@ -161,6 +161,7 @@ FORMS += \
     src/QGCQmlWidgetHolder.ui \
     src/ui/HDDisplay.ui \
     src/ui/Linechart.ui \
+    src/ui/LogReplayLinkConfigurationWidget.ui \
     src/ui/MainWindow.ui \
     src/ui/map/QGCMapTool.ui \
     src/ui/map/QGCMapToolBar.ui \
@@ -229,6 +230,7 @@ HEADERS += \
     src/comm/LinkConfiguration.h \
     src/comm/LinkInterface.h \
     src/comm/LinkManager.h \
+    src/comm/LogReplayLink.h \
     src/comm/MAVLinkProtocol.h \
     src/comm/MockLink.h \
     src/comm/MockLinkFileServer.h \
@@ -277,6 +279,7 @@ HEADERS += \
     src/ui/linechart/LinechartWidget.h \
     src/ui/linechart/Scrollbar.h \
     src/ui/linechart/ScrollZoomer.h \
+    src/ui/LogReplayLinkConfigurationWidget.h \
     src/ui/MainWindow.h \
     src/ui/map/MAV2DIcon.h \
     src/ui/map/QGCMapTool.h \
@@ -338,6 +341,7 @@ HEADERS += \
     src/ViewWidgets/ParameterEditorWidget.h \
     src/ViewWidgets/ViewWidgetController.h \
     src/Waypoint.h \
+    src/AutoPilotPlugins/PX4/PX4AirframeLoader.h
 
 !iOSBuild {
 HEADERS += \
@@ -367,6 +371,7 @@ SOURCES += \
     src/CmdLineOptParser.cc \
     src/comm/LinkConfiguration.cc \
     src/comm/LinkManager.cc \
+    src/comm/LogReplayLink.cc \
     src/comm/MAVLinkProtocol.cc \
     src/comm/MockLink.cc \
     src/comm/MockLinkFileServer.cc \
@@ -407,6 +412,7 @@ SOURCES += \
     src/ui/linechart/LinechartWidget.cc \
     src/ui/linechart/Scrollbar.cc \
     src/ui/linechart/ScrollZoomer.cc \
+    src/ui/LogReplayLinkConfigurationWidget.cc \
     src/ui/MainWindow.cc \
     src/ui/map/MAV2DIcon.cc \
     src/ui/map/QGCMapTool.cc \
@@ -468,6 +474,7 @@ SOURCES += \
     src/ViewWidgets/ParameterEditorWidget.cc \
     src/ViewWidgets/ViewWidgetController.cc \
     src/Waypoint.cc \
+    src/AutoPilotPlugins/PX4/PX4AirframeLoader.cc
 
 !iOSBuild {
 SOURCES += \
@@ -550,14 +557,21 @@ SOURCES += \
 } # MobileBuild
 
 #
-# AutoPilot Plugin Support
+# Firmware Plugin Support
 #
 
 INCLUDEPATH += \
+    src/FirmwarePlugin \
     src/VehicleSetup \
     src/AutoPilotPlugins/PX4 \
+    src/AutoPilotPlugins/MAVRIC \
 
 HEADERS+= \
+    src/FirmwarePlugin/FirmwarePluginManager.h \
+    src/FirmwarePlugin/FirmwarePlugin.h \
+    src/FirmwarePlugin/Generic/GenericFirmwarePlugin.h \
+    src/FirmwarePlugin/PX4/PX4FirmwarePlugin.h \
+    src/FirmwarePlugin/MAVRIC/MAVRICFirmwarePlugin.h \
     src/AutoPilotPlugins/AutoPilotPlugin.h \
     src/AutoPilotPlugins/AutoPilotPluginManager.h \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.h \
@@ -591,6 +605,10 @@ HEADERS += \
 }
 
 SOURCES += \
+    src/FirmwarePlugin/FirmwarePluginManager.cc \
+    src/FirmwarePlugin/Generic/GenericFirmwarePlugin.cc \
+    src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc \
+    src/FirmwarePlugin/MAVRIC/MAVRICFirmwarePlugin.cc \
     src/AutoPilotPlugins/AutoPilotPlugin.cc \
     src/AutoPilotPlugins/AutoPilotPluginManager.cc \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.cc \

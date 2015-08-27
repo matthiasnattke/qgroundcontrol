@@ -55,6 +55,7 @@ AutoPilotPluginManager::~AutoPilotPluginManager()
     _pluginMap.clear();
     
     PX4AutoPilotPlugin::clearStaticData();
+    MAVRICAutoPilotPlugin::clearStaticData();
     GenericAutoPilotPlugin::clearStaticData();
 }
 
@@ -121,43 +122,6 @@ QSharedPointer<AutoPilotPlugin> AutoPilotPluginManager::getInstanceForAutoPilotP
     Q_ASSERT(_pluginMap[autopilotType].contains(uasId));
     
     return _pluginMap[autopilotType][uasId];
-}
-
-QList<AutoPilotPluginManager::FullMode_t> AutoPilotPluginManager::getModes(int autopilotType) const
-{
-    switch (autopilotType) {
-        case MAV_AUTOPILOT_PX4:
-            return PX4AutoPilotPlugin::getModes();
-        case MAV_AUTOPILOT_MAVRIC:
-            return MAVRICAutoPilotPlugin::getModes();
-        case MAV_AUTOPILOT_GENERIC:
-        default:
-            return GenericAutoPilotPlugin::getModes();
-    }
-}
-
-QString AutoPilotPluginManager::getAudioModeText(uint8_t baseMode, uint32_t customMode, int autopilotType) const
-{
-    switch (autopilotType) {
-        case MAV_AUTOPILOT_PX4:
-            return PX4AutoPilotPlugin::getAudioModeText(baseMode, customMode);
-        case MAV_AUTOPILOT_GENERIC:
-        default:
-            return GenericAutoPilotPlugin::getAudioModeText(baseMode, customMode);
-    }
-}
-
-QString AutoPilotPluginManager::getShortModeText(uint8_t baseMode, uint32_t customMode, int autopilotType) const
-{
-    switch (autopilotType) {
-        case MAV_AUTOPILOT_PX4:
-            return PX4AutoPilotPlugin::getShortModeText(baseMode, customMode);
-        case MAV_AUTOPILOT_MAVRIC:
-            return MAVRICAutoPilotPlugin::getShortModeText(baseMode, customMode);
-        case MAV_AUTOPILOT_GENERIC:
-        default:
-            return GenericAutoPilotPlugin::getShortModeText(baseMode, customMode);
-    }
 }
 
 /// If autopilot is not an installed plugin, returns MAV_AUTOPILOT_GENERIC

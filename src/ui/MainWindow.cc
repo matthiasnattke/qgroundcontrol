@@ -145,6 +145,10 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
         connect(this, &MainWindow::initStatusChanged, splashScreen, &QSplashScreen::showMessage);
     }
 
+    // Qt 4/5 on Ubuntu does place the native menubar correctly so on Linux we revert back to in-window menu bar.
+#ifdef Q_OS_LINUX
+    menuBar()->setNativeMenuBar(false);
+#endif
     // Setup user interface
     loadSettings();
     emit initStatusChanged(tr("Setting up user interface"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
@@ -161,13 +165,6 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
     setDockOptions(AnimatedDocks | AllowTabbedDocks | AllowNestedDocks);
     // Setup corners
     setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
-
-    // Qt 4 on Ubuntu does place the native menubar correctly so on Linux we revert back to in-window menu bar.
-    // TODO: Check that this is still necessary on Qt5 on Ubuntu
-
-#ifdef Q_OS_LINUX
-    menuBar()->setNativeMenuBar(false);
-#endif
 
     // On Mobile devices, we don't want any main menus at all.
 #ifdef __mobile__
@@ -397,7 +394,7 @@ void MainWindow::_buildCommonWidgets(void)
 
     // Log player
     // TODO: Make this optional with a preferences setting or under a "View" menu
-    logPlayer = new QGCMAVLinkLogPlayer(MAVLinkProtocol::instance(), statusBar());
+    logPlayer = new QGCMAVLinkLogPlayer(statusBar());
     statusBar()->addPermanentWidget(logPlayer);
 
     // In order for Qt to save and restore state of widgets all widgets must be created ahead of time. We only create the QDockWidget
@@ -412,7 +409,7 @@ void MainWindow::_buildCommonWidgets(void)
 
     static const struct DockWidgetInfo rgDockWidgetInfo[] = {
         { _uasControlDockWidgetName,        "Control",                  Qt::LeftDockWidgetArea },
-        { _uasListDockWidgetName,           "Unmanned Systems",         Qt::RightDockWidgetArea },
+        { _uasListDockWidgetName,           "Unmanned Systems",         Qt::LeftDockWidgetArea },
         { _waypointsDockWidgetName,         "Mission Plan",             Qt::BottomDockWidgetArea },
         { _mavlinkDockWidgetName,           "MAVLink Inspector",        Qt::RightDockWidgetArea },
         { _parametersDockWidgetName,        "Parameter Editor",			Qt::RightDockWidgetArea },
@@ -426,7 +423,7 @@ void MainWindow::_buildCommonWidgets(void)
         { _pfdDockWidgetName,               "Primary Flight Display",   Qt::RightDockWidgetArea },
         { _hudDockWidgetName,               "Video Downlink",           Qt::RightDockWidgetArea },
         { _uasInfoViewDockWidgetName,       "Info View",                Qt::LeftDockWidgetArea },
-	{ _swarmControlWidgetName,          "Swarm Control",            Qt::RightDockWidgetArea },
+        { _swarmControlWidgetName,          "Swarm Control",            Qt::RightDockWidgetArea },
     };
     static const size_t cDockWidgetInfo = sizeof(rgDockWidgetInfo) / sizeof(rgDockWidgetInfo[0]);
 
@@ -642,12 +639,16 @@ void MainWindow::closeEvent(QCloseEvent *event)
                 tr("There are still active connections to vehicles. Do you want to disconnect these before closing?"),
                 QMessageBox::Yes | QMessageBox::Cancel,
                 QMessageBox::Cancel);
-        if (button == QMessageBox::Yes) {
-            LinkManager::instance()->disconnectAll();
-        } else {
-            event->ignore();
-            return;
-        }
+		if (button == QMessageBox::Yes) {
+			LinkManager::instance()->disconnectAll();
+			// The above disconnect causes a flurry of activity as the vehicle components are removed. This in turn
+			// causes the Windows Version of Qt to crash if you allow the close event to be accepted. In order to prevent
+			// the crash, we ignore the close event and setup a delayed timer to close the window after things settle down.
+			QTimer::singleShot(1500, this, &MainWindow::_closeWindow);
+		}
+
+        event->ignore();
+        return;
     }
 
     // This will process any remaining flight log save dialogs
@@ -671,7 +672,7 @@ void MainWindow::loadSettings()
     _lowPowerMode   = settings.value("LOW_POWER_MODE",      _lowPowerMode).toBool();
     _showStatusBar  = settings.value("SHOW_STATUSBAR",      _showStatusBar).toBool();
     settings.endGroup();
-    }
+}
 
 void MainWindow::storeSettings()
 {
@@ -944,7 +945,7 @@ void MainWindow::_loadCurrentViewState(void)
         case VIEW_PLAN:
             _buildPlanView();
             centerView = _planView;
-            defaultWidgets = "WAYPOINT_LIST_DOCKWIDGET,SWARM_CONTROL_DOCKWIDGET";
+           defaultWidgets = "WAYPOINT_LIST_DOCKWIDGET,SWARM_CONTROL_DOCKWIDGET";
             break;
 
         case VIEW_EXPERIMENTAL_PLAN:

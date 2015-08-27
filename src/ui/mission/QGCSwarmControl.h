@@ -40,7 +40,8 @@
 #include "UASManager.h"
 #include "UASInterface.h"
 #include "UASControlWidget.h"
-#include "AutoPilotPluginManager.h"
+//#include "AutoPilotPluginManager.h"
+#include "FirmwarePluginManager.h"
 
 namespace Ui {
 class QGCSwarmControl;
@@ -126,7 +127,7 @@ protected:
 
     bool mode_init;
     int modeIdx;                    ///< Current uas mode index
-    QList<AutoPilotPluginManager::FullMode_t>  _modeList;  ///< Mode list for the current UAS
+    QStringList  _modeList;  ///< Mode list for the current UAS
 
 signals:
     void uasTextReceived(UASInterface* uas, QString message);

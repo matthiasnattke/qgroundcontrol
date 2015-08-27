@@ -59,12 +59,8 @@ public slots:
     void setUAS(UASInterface* uasID);
     /** @brief Trigger next context action */
     void cycleContextButton();
-    /** @brief Set the operation mode of the MAV */
-    void setMode(int mode);
     /** @brief Transmit the operation mode */
     void transmitMode();
-    /** @brief Update the mode */
-    void updateMode(int uasID, QString mode, QString description);
     /** @brief Update state */
     void updateState(int state);
     /** @brief Update internal state machine */
@@ -79,7 +75,6 @@ public slots:
 signals:
     void changedMode(int);
 
-
 protected slots:
 
     /** @brief Set the background color for the widget */
@@ -89,8 +84,7 @@ protected:
     MAVLinkProtocol* mavlink;                       ///< Reference to the MAVLink instance
     UASInterface* uasActive;
     int uasID;                                      ///< Reference to the current uas
-    QList<AutoPilotPluginManager::FullMode_t> _modeList;  ///< Mode list for the current UAS
-    int modeIdx;                                    ///< Current uas mode index
+    QStringList _modeList;  ///< Mode list for the current UAS
     bool armed;                                     ///< Engine state
 
 private:

@@ -348,20 +348,22 @@ void QGCSwarmControl::updateModesList(UASInterface* uas)
     {
         return;
     }
-    
-    _modeList = AutoPilotPluginManager::instance()->getModes(uas->getAutopilotType());
 
+    _modeList = FirmwarePluginManager::instance()->firmwarePluginForAutopilot((MAV_AUTOPILOT)uas->getAutopilotType())->flightModes();
+    
     // Set combobox items
     ui->modeComboBox->clear();
-    foreach (AutoPilotPluginManager::FullMode_t fullMode, _modeList)
-    {
-        ui->modeComboBox->addItem(uas->getShortModeTextFor(fullMode.baseMode, fullMode.customMode).remove(0, 2));
+    foreach (QString flightMode, _modeList) {
+        ui->modeComboBox->addItem(flightMode);
     }
 
     // Select first mode in list
     modeIdx = 0;
     ui->modeComboBox->setCurrentIndex(modeIdx);
     ui->modeComboBox->update();
+
+
+
 }
 
 void QGCSwarmControl::RemoveUAS(UASInterface* uas)
@@ -500,50 +502,84 @@ void QGCSwarmControl::stopButton_clicked()
 
 void QGCSwarmControl::armButton_clicked()
 {
-    if (modeIdx >= 0 && modeIdx < _modeList.count())
+    // if (modeIdx >= 0 && modeIdx < _modeList.count())
+    // {
+    //     AutoPilotPluginManager::FullMode_t fullMode = _modeList[modeIdx];
+
+    //     fullMode.baseMode |= MAV_MODE_FLAG_SAFETY_ARMED;
+
+    //     if (ui->avoidanceBox->checkState() == Qt::Checked)
+    //     {
+    //         fullMode.baseMode |= MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+    //     }
+    //     else
+    //     {
+    //         fullMode.baseMode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+    //     }
+
+    //     fullMode.customMode = 0;
+
+    //     mavlink_message_t msg;
+    //     mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_MODE, 1, fullMode.baseMode, fullMode.customMode, 0, 0, 0, 0, 0);
+    //     mavlink->sendMessage(msg);
+    // }
+
+    if (uas)
     {
-        AutoPilotPluginManager::FullMode_t fullMode = _modeList[modeIdx];
+        uint8_t     base_mode;
+        uint32_t    custom_mode;
+        QString     flightMode = ui->modeComboBox->itemText(ui->modeComboBox->currentIndex());
+        
+        qDebug() << "flightMode:" + flightMode;
 
-        fullMode.baseMode |= MAV_MODE_FLAG_SAFETY_ARMED;
-
-        if (ui->avoidanceBox->checkState() == Qt::Checked)
+        if (FirmwarePluginManager::instance()->firmwarePluginForAutopilot((MAV_AUTOPILOT)uas->getAutopilotType())->setFlightMode(flightMode, &base_mode, &custom_mode))
         {
-            fullMode.baseMode |= MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
-        }
-        else
-        {
-            fullMode.baseMode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
-        }
+            base_mode |= MAV_MODE_FLAG_SAFETY_ARMED;
 
-        fullMode.customMode = 0;
+            if (ui->avoidanceBox->checkState() == Qt::Checked)
+            {
+                base_mode |= MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+            }
+            else
+            {
+                base_mode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+            }
+            
+            custom_mode = 0;
 
-        mavlink_message_t msg;
-        mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_MODE, 1, fullMode.baseMode, fullMode.customMode, 0, 0, 0, 0, 0);
-        mavlink->sendMessage(msg);
+            mavlink_message_t msg;
+            mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_MODE, 1, base_mode, custom_mode, 0, 0, 0, 0, 0);
+            mavlink->sendMessage(msg);
+        }
     }
 }
 
 void QGCSwarmControl::disarmButton_clicked()
 {
-    if (modeIdx >= 0 && modeIdx < _modeList.count())
+    if (uas)
     {
-        AutoPilotPluginManager::FullMode_t fullMode = _modeList[modeIdx];
-
-        fullMode.baseMode &= ~MAV_MODE_FLAG_SAFETY_ARMED;
-
-        if (ui->avoidanceBox->checkState() == Qt::Checked)
+        uint8_t     base_mode;
+        uint32_t    custom_mode;
+        QString     flightMode = ui->modeComboBox->itemText(ui->modeComboBox->currentIndex());
+        
+        if (FirmwarePluginManager::instance()->firmwarePluginForAutopilot((MAV_AUTOPILOT)uas->getAutopilotType())->setFlightMode(flightMode, &base_mode, &custom_mode))
         {
-            fullMode.baseMode |= MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
-        }
-        else
-        {
-            fullMode.baseMode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
-        }
-        fullMode.customMode = 0;
+            base_mode &= ~MAV_MODE_FLAG_SAFETY_ARMED;
 
-        mavlink_message_t msg;
-        mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_MODE, 1, fullMode.baseMode, fullMode.customMode, 0, 0, 0, 0, 0);
-        mavlink->sendMessage(msg);
+            if (ui->avoidanceBox->checkState() == Qt::Checked)
+            {
+                base_mode |= MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+            }
+            else
+            {
+                base_mode &= ~MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+            }
+            custom_mode = 0;
+
+            mavlink_message_t msg;
+            mavlink_msg_command_long_pack(mavlink->getSystemId(), mavlink->getComponentId(), &msg, 0, 0, MAV_CMD_DO_SET_MODE, 1, base_mode, custom_mode, 0, 0, 0, 0, 0);
+            mavlink->sendMessage(msg);
+        }
     }
 }
 

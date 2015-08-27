@@ -100,8 +100,6 @@ public:
     virtual const QString& getShortState() const = 0;
     /** @brief Get short mode */
     virtual const QString& getShortMode() const = 0;
-    /** @brief Translate mode id into text */
-    virtual QString getShortModeTextFor(uint8_t base_mode, uint32_t custom_mode) const = 0;
     //virtual QColor getColor() = 0;
     virtual int getUASID() const = 0; ///< Get the ID of the connected UAS
     /** @brief The time interval the robot is switched on **/
@@ -166,6 +164,9 @@ public:
          *         interface. The LinkInterface can support multiple protocols.
          **/
     virtual QList<LinkInterface*> getLinks() = 0;
+    
+    /// @returns true: UAS is connected to log replay link
+    virtual bool isLogReplay(void) = 0;
 
     /**
      * @brief Get the color for this UAS
@@ -246,7 +247,12 @@ public:
         StartCalibrationAccel,
         StartCalibrationLevel,
         StartCalibrationEsc,
-        StartCalibrationCopyTrims
+        StartCalibrationCopyTrims,
+        StartCalibrationUavcanEsc
+    };
+
+    enum StartBusConfigType {
+        StartBusConfigActuators
     };
     
     /// Starts the specified calibration
@@ -254,6 +260,12 @@ public:
     
     /// Ends any current calibration
     virtual void stopCalibration(void) = 0;
+
+    /// Starts the specified bus configuration
+    virtual void startBusConfig(StartBusConfigType calType) = 0;
+
+    /// Ends any current bus configuration
+    virtual void stopBusConfig(void) = 0;
 
 public slots:
 
