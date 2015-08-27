@@ -32,14 +32,25 @@ IMPLEMENT_QGC_SINGLETON(MAVRICFirmwarePlugin, FirmwarePlugin)
 
 struct Bit2Name {
     uint8_t     baseModeBit;
+    uint8_t     fullModeBit;
     const char* name;
 };
 
+typedef enum
+{
+    MAV_MODE_PRE = 0,                       ///< 0b00*00000
+    MAV_MODE_SAFE = 64,                     ///< 0b01*00000
+    MAV_MODE_ATTITUDE_CONTROL = 192,        ///< 0b11*00000
+    MAV_MODE_VELOCITY_CONTROL = 208,        ///< 0b11*10000
+    MAV_MODE_POSITION_HOLD = 216,           ///< 0b11*11000
+    MAV_MODE_GPS_NAVIGATION = 156           ///< 0b10*11100
+} mav_mode_predefined_t;
+
 static const struct Bit2Name rgBit2Name[] = {
-    { MAV_MODE_FLAG_DECODE_POSITION_MANUAL,         "ATTITUDE" },
-    { MAV_MODE_FLAG_DECODE_POSITION_STABILIZE,      "VElOCITY" },
-    { MAV_MODE_FLAG_DECODE_POSITION_GUIDED,         "POSITION_HOLD" },
-    { MAV_MODE_FLAG_DECODE_POSITION_AUTO,           "GPS_NAVIGATION" },
+    { MAV_MODE_FLAG_DECODE_POSITION_MANUAL,      MAV_MODE_ATTITUDE_CONTROL,    "ATTITUDE" },
+    { MAV_MODE_FLAG_DECODE_POSITION_STABILIZE,   MAV_MODE_VELOCITY_CONTROL,    "VElOCITY" },
+    { MAV_MODE_FLAG_DECODE_POSITION_GUIDED,      MAV_MODE_POSITION_HOLD,       "POSITION_HOLD" },
+    { MAV_MODE_FLAG_DECODE_POSITION_AUTO,        MAV_MODE_GPS_NAVIGATION,      "GPS_NAVIGATION" },
 };
 
 enum MAVRIC_MAV_MODE_CUSTOM
@@ -152,7 +163,7 @@ bool MAVRICFirmwarePlugin::setFlightMode(const QString& flightMode, uint8_t* bas
     {
         if (flightMode.compare(rgBit2Name[i].name, Qt::CaseInsensitive) == 0)
         {
-            *base_mode = rgBit2Name[i].baseModeBit;
+            *base_mode = rgBit2Name[i].fullModeBit;
             *custom_mode = 0;
             
             found = true;
