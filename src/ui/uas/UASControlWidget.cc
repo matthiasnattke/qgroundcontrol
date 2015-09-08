@@ -54,8 +54,8 @@ UASControlWidget::UASControlWidget(QWidget *parent) : QWidget(parent),
     connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(setUAS(UASInterface*)));
     connect(ui.setModeButton, SIGNAL(clicked()), this, SLOT(transmitMode()));
 
-    ui.liftoffButton->hide();
-    ui.landButton->hide();
+    //ui.liftoffButton->hide();
+    //ui.landButton->hide();
     ui.shutdownButton->hide();
 
     ui.gridLayout->setAlignment(Qt::AlignTop);
