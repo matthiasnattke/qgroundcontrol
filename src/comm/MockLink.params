@@ -101,6 +101,7 @@
 1	50	COM_EF_C2T	                        5	9
 1	50	COM_EF_THROT	                      0.5	9
 1	50	COM_EF_TIME	                       10	9
+1	50	COM_RC_IN_MODE	                      0	6
 1	50	COM_RC_LOSS_T	                      0.5	9
 1	50	EKF_ATT_V3_Q0	                   0.0001	9
 1	50	EKF_ATT_V3_Q1	                     0.08	9
@@ -237,7 +238,7 @@
 1	50	LNDMC_Z_VEL_MAX	                      0.3	9
 1	50	MAV_COMP_ID	50	6
 1	50	MAV_FWDEXTSP	1	6
-1	50	MAV_SYS_ID	1	6
+1	50	MAV_SYS_ID	76	6
 1	50	MAV_TYPE	2	6
 1	50	MAV_USEHILGPS	0	6
 1	50	MC_ACRO_P_MAX	                       90	9

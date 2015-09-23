@@ -25,13 +25,14 @@ along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
 ///     @brief Setup View
 ///     @author Don Gagne <don@thegagnes.com>
 
-import QtQuick 2.3
+import QtQuick          2.3
 import QtQuick.Controls 1.2
 
-import QGroundControl.AutoPilotPlugin 1.0
-import QGroundControl.Palette 1.0
-import QGroundControl.Controls 1.0
-import QGroundControl.ScreenTools 1.0
+import QGroundControl.AutoPilotPlugin       1.0
+import QGroundControl.Palette               1.0
+import QGroundControl.Controls              1.0
+import QGroundControl.ScreenTools           1.0
+import QGroundControl.MultiVehicleManager   1.0
 
 Rectangle {
     id:     topLevel
@@ -52,7 +53,7 @@ Rectangle {
 
     function showSummaryPanel()
     {
-        if (controller.autopilot) {
+        if (multiVehicleManager.parameterReadyVehicleAvailable) {
             panelLoader.source = "VehicleSummary.qml";
         } else {
             panelLoader.sourceComponent = disconnectedVehicleSummaryComponent
@@ -61,13 +62,23 @@ Rectangle {
 
     function showFirmwarePanel()
     {
-        if (controller.showFirmware) {
-            if (controller.autopilot && controller.autopilot.armed) {
+        if (!ScreenTools.isMobile) {
+            if (multiVehicleManager.activeVehicleAvailable && multiVehicleManager.activeVehicle.autopilot.armed) {
                 messagePanelText = armedVehicleText
                 panelLoader.sourceComponent = messagePanelComponent
             } else {
                 panelLoader.source = "FirmwareUpgrade.qml";
             }
+        }
+    }
+
+    function showJoystickPanel()
+    {
+        if (multiVehicleManager.activeVehicleAvailable && multiVehicleManager.activeVehicle.autopilot.armed) {
+            messagePanelText = armedVehicleText
+            panelLoader.sourceComponent = messagePanelComponent
+        } else {
+            panelLoader.source = "JoystickConfig.qml";
         }
     }
 
@@ -78,7 +89,7 @@ Rectangle {
 
     function showVehicleComponentPanel(vehicleComponent)
     {
-        if (controller.autopilot.armed) {
+        if (multiVehicleManager.activeVehicle.autopilot.armed) {
             messagePanelText = armedVehicleText
             panelLoader.sourceComponent = messagePanelComponent
         } else {
@@ -91,16 +102,16 @@ Rectangle {
         }
     }
 
-    Connections {
-        target: controller
+    Component.onCompleted: showSummaryPanel()
 
-        onAutopilotChanged: {
+    Connections {
+        target: multiVehicleManager
+
+        onParameterReadyVehicleAvailableChanged: {
             summaryButton.checked = true
             showSummaryPanel()
         }
     }
-
-    Component.onCompleted: showSummaryPanel()
 
     Component {
         id: disconnectedVehicleSummaryComponent
@@ -142,67 +153,87 @@ Rectangle {
         }
     }
 
-    Column {
-        id:     buttonColumn
-        width:  buttonWidth
+    Flickable {
+        id:                 buttonFlickable
+        width:              buttonWidth
+        height:             parent.height
+        contentWidth:       buttonWidth
+        contentHeight:      buttonColumn.height
+        flickableDirection: Flickable.VerticalFlick
 
-        SubMenuButton {
-            id:             summaryButton
-            width:          buttonWidth
-            imageResource: "/qmlimages/VehicleSummaryIcon.png"
-            setupIndicator: false
-            exclusiveGroup: setupButtonGroup
-            text:           "SUMMARY"
+        Column {
+            id:     buttonColumn
+            width:  buttonWidth
 
-            onClicked: showSummaryPanel()
-        }
+            SubMenuButton {
+                id:             summaryButton
+                width:          buttonWidth
+                imageResource: "/qmlimages/VehicleSummaryIcon.png"
+                setupIndicator: false
+                exclusiveGroup: setupButtonGroup
+                text:           "SUMMARY"
 
-        SubMenuButton {
-            id:             firmwareButton
-            width:          buttonWidth
-            imageResource:  "/qmlimages/FirmwareUpgradeIcon.png"
-            setupIndicator: false
-            exclusiveGroup: setupButtonGroup
-            visible:        controller.showFirmware
-            text:           "FIRMWARE"
+                onClicked: showSummaryPanel()
+            }
 
-            onClicked: showFirmwarePanel()
-        }
+            SubMenuButton {
+                id:             firmwareButton
+                width:          buttonWidth
+                imageResource:  "/qmlimages/FirmwareUpgradeIcon.png"
+                setupIndicator: false
+                exclusiveGroup: setupButtonGroup
+                visible:        !ScreenTools.isMobile
+                text:           "FIRMWARE"
 
-        Repeater {
-            model: controller.autopilot ? controller.autopilot.vehicleComponents : 0
+                onClicked: showFirmwarePanel()
+            }
+
+            SubMenuButton {
+                id:             joystickButton
+                width:          buttonWidth
+                setupIndicator: true
+                setupComplete:  joystickManager.activeJoystick ? joystickManager.activeJoystick.calibrated : false
+                exclusiveGroup: setupButtonGroup
+                visible:        multiVehicleManager.parameterReadyVehicleAvailable && joystickManager.joysticks.length != 0
+                text:           "JOYSTICK"
+
+                onClicked: showJoystickPanel()
+            }
+
+            Repeater {
+                model: multiVehicleManager.parameterReadyVehicleAvailable ? multiVehicleManager.activeVehicle.autopilot.vehicleComponents : 0
+
+                SubMenuButton {
+                    width:          buttonWidth
+                    imageResource:  modelData.iconResource
+                    setupIndicator: modelData.requiresSetup
+                    setupComplete:  modelData.setupComplete
+                    exclusiveGroup: setupButtonGroup
+                    text:           modelData.name.toUpperCase()
+
+                    onClicked: showVehicleComponentPanel(modelData)
+                }
+            }
 
             SubMenuButton {
                 width:          buttonWidth
-                imageResource:  modelData.iconResource
-                setupComplete:  modelData.setupComplete
+                setupIndicator: false
                 exclusiveGroup: setupButtonGroup
-                text:           modelData.name.toUpperCase()
+                visible:        multiVehicleManager.parameterReadyVehicleAvailable
+                text:           "PARAMETERS"
 
-                onClicked: showVehicleComponentPanel(modelData)
+                onClicked: showParametersPanel()
             }
-        }
-
-        SubMenuButton {
-            width:          buttonWidth
-            setupIndicator: false
-            exclusiveGroup: setupButtonGroup
-            visible:        controller.autopilot
-            text:           "PARAMETERS"
-
-            onClicked: showParametersPanel()
-        }
-    } // Column
+        } // Column
+    } // Flickable
 
     Loader {
         id:                     panelLoader
         anchors.leftMargin:     defaultTextWidth
         anchors.rightMargin:    defaultTextWidth
-        anchors.left:           buttonColumn.right
+        anchors.left:           buttonFlickable.right
         anchors.right:          parent.right
         anchors.top:            parent.top
         anchors.bottom:         parent.bottom
-
-        property var autopilot: controller.autopilot
     }
 }

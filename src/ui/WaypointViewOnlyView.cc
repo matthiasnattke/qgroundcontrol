@@ -4,7 +4,7 @@
 #include "WaypointViewOnlyView.h"
 #include "ui_WaypointViewOnlyView.h"
 
-WaypointViewOnlyView::WaypointViewOnlyView(Waypoint* wp, QWidget *parent) :
+WaypointViewOnlyView::WaypointViewOnlyView(MissionItem* wp, QWidget *parent) :
     QWidget(parent),
     wp(wp),
     m_ui(new Ui::WaypointViewOnlyView)
@@ -24,19 +24,19 @@ void WaypointViewOnlyView::changedAutoContinue(int state)
         new_value = true;
     }
     wp->setAutocontinue(new_value);
-    emit changeAutoContinue(wp->getId(),new_value);
+    emit changeAutoContinue(wp->sequenceNumber(),new_value);
 }
 
 void WaypointViewOnlyView::changedCurrent(int state)
 //This is a slot receiving signals from QCheckBox m_ui->current. The state given here is whatever the user has clicked and not the true "current" value onboard.
 {
     Q_UNUSED(state);
-    //qDebug() << "Trof: WaypointViewOnlyView::changedCurrent(" << state << ") ID:" << wp->getId();
+    //qDebug() << "Trof: WaypointViewOnlyView::changedCurrent(" << state << ") ID:" << wp->sequenceNumber();
     m_ui->current->blockSignals(true);
 
     if (m_ui->current->isChecked() == false)
     {
-        if (wp->getCurrent() == true) //User clicked on the waypoint, that is already current. Box stays checked
+        if (wp->isCurrentItem() == true) //User clicked on the waypoint, that is already current. Box stays checked
         {
             m_ui->current->setCheckState(Qt::Checked);
             //qDebug() << "Trof: WaypointViewOnlyView::changedCurrent. Rechecked true. stay true " << m_ui->current->isChecked();
@@ -51,7 +51,7 @@ void WaypointViewOnlyView::changedCurrent(int state)
     {
         m_ui->current->setCheckState(Qt::Unchecked);
         //qDebug() << "Trof: WaypointViewOnlyView::changedCurrent. Checked new. Sending set_current request to Manager " << m_ui->current->isChecked();
-        emit changeCurrentWaypoint(wp->getId());   //the slot changeCurrentWaypoint() in WaypointList sets all other current flags to false
+        emit changeCurrentWaypoint(wp->sequenceNumber());   //the slot changeCurrentWaypoint() in WaypointList sets all other current flags to false
 
     }
     m_ui->current->blockSignals(false);
@@ -67,12 +67,12 @@ void WaypointViewOnlyView::setCurrent(bool state)
     m_ui->current->blockSignals(true);
     if (state == true)
     {
-        wp->setCurrent(true);
+        wp->setIsCurrentItem(true);
         m_ui->current->setCheckState(Qt::Checked);
     }
     else
     {
-        wp->setCurrent(false);
+        wp->setIsCurrentItem(false);
         m_ui->current->setCheckState(Qt::Unchecked);
     }
     m_ui->current->blockSignals(false);
@@ -90,7 +90,7 @@ void WaypointViewOnlyView::updateValues()
 
     // Style alternating rows of Missions as lighter/darker.
     static int lastId = -1;
-    int currId = wp->getId() % 2;
+    int currId = wp->sequenceNumber() % 2;
     if (currId != lastId)
     {
         if (currId == 1)
@@ -107,8 +107,8 @@ void WaypointViewOnlyView::updateValues()
 
     // update frame
 
-    m_ui->idLabel->setText(QString("%1").arg(wp->getId()));
-    switch (wp->getFrame())
+    m_ui->idLabel->setText(QString("%1").arg(wp->sequenceNumber()));
+    switch (wp->frame())
     {
     case MAV_FRAME_GLOBAL:
     {
@@ -142,48 +142,48 @@ void WaypointViewOnlyView::updateValues()
     }
     }
 
-    if (m_ui->current->isChecked() != wp->getCurrent())
+    if (m_ui->current->isChecked() != wp->isCurrentItem())
     {
         m_ui->current->blockSignals(true);
-        m_ui->current->setChecked(wp->getCurrent());
+        m_ui->current->setChecked(wp->isCurrentItem());
         m_ui->current->blockSignals(false);
     }
-    if (m_ui->autoContinue->isChecked() != wp->getAutoContinue())
+    if (m_ui->autoContinue->isChecked() != wp->autoContinue())
     {
         m_ui->autoContinue->blockSignals(true);
-        m_ui->autoContinue->setChecked(wp->getAutoContinue());
+        m_ui->autoContinue->setChecked(wp->autoContinue());
         m_ui->autoContinue->blockSignals(false);
     }
 
-    switch (wp->getAction())
+    switch (wp->command())
     {
     case MAV_CMD_NAV_WAYPOINT:
     {
-        switch (wp->getFrame())
+        switch (wp->frame())
         {
         case MAV_FRAME_GLOBAL_RELATIVE_ALT:
         case MAV_FRAME_GLOBAL:
         {
-            if (wp->getParam1()>0)
+            if (wp->param1()>0)
             {
-                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and wait there for %4 sec; yaw: %5; rad: %6").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam1()).arg(wp->getParam4()).arg(wp->getParam2()));
+                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and wait there for %4 sec; yaw: %5; rad: %6").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(wp->param1()).arg(wp->param4()).arg(wp->param2()));
             }
             else
             {
-                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>,lon <b>%2<sup>o</sup></b>,alt <b>%3)</b>; yaw: %4; rad: %5").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam4()).arg(wp->getParam2()));
+                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>,lon <b>%2<sup>o</sup></b>,alt <b>%3)</b>; yaw: %4; rad: %5").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(wp->param4()).arg(wp->param2()));
             }
             break;
         }
         case MAV_FRAME_LOCAL_NED:
         default:
         {
-            if (wp->getParam1()>0)
+            if (wp->param1()>0)
             {
-                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and wait there for %4 sec; yaw: %5; rad: %6").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f',2).arg(wp->getParam1()).arg(wp->getParam4()).arg(wp->getParam2()));
+                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and wait there for %4 sec; yaw: %5; rad: %6").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f',2).arg(wp->param1()).arg(wp->param4()).arg(wp->param2()));
             }
             else
             {
-                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b>; yaw: %4; rad: %5").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam4()).arg(wp->getParam2()));
+                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b>; yaw: %4; rad: %5").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f', 2).arg(wp->param4()).arg(wp->param2()));
             }
             break;
         }
@@ -192,31 +192,31 @@ void WaypointViewOnlyView::updateValues()
     }
     case MAV_CMD_NAV_LOITER_UNLIM:
     {
-        switch (wp->getFrame())
+        switch (wp->frame())
         {
         case MAV_FRAME_GLOBAL_RELATIVE_ALT:
         case MAV_FRAME_GLOBAL:
         {
-            if (wp->getParam3()>=0)
+            if (wp->param3()>=0)
             {
-                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there indefinitely (clockwise); rad: %4").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam3()));
+                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there indefinitely (clockwise); rad: %4").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(wp->param3()));
             }
             else
             {
-                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there indefinitely (counter-clockwise); rad: %4").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(-wp->getParam3()));
+                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there indefinitely (counter-clockwise); rad: %4").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(-wp->param3()));
             }
             break;
         }
         case MAV_FRAME_LOCAL_NED:
         default:
         {
-            if (wp->getParam3()>=0)
+            if (wp->param3()>=0)
             {
-                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there indefinitely (clockwise); rad: %4").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f',2).arg(wp->getParam3()));
+                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there indefinitely (clockwise); rad: %4").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f',2).arg(wp->param3()));
             }
             else
             {
-                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there indefinitely (counter-clockwise); rad: %4").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f', 2).arg(-wp->getParam3()));
+                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there indefinitely (counter-clockwise); rad: %4").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f', 2).arg(-wp->param3()));
             }
             break;
         }
@@ -225,31 +225,31 @@ void WaypointViewOnlyView::updateValues()
     }
     case MAV_CMD_NAV_LOITER_TURNS:
     {
-        switch (wp->getFrame())
+        switch (wp->frame())
         {
         case MAV_FRAME_GLOBAL_RELATIVE_ALT:
         case MAV_FRAME_GLOBAL:
         {
-            if (wp->getParam3()>=0)
+            if (wp->param3()>=0)
             {
-                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there for %5 turns (clockwise); rad: %4").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam3()).arg(wp->getParam1()));
+                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there for %5 turns (clockwise); rad: %4").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(wp->param3()).arg(wp->param1()));
             }
             else
             {
-                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there for %5 turns (counter-clockwise); rad: %4").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(-wp->getParam3()).arg(wp->getParam1()));
+                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there for %5 turns (counter-clockwise); rad: %4").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(-wp->param3()).arg(wp->param1()));
             }
             break;
         }
         case MAV_FRAME_LOCAL_NED:
         default:
         {
-            if (wp->getParam3()>=0)
+            if (wp->param3()>=0)
             {
-                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there for %5 turns (clockwise); rad: %4").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f',2).arg(wp->getParam3()).arg(wp->getParam1()));
+                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there for %5 turns (clockwise); rad: %4").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f',2).arg(wp->param3()).arg(wp->param1()));
             }
             else
             {
-                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there for %5 turns (counter-clockwise); rad: %4").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f', 2).arg(-wp->getParam3()).arg(wp->getParam1()));
+                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there for %5 turns (counter-clockwise); rad: %4").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f', 2).arg(-wp->param3()).arg(wp->param1()));
             }
             break;
         }
@@ -258,31 +258,31 @@ void WaypointViewOnlyView::updateValues()
     }
     case MAV_CMD_NAV_LOITER_TIME:
     {
-        switch (wp->getFrame())
+        switch (wp->frame())
         {
         case MAV_FRAME_GLOBAL_RELATIVE_ALT:
         case MAV_FRAME_GLOBAL:
         {
-            if (wp->getParam3()>=0)
+            if (wp->param3()>=0)
             {
-                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there for %5s (clockwise); rad: %4").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam3()).arg(wp->getParam1()));
+                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there for %5s (clockwise); rad: %4").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(wp->param3()).arg(wp->param1()));
             }
             else
             {
-                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there for %5s (counter-clockwise); rad: %4").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(-wp->getParam3()).arg(wp->getParam1()));
+                m_ui->displayBar->setText(QString("Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and loiter there for %5s (counter-clockwise); rad: %4").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(-wp->param3()).arg(wp->param1()));
             }
             break;
         }
         case MAV_FRAME_LOCAL_NED:
         default:
         {
-            if (wp->getParam3()>=0)
+            if (wp->param3()>=0)
             {
-                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there for %5s (clockwise); rad: %4").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f',2).arg(wp->getParam3()).arg(wp->getParam1()));
+                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there for %5s (clockwise); rad: %4").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f',2).arg(wp->param3()).arg(wp->param1()));
             }
             else
             {
-                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there for %5s (counter-clockwise); rad: %4").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f', 2).arg(-wp->getParam3()).arg(wp->getParam1()));
+                m_ui->displayBar->setText(QString("Go to <b>(%1, %2, %3)</b> and loiter there for %5s (counter-clockwise); rad: %4").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f', 2).arg(-wp->param3()).arg(wp->param1()));
             }
             break;
         }
@@ -296,18 +296,18 @@ void WaypointViewOnlyView::updateValues()
     }
     case MAV_CMD_NAV_LAND:
     {
-        switch (wp->getFrame())
+        switch (wp->frame())
         {
         case MAV_FRAME_GLOBAL_RELATIVE_ALT:
         case MAV_FRAME_GLOBAL:
         {
-            m_ui->displayBar->setText(QString("LAND. Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and descent; yaw: %4").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam4()));
+            m_ui->displayBar->setText(QString("LAND. Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b> and descent; yaw: %4").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(wp->param4()));
             break;
         }
         case MAV_FRAME_LOCAL_NED:
         default:
         {
-            m_ui->displayBar->setText(QString("LAND. Go to <b>(%1, %2, %3)</b> and descent; yaw: %4").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam4()));
+            m_ui->displayBar->setText(QString("LAND. Go to <b>(%1, %2, %3)</b> and descent; yaw: %4").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f', 2).arg(wp->param4()));
             break;
         }
         } //end Frame switch
@@ -315,18 +315,18 @@ void WaypointViewOnlyView::updateValues()
     }
     case MAV_CMD_NAV_TAKEOFF:
     {
-        switch (wp->getFrame())
+        switch (wp->frame())
         {
         case MAV_FRAME_GLOBAL_RELATIVE_ALT:
         case MAV_FRAME_GLOBAL:
         {
-            m_ui->displayBar->setText(QString("TAKEOFF. Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b>; yaw: %4").arg(wp->getX(),0, 'f', 7).arg(wp->getY(),0, 'f', 7).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam4()));
+            m_ui->displayBar->setText(QString("TAKEOFF. Go to <b>(</b>lat <b>%1<sup>o</sup></b>, lon <b>%2<sup>o</sup></b>, alt <b>%3)</b>; yaw: %4").arg(wp->x(),0, 'f', 7).arg(wp->y(),0, 'f', 7).arg(wp->z(),0, 'f', 2).arg(wp->param4()));
             break;
         }
         case MAV_FRAME_LOCAL_NED:
         default:
         {
-            m_ui->displayBar->setText(QString("TAKEOFF. Go to <b>(%1, %2, %3)</b>; yaw: %4").arg(wp->getX(),0, 'f', 2).arg(wp->getY(),0, 'f', 2).arg(wp->getZ(),0, 'f', 2).arg(wp->getParam4()));
+            m_ui->displayBar->setText(QString("TAKEOFF. Go to <b>(%1, %2, %3)</b>; yaw: %4").arg(wp->x(),0, 'f', 2).arg(wp->y(),0, 'f', 2).arg(wp->z(),0, 'f', 2).arg(wp->param4()));
             break;
         }
         } //end Frame switch
@@ -335,9 +335,9 @@ void WaypointViewOnlyView::updateValues()
     }
     case MAV_CMD_DO_JUMP:
     {
-        if (wp->getParam2()>0)
+        if (wp->param2()>0)
         {
-            m_ui->displayBar->setText(QString("Jump to waypoint %1. Jumps left: %2").arg(wp->getParam1()).arg(wp->getParam2()));
+            m_ui->displayBar->setText(QString("Jump to waypoint %1. Jumps left: %2").arg(wp->param1()).arg(wp->param2()));
         }
         else
         {
@@ -347,12 +347,12 @@ void WaypointViewOnlyView::updateValues()
     }
     case MAV_CMD_CONDITION_DELAY:
     {
-        m_ui->displayBar->setText(QString("Delay: %1 sec").arg(wp->getParam1()));
+        m_ui->displayBar->setText(QString("Delay: %1 sec").arg(wp->param1()));
         break;
     }
     default:
     {
-        m_ui->displayBar->setText(QString("Unknown Command ID (%1) : %2, %3, %4, %5, %6, %7, %8").arg(wp->getAction()).arg(wp->getParam1()).arg(wp->getParam2()).arg(wp->getParam3()).arg(wp->getParam4()).arg(wp->getParam5()).arg(wp->getParam6()).arg(wp->getParam7()));
+        m_ui->displayBar->setText(QString("Unknown Command ID (%1) : %2, %3, %4, %5, %6, %7, %8").arg(wp->command()).arg(wp->param1()).arg(wp->param2()).arg(wp->param3()).arg(wp->param4()).arg(wp->param5()).arg(wp->param6()).arg(wp->param7()));
         break;
     }
     }

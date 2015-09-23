@@ -140,12 +140,15 @@ INCLUDEPATH += \
     src/audio \
     src/AutoPilotPlugins \
     src/comm \
+    src/FlightDisplay \
     src/input \
+    src/Joystick \
     src/lib/qmapcontrol \
+    src/MissionEditor \
+    src/MissionManager \
     src/QmlControls \
     src/uas \
     src/ui \
-    src/ui/flightdisplay \
     src/ui/linechart \
     src/ui/map \
     src/ui/mapdisplay \
@@ -159,7 +162,6 @@ INCLUDEPATH += \
 
 FORMS += \
     src/QGCQmlWidgetHolder.ui \
-    src/ui/HDDisplay.ui \
     src/ui/Linechart.ui \
     src/ui/LogReplayLinkConfigurationWidget.ui \
     src/ui/MainWindow.ui \
@@ -214,9 +216,6 @@ FORMS += \
 
 !MobileBuild {
 FORMS += \
-    src/ui/JoystickButton.ui \
-    src/ui/JoystickAxis.ui \
-    src/ui/JoystickWidget.ui \
     src/ui/QGCHilConfiguration.ui \
     src/ui/QGCHilFlightGearConfiguration.ui \
     src/ui/QGCHilJSBSimConfiguration.ui \
@@ -238,9 +237,16 @@ HEADERS += \
     src/comm/QGCMAVLink.h \
     src/comm/TCPLink.h \
     src/comm/UDPLink.h \
+    src/FlightDisplay/FlightDisplayWidget.h \
+    src/FlightDisplay/FlightDisplayView.h \
     src/GAudioOutput.h \
+    src/HomePositionManager.h \
+    src/Joystick/Joystick.h \
+    src/Joystick/JoystickManager.h \
     src/LogCompressor.h \
     src/MG.h \
+    src/MissionEditor/MissionEditor.h \
+    src/MissionManager/MissionManager.h \
     src/QGC.h \
     src/QGCApplication.h \
     src/QGCComboBox.h \
@@ -255,22 +261,16 @@ HEADERS += \
     src/QGCQuickWidget.h \
     src/QGCSingleton.h \
     src/QGCTemporaryFile.h \
-    src/QmlControls/MavManager.h \
+    src/QmlControls/MavlinkQmlSingleton.h \
     src/QmlControls/ParameterEditorController.h \
     src/QmlControls/ScreenToolsController.h \
+    src/QmlControls/QmlObjectListModel.h \
     src/SerialPortIds.h \
-    src/uas/QGCMAVLinkUASFactory.h \
     src/uas/FileManager.h \
     src/uas/UAS.h \
     src/uas/UASInterface.h \
-    src/uas/UASManager.h \
-    src/uas/UASManagerInterface.h \
     src/uas/UASMessageHandler.h \
     src/uas/UASWaypointManager.h \
-    src/ui/flightdisplay/FlightDisplay.h \
-    src/ui/HDDisplay.h \
-    src/ui/HSIDisplay.h \
-    src/ui/HUD.h \
     src/ui/linechart/ChartPlot.h \
     src/ui/linechart/IncrementalPlot.h \
     src/ui/linechart/LinechartPlot.h \
@@ -310,7 +310,6 @@ HEADERS += \
     src/ui/QGCMAVLinkInspector.h \
     src/ui/QGCMAVLinkLogPlayer.h \
     src/ui/QGCPluginHost.h \
-    src/ui/QGCRGBDView.h \
     src/ui/QGCTabbedInfoView.h \
     src/ui/QGCTCPLinkConfiguration.h \
     src/ui/QGCUASFileView.h \
@@ -338,7 +337,7 @@ HEADERS += \
     src/ViewWidgets/CustomCommandWidgetController.h \
     src/ViewWidgets/ParameterEditorWidget.h \
     src/ViewWidgets/ViewWidgetController.h \
-    src/Waypoint.h \
+    src/MissionItem.h \
     src/AutoPilotPlugins/PX4/PX4AirframeLoader.h
 
 !iOSBuild {
@@ -353,15 +352,12 @@ HEADERS += \
     src/comm/QGCHilLink.h \
     src/comm/QGCJSBSimLink.h \
     src/comm/QGCXPlaneLink.h \
-    src/input/JoystickInput.h \
     src/ui/CameraView.h \
-    src/ui/JoystickAxis.h \
-    src/ui/JoystickButton.h \
-    src/ui/JoystickWidget.h \
     src/ui/QGCHilConfiguration.h \
     src/ui/QGCHilFlightGearConfiguration.h \
     src/ui/QGCHilJSBSimConfiguration.h \
     src/ui/QGCHilXPlaneConfiguration.h \
+    src/VehicleSetup/JoystickConfigController.h \
 }
 
 SOURCES += \
@@ -376,9 +372,16 @@ SOURCES += \
     src/comm/MockLinkMissionItemHandler.cc \
     src/comm/TCPLink.cc \
     src/comm/UDPLink.cc \
+    src/FlightDisplay/FlightDisplayWidget.cc \
+    src/FlightDisplay/FlightDisplayView.cc \
     src/GAudioOutput.cc \
+    src/HomePositionManager.cc \
+    src/Joystick/Joystick.cc \
+    src/Joystick/JoystickManager.cc \
     src/LogCompressor.cc \
     src/main.cc \
+    src/MissionEditor/MissionEditor.cc \
+    src/MissionManager/MissionManager.cc \
     src/QGC.cc \
     src/QGCApplication.cc \
     src/QGCComboBox.cc \
@@ -390,19 +393,13 @@ SOURCES += \
     src/QGCQuickWidget.cc \
     src/QGCSingleton.cc \
     src/QGCTemporaryFile.cc \
-    src/QmlControls/MavManager.cc \
     src/QmlControls/ParameterEditorController.cc \
     src/QmlControls/ScreenToolsController.cc \
-    src/uas/QGCMAVLinkUASFactory.cc \
+    src/QmlControls/QmlObjectListModel.cc \
     src/uas/FileManager.cc \
     src/uas/UAS.cc \
-    src/uas/UASManager.cc \
     src/uas/UASMessageHandler.cc \
     src/uas/UASWaypointManager.cc \
-    src/ui/flightdisplay/FlightDisplay.cc \
-    src/ui/HDDisplay.cc \
-    src/ui/HSIDisplay.cc \
-    src/ui/HUD.cc \
     src/ui/linechart/ChartPlot.cc \
     src/ui/linechart/IncrementalPlot.cc \
     src/ui/linechart/LinechartPlot.cc \
@@ -442,7 +439,6 @@ SOURCES += \
     src/ui/QGCMAVLinkInspector.cc \
     src/ui/QGCMAVLinkLogPlayer.cc \
     src/ui/QGCPluginHost.cc \
-    src/ui/QGCRGBDView.cc \
     src/ui/QGCTabbedInfoView.cpp \
     src/ui/QGCTCPLinkConfiguration.cc \
     src/ui/QGCUASFileView.cc \
@@ -470,7 +466,7 @@ SOURCES += \
     src/ViewWidgets/CustomCommandWidgetController.cc \
     src/ViewWidgets/ParameterEditorWidget.cc \
     src/ViewWidgets/ViewWidgetController.cc \
-    src/Waypoint.cc \
+    src/MissionItem.cc \
     src/AutoPilotPlugins/PX4/PX4AirframeLoader.cc
 
 !iOSBuild {
@@ -484,15 +480,12 @@ SOURCES += \
     src/comm/QGCFlightGearLink.cc \
     src/comm/QGCJSBSimLink.cc \
     src/comm/QGCXPlaneLink.cc \
-    src/input/JoystickInput.cc \
     src/ui/CameraView.cc \
-    src/ui/JoystickAxis.cc \
-    src/ui/JoystickButton.cc \
-    src/ui/JoystickWidget.cc \
     src/ui/QGCHilConfiguration.cc \
     src/ui/QGCHilFlightGearConfiguration.cc \
     src/ui/QGCHilJSBSimConfiguration.cc \
     src/ui/QGCHilXPlaneConfiguration.cc \
+    src/VehicleSetup/JoystickConfigController.cc \
 }
 
 #
@@ -558,15 +551,12 @@ SOURCES += \
 #
 
 INCLUDEPATH += \
-    src/FirmwarePlugin \
-    src/VehicleSetup \
     src/AutoPilotPlugins/PX4 \
+    src/FirmwarePlugin \
+    src/Vehicle \
+    src/VehicleSetup \
 
 HEADERS+= \
-    src/FirmwarePlugin/FirmwarePluginManager.h \
-    src/FirmwarePlugin/FirmwarePlugin.h \
-    src/FirmwarePlugin/Generic/GenericFirmwarePlugin.h \
-    src/FirmwarePlugin/PX4/PX4FirmwarePlugin.h \
     src/AutoPilotPlugins/AutoPilotPlugin.h \
     src/AutoPilotPlugins/AutoPilotPluginManager.h \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.h \
@@ -586,6 +576,12 @@ HEADERS+= \
     src/AutoPilotPlugins/PX4/SafetyComponent.h \
     src/AutoPilotPlugins/PX4/SensorsComponent.h \
     src/AutoPilotPlugins/PX4/SensorsComponentController.h \
+    src/FirmwarePlugin/FirmwarePluginManager.h \
+    src/FirmwarePlugin/FirmwarePlugin.h \
+    src/FirmwarePlugin/Generic/GenericFirmwarePlugin.h \
+    src/FirmwarePlugin/PX4/PX4FirmwarePlugin.h \
+    src/Vehicle/MultiVehicleManager.h \
+    src/Vehicle/Vehicle.h \
     src/VehicleSetup/SetupView.h \
     src/VehicleSetup/VehicleComponent.h \
 
@@ -599,9 +595,6 @@ HEADERS += \
 }
 
 SOURCES += \
-    src/FirmwarePlugin/FirmwarePluginManager.cc \
-    src/FirmwarePlugin/Generic/GenericFirmwarePlugin.cc \
-    src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc \
     src/AutoPilotPlugins/AutoPilotPlugin.cc \
     src/AutoPilotPlugins/AutoPilotPluginManager.cc \
     src/AutoPilotPlugins/Generic/GenericAutoPilotPlugin.cc \
@@ -621,6 +614,11 @@ SOURCES += \
     src/AutoPilotPlugins/PX4/SafetyComponent.cc \
     src/AutoPilotPlugins/PX4/SensorsComponent.cc \
     src/AutoPilotPlugins/PX4/SensorsComponentController.cc \
+    src/FirmwarePlugin/FirmwarePluginManager.cc \
+    src/FirmwarePlugin/Generic/GenericFirmwarePlugin.cc \
+    src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc \
+    src/Vehicle/MultiVehicleManager.cc \
+    src/Vehicle/Vehicle.cc \
     src/VehicleSetup/SetupView.cc \
     src/VehicleSetup/VehicleComponent.cc \
 
@@ -664,12 +662,14 @@ INCLUDEPATH += \
 HEADERS += \
     src/VideoStreaming/VideoItem.h \
     src/VideoStreaming/VideoReceiver.h \
+    src/VideoStreaming/VideoStreaming.h \
     src/VideoStreaming/VideoSurface.h \
     src/VideoStreaming/VideoSurface_p.h \
 
 SOURCES += \
     src/VideoStreaming/VideoItem.cc \
     src/VideoStreaming/VideoReceiver.cc \
+    src/VideoStreaming/VideoStreaming.cc \
     src/VideoStreaming/VideoSurface.cc \
 
 contains (DEFINES, DISABLE_VIDEOSTREAMING) {
@@ -718,3 +718,11 @@ include(QGCSetup.pri)
 #
 
 include(QGCInstaller.pri)
+
+DISTFILES += \
+    android/gradle/wrapper/gradle-wrapper.jar \
+    android/gradlew \
+    android/res/values/libs.xml \
+    android/build.gradle \
+    android/gradle/wrapper/gradle-wrapper.properties \
+    android/gradlew.bat

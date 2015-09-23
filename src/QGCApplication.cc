@@ -40,13 +40,7 @@
 
 #include <QDebug>
 
-#include <VideoItem.h>
-#include <VideoSurface.h>
-#if defined(QGC_GST_STREAMING)
-G_BEGIN_DECLS
-GST_PLUGIN_STATIC_DECLARE(QTVIDEOSINK_NAME);
-G_END_DECLS
-#endif
+#include "VideoStreaming.h"
 
 #include "configuration.h"
 #include "QGC.h"
@@ -57,12 +51,9 @@ G_END_DECLS
 #include "QGCMessageBox.h"
 #include "MainWindow.h"
 #include "UDPLink.h"
-#ifndef __ios__
-#include "SerialLink.h"
-#endif
 #include "QGCSingleton.h"
 #include "LinkManager.h"
-#include "UASManager.h"
+#include "HomePositionManager.h"
 #include "UASMessageHandler.h"
 #include "AutoPilotPluginManager.h"
 #include "QGCTemporaryFile.h"
@@ -78,18 +69,29 @@ G_END_DECLS
 #include "PowerComponentController.h"
 #include "RadioComponentController.h"
 #include "ScreenToolsController.h"
-#ifndef __mobile__
-#include "FirmwareUpgradeController.h"
-#endif
 #include "AutoPilotPlugin.h"
 #include "VehicleComponent.h"
-#include "MavManager.h"
 #include "FirmwarePluginManager.h"
+#include "MultiVehicleManager.h"
 #include "Generic/GenericFirmwarePlugin.h"
 #include "PX4/PX4FirmwarePlugin.h"
+#include "Vehicle.h"
+#include "MavlinkQmlSingleton.h"
+#include "JoystickManager.h"
+#include "QmlObjectListModel.h"
+#include "MissionManager.h"
+
+#ifndef __ios__
+    #include "SerialLink.h"
+#endif
+
+#ifndef __mobile__
+    #include "FirmwareUpgradeController.h"
+    #include "JoystickConfigController.h"
+#endif
 
 #ifdef QGC_RTLAB_ENABLED
-#include "OpalLink.h"
+    #include "OpalLink.h"
 #endif
 
 
@@ -108,11 +110,8 @@ const char* QGCApplication::_savedFileParameterDirectoryName = "SavedParameters"
 const char* QGCApplication::_darkStyleFile = ":/res/styles/style-dark.css";
 const char* QGCApplication::_lightStyleFile = ":/res/styles/style-light.css";
 
-/**
- * @brief ScreenTools creation callback
- *
- * This is called by the QtQuick engine for creating the singleton
- **/
+
+// Qml Singleton factories
 
 static QObject* screenToolsControllerSingletonFactory(QQmlEngine*, QJSEngine*)
 {
@@ -120,17 +119,9 @@ static QObject* screenToolsControllerSingletonFactory(QQmlEngine*, QJSEngine*)
     return screenToolsController;
 }
 
-/**
- * @brief MavManager creation callback
- *
- * This is called by the QtQuick engine for creating the singleton
-**/
-
-static QObject* mavManagerSingletonFactory(QQmlEngine*, QJSEngine*)
+static QObject* mavlinkQmlSingletonFactory(QQmlEngine*, QJSEngine*)
 {
-    MavManager* mavManager = new MavManager;
-    qgcApp()->setMavManager(mavManager);
-    return mavManager;
+    return new MavlinkQmlSingleton;
 }
 
 #if defined(QGC_GST_STREAMING)
@@ -161,8 +152,11 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
     : QApplication(argc, argv)
     , _runningUnitTests(unitTesting)
     , _styleIsDark(true)
-    , _pMavManager(NULL)
 	, _fakeMobile(false)
+    , _useNewMissionEditor(false)
+#ifdef QT_DEBUG
+    , _testHighDPI(false)
+#endif
 {
     Q_ASSERT(_app == NULL);
     _app = this;
@@ -181,6 +175,9 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
         { "--clear-settings",   &fClearSettingsOptions, QString() },
         { "--full-logging",     &fullLogging,           QString() },
 		{ "--fake-mobile",      &_fakeMobile,           QString() },
+#ifdef QT_DEBUG
+        { "--test-high-dpi",    &_testHighDPI,          QString() },
+#endif
         // Add additional command line option flags here
     };
     
@@ -281,49 +278,15 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
         settings.setValue(_settingsVersionKey, QGC_SETTINGS_VERSION);
     }
 
-    //----------------------------------------------------------------
-    //-- Video Streaming
-#if defined(QGC_GST_STREAMING)
-#ifdef Q_OS_MAC
-#ifndef __ios__
-#ifdef QGC_INSTALL_RELEASE
-    QString currentDir = QCoreApplication::applicationDirPath();
-    qgcputenv("GST_PLUGIN_SCANNER",           currentDir, "/gst-plugin-scanner");
-    qgcputenv("GTK_PATH",                     currentDir, "/../Frameworks/GStreamer.framework/Versions/Current");
-    qgcputenv("GIO_EXTRA_MODULES",            currentDir, "/../Frameworks/GStreamer.framework/Versions/Current/lib/gio/modules");
-    qgcputenv("GST_PLUGIN_SYSTEM_PATH_1_0",   currentDir, "/../Frameworks/GStreamer.framework/Versions/Current/lib/gstreamer-1.0");
-    qgcputenv("GST_PLUGIN_SYSTEM_PATH",       currentDir, "/../Frameworks/GStreamer.framework/Versions/Current/lib/gstreamer-1.0");
-    qgcputenv("GST_PLUGIN_PATH_1_0",          currentDir, "/../Frameworks/GStreamer.framework/Versions/Current/lib/gstreamer-1.0");
-    qgcputenv("GST_PLUGIN_PATH",              currentDir, "/../Frameworks/GStreamer.framework/Versions/Current/lib/gstreamer-1.0");
-//    QStringList env = QProcessEnvironment::systemEnvironment().keys();
-//    foreach(QString key, env) {
-//        qDebug() << key << QProcessEnvironment::systemEnvironment().value(key);
-//    }
-#endif
-#endif
-#endif
-#endif
-
-    qmlRegisterType<VideoItem>("QGroundControl.QgcQtGStreamer", 1, 0, "VideoItem");
-    qmlRegisterUncreatableType<VideoSurface>("QGroundControl.QgcQtGStreamer", 1, 0, "VideoSurface", QLatin1String("VideoSurface from QML is not supported"));
-
-#if defined(QGC_GST_STREAMING)
-    GError* error = NULL;
-    if (!gst_init_check(&argc, &argv, &error)) {
-        qCritical() << "gst_init_check() failed: " << error->message;
-        g_error_free(error);
-    }
-    GST_PLUGIN_STATIC_REGISTER(QTVIDEOSINK_NAME);
-#endif
+    // Initialize Video Streaming
+    initializeVideoStreaming(argc, argv);
 
 }
 
 QGCApplication::~QGCApplication()
 {
     _destroySingletons();
-#if defined(QGC_GST_STREAMING)
-    gst_deinit();
-#endif
+    shutdownVideoStreaming();
 }
 
 void QGCApplication::_initCommon(void)
@@ -334,29 +297,34 @@ void QGCApplication::_initCommon(void)
     
     qmlRegisterType<QGCPalette>("QGroundControl.Palette", 1, 0, "QGCPalette");
     
-    qmlRegisterUncreatableType<AutoPilotPlugin>("QGroundControl.AutoPilotPlugin", 1, 0, "AutoPilotPlugin", "Can only reference, cannot create");
-    qmlRegisterUncreatableType<VehicleComponent>("QGroundControl.AutoPilotPlugin", 1, 0, "VehicleComponent", "Can only reference, cannot create");
+    qmlRegisterUncreatableType<AutoPilotPlugin>     ("QGroundControl.AutoPilotPlugin",  1, 0, "AutoPilotPlugin",    "Can only reference, cannot create");
+    qmlRegisterUncreatableType<VehicleComponent>    ("QGroundControl.AutoPilotPlugin",  1, 0, "VehicleComponent",   "Can only reference, cannot create");
+    qmlRegisterUncreatableType<Vehicle>             ("QGroundControl.Vehicle",          1, 0, "Vehicle",            "Can only reference, cannot create");
+    qmlRegisterUncreatableType<MissionItem>         ("QGroundControl.Vehicle",          1, 0, "MissionItem",        "Can only reference, cannot create");
+    qmlRegisterUncreatableType<MissionManager>      ("QGroundControl.Vehicle",          1, 0, "MissionManager",     "Can only reference, cannot create");
+    qmlRegisterUncreatableType<JoystickManager>     ("QGroundControl.JoystickManager",  1, 0, "JoystickManager",    "Reference only");
+    qmlRegisterUncreatableType<Joystick>            ("QGroundControl.JoystickManager",  1, 0, "Joystick",           "Reference only");
+    qmlRegisterUncreatableType<QmlObjectListModel>  ("QGroundControl",                  1, 0, "QmlObjectListModel", "Reference only");
     
-    qmlRegisterType<ViewWidgetController>("QGroundControl.Controllers", 1, 0, "ViewWidgetController");
-    qmlRegisterType<ParameterEditorController>("QGroundControl.Controllers", 1, 0, "ParameterEditorController");
-    qmlRegisterType<CustomCommandWidgetController>("QGroundControl.Controllers", 1, 0, "CustomCommandWidgetController");
-    qmlRegisterType<FlightModesComponentController>("QGroundControl.Controllers", 1, 0, "FlightModesComponentController");
-    qmlRegisterType<AirframeComponentController>("QGroundControl.Controllers", 1, 0, "AirframeComponentController");
-    qmlRegisterType<SensorsComponentController>("QGroundControl.Controllers", 1, 0, "SensorsComponentController");
-    qmlRegisterType<PowerComponentController>("QGroundControl.Controllers", 1, 0, "PowerComponentController");
-    qmlRegisterType<RadioComponentController>("QGroundControl.Controllers", 1, 0, "RadioComponentController");
-    qmlRegisterType<ScreenToolsController>("QGroundControl.Controllers", 1, 0, "ScreenToolsController");
+    qmlRegisterType<ViewWidgetController>           ("QGroundControl.Controllers", 1, 0, "ViewWidgetController");
+    qmlRegisterType<ParameterEditorController>      ("QGroundControl.Controllers", 1, 0, "ParameterEditorController");
+    qmlRegisterType<CustomCommandWidgetController>  ("QGroundControl.Controllers", 1, 0, "CustomCommandWidgetController");
+    qmlRegisterType<FlightModesComponentController> ("QGroundControl.Controllers", 1, 0, "FlightModesComponentController");
+    qmlRegisterType<AirframeComponentController>    ("QGroundControl.Controllers", 1, 0, "AirframeComponentController");
+    qmlRegisterType<SensorsComponentController>     ("QGroundControl.Controllers", 1, 0, "SensorsComponentController");
+    qmlRegisterType<PowerComponentController>       ("QGroundControl.Controllers", 1, 0, "PowerComponentController");
+    qmlRegisterType<RadioComponentController>       ("QGroundControl.Controllers", 1, 0, "RadioComponentController");
+    qmlRegisterType<ScreenToolsController>          ("QGroundControl.Controllers", 1, 0, "ScreenToolsController");
     
 #ifndef __mobile__
-    qmlRegisterType<FirmwareUpgradeController>("QGroundControl.Controllers", 1, 0, "FirmwareUpgradeController");
+    qmlRegisterType<FirmwareUpgradeController>      ("QGroundControl.Controllers", 1, 0, "FirmwareUpgradeController");
+    qmlRegisterType<JoystickConfigController>       ("QGroundControl.Controllers", 1, 0, "JoystickConfigController");
 #endif
     
-    //-- Create QML Singleton Interfaces
-    qmlRegisterSingletonType<ScreenToolsController>("QGroundControl.ScreenToolsController", 1, 0, "ScreenToolsController", screenToolsControllerSingletonFactory);
-    qmlRegisterSingletonType<MavManager>("QGroundControl.MavManager", 1, 0, "MavManager", mavManagerSingletonFactory);
+    // Register Qml Singletons
+    qmlRegisterSingletonType<ScreenToolsController> ("QGroundControl.ScreenToolsController",    1, 0, "ScreenToolsController",  screenToolsControllerSingletonFactory);
+    qmlRegisterSingletonType<MavlinkQmlSingleton>   ("QGroundControl.Mavlink",                  1, 0, "Mavlink",                mavlinkQmlSingletonFactory);
     
-    //-- Register Waypoint Interface
-    qmlRegisterInterface<Waypoint>("Waypoint");
     // Show user an upgrade message if the settings version has been bumped up
     bool settingsUpgraded = false;
     if (settings.contains(_settingsVersionKey)) {
@@ -376,9 +344,6 @@ void QGCApplication::_initCommon(void)
                                       "Your saved settings have been reset to defaults."));
     }
 
-    _styleIsDark = settings.value(_styleKey, _styleIsDark).toBool();
-    _loadCurrentStyle();
-
     // Load saved files location and validate
 
     QString savedFilesLocation;
@@ -395,7 +360,9 @@ void QGCApplication::_initCommon(void)
         QString documentsLocation = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
 
         QDir documentsDir(documentsLocation);
-        Q_ASSERT(documentsDir.exists());
+        if (!documentsDir.exists()) {
+            qWarning() << "Documents directory doesn't exist" << documentsDir.absolutePath();
+        }
 
         bool pathCreated = documentsDir.mkpath(_defaultSavedFileDirectoryName);
         Q_UNUSED(pathCreated);
@@ -418,6 +385,12 @@ bool QGCApplication::_initForNormalAppBoot(void)
 
     _createSingletons();
 
+    _styleIsDark = settings.value(_styleKey, _styleIsDark).toBool();
+    _loadCurrentStyle();
+    
+    // Temp hack for new mission editor
+    _useNewMissionEditor = settings.value("UseNewMissionEditor", false).toBool();
+    
     // Show splash screen
     QPixmap splashImage(":/res/SplashScreen");
     QSplashScreen* splashScreen = new QSplashScreen(splashImage);
@@ -581,6 +554,16 @@ void QGCApplication::_createSingletons(void)
     Q_ASSERT(firmwarePluginManager);
     
     // No dependencies
+    MultiVehicleManager* multiVehicleManager = MultiVehicleManager::_createSingleton();
+    Q_UNUSED(multiVehicleManager);
+    Q_ASSERT(multiVehicleManager);
+    
+    // No dependencies
+    JoystickManager* joystickManager = JoystickManager::_createSingleton();
+    Q_UNUSED(joystickManager);
+    Q_ASSERT(joystickManager);
+    
+    // No dependencies
     GAudioOutput* audio = GAudioOutput::_createSingleton();
     Q_UNUSED(audio);
     Q_ASSERT(audio);
@@ -591,21 +574,21 @@ void QGCApplication::_createSingletons(void)
     Q_ASSERT(linkManager);
 
     // Needs LinkManager
-    UASManagerInterface* uasManager = UASManager::_createSingleton();
+    HomePositionManager* uasManager = HomePositionManager::_createSingleton();
     Q_UNUSED(uasManager);
     Q_ASSERT(uasManager);
 
-    // Need UASManager
+    // Need HomePositionManager
     AutoPilotPluginManager* pluginManager = AutoPilotPluginManager::_createSingleton();
     Q_UNUSED(pluginManager);
     Q_ASSERT(pluginManager);
 
-    // Need UASManager
+    // Need HomePositionManager
     UASMessageHandler* messageHandler = UASMessageHandler::_createSingleton();
     Q_UNUSED(messageHandler);
     Q_ASSERT(messageHandler);
 
-    // Needs UASManager
+    // Needs HomePositionManager
     FactSystem* factSystem = FactSystem::_createSingleton();
     Q_UNUSED(factSystem);
     Q_ASSERT(factSystem);
@@ -628,11 +611,6 @@ void QGCApplication::_destroySingletons(void)
         LinkManager::instance()->_shutdown();
     }
 
-    if (UASManager::instance(true /* nullOk */)) {
-        // This will delete all uas from the system
-        UASManager::instance()->_shutdown();
-    }
-
     // Let the signals flow through the main thread
     processEvents(QEventLoop::ExcludeUserInputEvents);
 
@@ -642,9 +620,11 @@ void QGCApplication::_destroySingletons(void)
     FactSystem::_deleteSingleton();
     UASMessageHandler::_deleteSingleton();
     AutoPilotPluginManager::_deleteSingleton();
-    UASManager::_deleteSingleton();
+    HomePositionManager::_deleteSingleton();
     LinkManager::_deleteSingleton();
     GAudioOutput::_deleteSingleton();
+    JoystickManager::_deleteSingleton();
+    MultiVehicleManager::_deleteSingleton();
     FirmwarePluginManager::_deleteSingleton();
     GenericFirmwarePlugin::_deleteSingleton();
     PX4FirmwarePlugin::_deleteSingleton();
@@ -784,17 +764,6 @@ void QGCApplication::_missingParamsDisplay(void)
                 "You should quit QGroundControl immediately and update your firmware.").arg(params));
 }
 
-void QGCApplication::setMavManager(MavManager* pMgr)
-{
-    if(!_pMavManager)
-        _pMavManager = pMgr;
-}
-
-MavManager* QGCApplication::getMavManager()
-{
-    return _pMavManager;
-}
-
 void QGCApplication::showToolBarMessage(const QString& message)
 {
     MainWindow* mainWindow = MainWindow::instance();
@@ -803,4 +772,12 @@ void QGCApplication::showToolBarMessage(const QString& message)
     } else {
         QGCMessageBox::information("", message);
     }
+}
+
+void QGCApplication::setUseNewMissionEditor(bool use)
+{
+    // Temp hack for new mission editor
+    QSettings settings;
+    
+    settings.setValue("UseNewMissionEditor", use);
 }

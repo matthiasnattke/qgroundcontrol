@@ -36,7 +36,7 @@
 #include "mission/QGCMissionOther.h"
 
 
-WaypointEditableView::WaypointEditableView(Waypoint* wp, QWidget* parent) :
+WaypointEditableView::WaypointEditableView(MissionItem* wp, QWidget* parent) :
     QWidget(parent),
     wp(wp),
     viewMode(QGC_WAYPOINTEDITABLEVIEW_MODE_DEFAULT),
@@ -67,7 +67,7 @@ WaypointEditableView::WaypointEditableView(Waypoint* wp, QWidget* parent) :
 
 
     // add actions
-    m_ui->comboBox_action->addItem(tr("NAV: Waypoint"),MAV_CMD_NAV_WAYPOINT);
+    m_ui->comboBox_action->addItem(tr("NAV: MissionItem"),MAV_CMD_NAV_WAYPOINT);
     m_ui->comboBox_action->addItem(tr("NAV: TakeOff"),MAV_CMD_NAV_TAKEOFF);
     m_ui->comboBox_action->addItem(tr("NAV: Loiter Unlim."),MAV_CMD_NAV_LOITER_UNLIM);
     m_ui->comboBox_action->addItem(tr("NAV: Loiter Time"),MAV_CMD_NAV_LOITER_TIME);
@@ -93,13 +93,13 @@ WaypointEditableView::WaypointEditableView(Waypoint* wp, QWidget* parent) :
     connect(m_ui->selectedBox, SIGNAL(stateChanged(int)), this, SLOT(changedCurrent(int)));
 
     // Initialize view correctly
-    int actionID = wp->getAction();
+    int actionID = wp->command();
     initializeActionView(actionID);
     updateValues();
     updateActionView(actionID);
 
     // Check for mission frame
-    if (wp->getFrame() == MAV_FRAME_MISSION)
+    if (wp->frame() == MAV_FRAME_MISSION)
     {
         m_ui->comboBox_action->setCurrentIndex(m_ui->comboBox_action->count()-1);
     }
@@ -320,7 +320,7 @@ void WaypointEditableView::changedCurrent(int state)
 {
     if (state == 0)
     {
-        if (wp->getCurrent() == true) //User clicked on the waypoint, that is already current
+        if (wp->isCurrentItem() == true) //User clicked on the waypoint, that is already current
         {
             m_ui->selectedBox->setChecked(true);
             m_ui->selectedBox->setCheckState(Qt::Checked);
@@ -333,10 +333,10 @@ void WaypointEditableView::changedCurrent(int state)
     }
     else
     {
-        wp->setCurrent(true);
+        wp->setIsCurrentItem(true);
         // At this point we do not consider this signal
         // to be valid / the edit check boxes should not change the view state
-        //emit changeCurrentWaypoint(wp->getId());
+        //emit changeCurrentWaypoint(wp->sequenceNumber());
         //the slot changeCurrentWaypoint() in WaypointList sets all other current flags to false
     }
 }
@@ -417,14 +417,14 @@ void WaypointEditableView::updateValues()
 
 
     // update frame
-    MAV_FRAME frame = (MAV_FRAME)wp->getFrame();
+    MAV_FRAME frame = (MAV_FRAME)wp->frame();
     int frame_index = m_ui->comboBox_frame->findData(frame);
     if (m_ui->comboBox_frame->currentIndex() != frame_index) {
         m_ui->comboBox_frame->setCurrentIndex(frame_index);
     }
 
     // Update action
-    MAV_CMD action = (MAV_CMD)wp->getAction();
+    MAV_CMD action = (MAV_CMD)wp->command();
     int action_index = m_ui->comboBox_action->findData(action);
     if (m_ui->comboBox_action->currentIndex() != action_index)
     {
@@ -440,34 +440,34 @@ void WaypointEditableView::updateValues()
         }
     }
 
-    emit commandBroadcast(wp->getAction());
-    emit frameBroadcast((MAV_FRAME)wp->getFrame());
-    emit param1Broadcast(wp->getParam1());
-    emit param2Broadcast(wp->getParam2());
-    emit param3Broadcast(wp->getParam3());
-    emit param4Broadcast(wp->getParam4());
-    emit param5Broadcast(wp->getParam5());
-    emit param6Broadcast(wp->getParam6());
-    emit param7Broadcast(wp->getParam7());
+    emit commandBroadcast(wp->command());
+    emit frameBroadcast((MAV_FRAME)wp->frame());
+    emit param1Broadcast(wp->param1());
+    emit param2Broadcast(wp->param2());
+    emit param3Broadcast(wp->param3());
+    emit param4Broadcast(wp->param4());
+    emit param5Broadcast(wp->param5());
+    emit param6Broadcast(wp->param6());
+    emit param7Broadcast(wp->param7());
 
 
-    if (m_ui->selectedBox->isChecked() != wp->getCurrent())
+    if (m_ui->selectedBox->isChecked() != wp->isCurrentItem())
     {
         // This is never a reason to emit a changed signal
         m_ui->selectedBox->blockSignals(true);
-        m_ui->selectedBox->setChecked(wp->getCurrent());
+        m_ui->selectedBox->setChecked(wp->isCurrentItem());
         m_ui->selectedBox->blockSignals(false);
     }
-    if (m_ui->autoContinue->isChecked() != wp->getAutoContinue())
+    if (m_ui->autoContinue->isChecked() != wp->autoContinue())
     {
-        m_ui->autoContinue->setChecked(wp->getAutoContinue());
+        m_ui->autoContinue->setChecked(wp->autoContinue());
     }
 
-    m_ui->idLabel->setText(QString::number(wp->getId()));
+    m_ui->idLabel->setText(QString::number(wp->sequenceNumber()));
 
     // Style alternating rows of Missions as lighter/darker.
     static int lastId = -1;
-    int currId = wp->getId() % 2;
+    int currId = wp->sequenceNumber() % 2;
     if (currId != lastId)
     {
         if (currId == 1)

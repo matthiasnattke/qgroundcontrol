@@ -41,30 +41,25 @@ This file is part of the QGROUNDCONTROL project
 #include "LinkManager.h"
 #include "LinkInterface.h"
 #include "UASInterface.h"
-#include "UASManager.h"
 #include "UASControlWidget.h"
 #include "UASInfoWidget.h"
 #include "WaypointList.h"
 #include "CameraView.h"
 #include "UASListWidget.h"
-#ifndef __mobile__
-#include "input/JoystickInput.h"
-#endif
 #if (defined QGC_MOUSE_ENABLED_WIN) | (defined QGC_MOUSE_ENABLED_LINUX)
 #include "Mouse6dofInput.h"
 #endif // QGC_MOUSE_ENABLED_WIN
 #include "ParameterEditorWidget.h"
-#include "HDDisplay.h"
-#include "HSIDisplay.h"
 #include "opmapcontrol.h"
 #include "MainToolBar.h"
 #include "LogCompressor.h"
 
-#include "FlightDisplay.h"
+#include "FlightDisplayView.h"
 #include "QGCMAVLinkInspector.h"
 #include "QGCMAVLinkLogPlayer.h"
 #include "MAVLinkDecoder.h"
 #include "QGCUASFileViewMulti.h"
+#include "Vehicle.h"
 
 class QGCMapTool;
 class QGCMAVLinkMessageSender;
@@ -74,7 +69,6 @@ class QGCStatusBar;
 class Linecharts;
 class QGCDataPlot2D;
 class QGCUASFileViewMulti;
-class FlightDisplay;
 
 /**
  * @brief Main Application Window
@@ -126,7 +120,7 @@ public:
     MainToolBar* getMainToolBar(void) { return _mainToolBar; }
 
     /// @brief Gets a pointer to the Main Flight Display
-    FlightDisplay* getFlightDisplay() { return dynamic_cast<FlightDisplay*>(_flightView.data()); }
+    FlightDisplayView* getFlightDisplay() { return dynamic_cast<FlightDisplayView*>(_flightView.data()); }
     
     QWidget* getCurrentViewWidget(void) { return _currentViewWidget; }
 
@@ -134,26 +128,12 @@ public slots:
     /** @brief Show the application settings */
     void showSettings();
 
-    /** @brief Add a new UAS */
-    void UASCreated(UASInterface* uas);
-
-    /** @brief Remove an old UAS */
-    void UASDeleted(int uasID);
-
-    void handleMisconfiguration(UASInterface* uas);
-    /** @brief Load configuration views */
     void loadSetupView();
-    /** @brief Load view for pilot */
     void loadFlightView();
-    /** @brief Load view for simulation */
     void loadSimulationView();
-    /** @brief Load view for engineer */
     void loadAnalyzeView();
-    /** @brief Load New (QtQuick) Map View (Mission) */
     void loadPlanView();
-    /** @brief Load Old (Qt Widget) Map View (Mission) */
-    void loadOldPlanView();
-    /** @brief Manage Links */
+    
     void manageLinks();
 
     /** @brief Show the online help for users */
@@ -193,6 +173,8 @@ protected slots:
      * @brief Enable/Disable Status Bar
      */
     void showStatusBarCallback(bool checked);
+    
+    void _setUseMissionEditor(bool checked);
 
 signals:
     void initStatusChanged(const QString& message, int alignment, const QColor &color);
@@ -217,13 +199,13 @@ protected:
     typedef enum _VIEW_SECTIONS
     {
         VIEW_ANALYZE,           // Engineering/Analyze view mode. Used for analyzing data and modifying onboard parameters
-        VIEW_PLAN,              // New (QtQuick) Mission/Map/Plan view mode. Used for setting mission waypoints and high-level system commands.
+        VIEW_PLAN,              // Old mission editor
         VIEW_FLIGHT,            // Flight/Fly/Operate view mode. Used for 1st-person observation of the vehicle.
         VIEW_SIMULATION,        // HIL Simulation view. Useful overview of the entire system when doing hardware-in-the-loop simulations.
         VIEW_SETUP,             // Setup view. Used for initializing the system for operation. Includes UI for calibration, firmware updating/checking, and parameter modifcation.
         VIEW_UNUSED1,           // Unused (don't remove, or it will screw up saved settigns indices)
         VIEW_UNUSED2,           // Unused (don't remove, or it will screw up saved settigns indices)
-        VIEW_EXPERIMENTAL_PLAN, // Original (Qt Widget) Mission/Map/Plan view mode. Used for setting mission waypoints and high-level system commands.
+        VIEW_MISSIONEDITOR,     // New mission editor
     } VIEW_SECTIONS;
 
     /** @brief Catch window resize events */
@@ -251,10 +233,6 @@ protected:
     QGCMAVLinkLogPlayer* logPlayer;
 
     QPointer<QGCUASFileViewMulti> fileWidget;
-
-#ifndef __mobile__
-    JoystickInput* joystick; ///< The joystick manager for QGC
-#endif
 
 #ifdef QGC_MOUSE_ENABLED_WIN
     /** @brief 3d Mouse support (WIN only) */
@@ -288,6 +266,10 @@ private slots:
     void _showQmlTestWidget(void);
 #endif
 	void _closeWindow(void) { close(); }
+    
+private slots:
+    void _vehicleAdded(Vehicle* vehicle);
+    void _vehicleRemoved(Vehicle* vehicle);
 
 private:
     /// Constructor is private since all creation should be through MainWindow::_create
@@ -297,12 +279,12 @@ private:
 
     // Center widgets
     QPointer<QWidget> _planView;
-    QPointer<QWidget> _experimentalPlanView;
     QPointer<QWidget> _flightView;
     QPointer<QWidget> _setupView;
     QPointer<QWidget> _analyzeView;
     QPointer<QWidget> _simView;
     QPointer<QWidget> _terminalView;
+    QPointer<QWidget> _missionEditorView;
 
     // Dock widget names
     static const char* _uasControlDockWidgetName;
@@ -314,11 +296,7 @@ private:
     static const char* _filesDockWidgetName;
     static const char* _uasStatusDetailsDockWidgetName;
     static const char* _mapViewDockWidgetName;
-    static const char* _hsiDockWidgetName;
-    static const char* _hdd1DockWidgetName;
-    static const char* _hdd2DockWidgetName;
     static const char* _pfdDockWidgetName;
-    static const char* _hudDockWidgetName;
     static const char* _uasInfoViewDockWidgetName;
 
     QMap<QString, QDockWidget*>     _mapName2DockWidget;
@@ -326,12 +304,12 @@ private:
     QMap<QDockWidget*, QAction*>    _mapDockWidget2Action;
 
     void _buildPlanView(void);
-    void _buildExperimentalPlanView(void);
     void _buildFlightView(void);
     void _buildSetupView(void);
     void _buildAnalyzeView(void);
     void _buildSimView(void);
     void _buildTerminalView(void);
+    void _buildMissionEditorView(void);
 
     void _storeCurrentViewState(void);
     void _loadCurrentViewState(void);
@@ -360,7 +338,6 @@ private:
 
     QString _getWindowStateKey();
     QString _getWindowGeometryKey();
-
 };
 
 #endif /* _MAINWINDOW_H_ */

@@ -26,7 +26,6 @@
 ///     @author Don Gagne <don@thegagnes.com
 
 #include "RadioComponentController.h"
-#include "UASManager.h"
 #include "QGCMessageBox.h"
 #include "AutoPilotPluginManager.h"
 
@@ -625,7 +624,7 @@ void RadioComponentController::_inputFlapsDetect(enum rcCalFunctions function, i
 void RadioComponentController::_resetInternalCalibrationValues(void)
 {
     // Set all raw channels to not reversed and center point values
-    for (size_t i=0; i<_chanMax; i++) {
+    for (int i=0; i<_chanMax; i++) {
         struct ChannelInfo* info = &_rgChannelInfo[i];
         info->function = rcCalFunctionMax;
         info->reversed = false;
@@ -674,7 +673,7 @@ void RadioComponentController::_setInternalCalibrationValuesFromParameters(void)
 {
     // Initialize all function mappings to not set
     
-    for (size_t i=0; i<_chanMax; i++) {
+    for (int i=0; i<_chanMax; i++) {
         struct ChannelInfo* info = &_rgChannelInfo[i];
         info->function = rcCalFunctionMax;
     }
@@ -866,7 +865,7 @@ void RadioComponentController::_stopCalibration(void)
 void RadioComponentController::_rcCalSaveCurrentValues(void)
 {
 	qCDebug(RadioComponentControllerLog) << "_rcCalSaveCurrentValues";
-    for (unsigned i = 0; i < _chanMax; i++) {
+    for (int i = 0; i < _chanMax; i++) {
         _rcValueSave[i] = _rcRawValue[i];
     }
 }
