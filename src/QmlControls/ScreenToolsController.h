@@ -36,7 +36,7 @@
     @brief Screen helper tools for QML widgets
     To use its functions, you need to import the module with the following line:
     @code
-    
+
     @endcode
 */
 
@@ -51,6 +51,7 @@ public:
     Q_PROPERTY(bool     isiOS               READ isiOS          CONSTANT)
     Q_PROPERTY(bool     isMobile            READ isMobile       CONSTANT)
     Q_PROPERTY(bool     testHighDPI         READ testHighDPI    CONSTANT)
+    Q_PROPERTY(bool     isDebug             READ isDebug        CONSTANT)
 
     //! Used to trigger a \c Canvas element repaint.
     /*!
@@ -82,23 +83,14 @@ public:
     // Returns current mouse position
     Q_INVOKABLE int mouseX(void) { return QCursor::pos().x(); }
     Q_INVOKABLE int mouseY(void) { return QCursor::pos().y(); }
-    
-	// Used to adjust default font size on an OS basis
-	Q_PROPERTY(double defaultFontPixelSizeRatio   MEMBER _defaultFontPixelSizeRatio     CONSTANT)
 
-	// Used to calculate font sizes based on default font size
+    // Used to adjust default font size on an OS basis
+    Q_PROPERTY(double defaultFontPixelSizeRatio   MEMBER _defaultFontPixelSizeRatio     CONSTANT)
+
+    // Used to calculate font sizes based on default font size
     Q_PROPERTY(double smallFontPixelSizeRatio   MEMBER _smallFontPixelSizeRatio     CONSTANT)
     Q_PROPERTY(double mediumFontPixelSizeRatio  MEMBER _mediumFontPixelSizeRatio    CONSTANT)
     Q_PROPERTY(double largeFontPixelSizeRatio   MEMBER _largeFontPixelSizeRatio     CONSTANT)
-    
-    Q_PROPERTY(double qmlDefaultFontPixelSize MEMBER _qmlDefaultFontPixelSize)
-    
-    static double getQmlDefaultFontPixelSize(void);
-
-    static int  defaultFontPixelSize_s()    { return (int)getQmlDefaultFontPixelSize(); }
-	static int  smallFontPixelSize_s()      { return (int)((double)defaultFontPixelSize_s() * _smallFontPixelSizeRatio); }
-    static int  mediumFontPixelSize_s()     { return (int)((double)defaultFontPixelSize_s() * _mediumFontPixelSizeRatio); }
-    static int  largeFontPixelSize_s()      { return (int)((double)defaultFontPixelSize_s() * _largeFontPixelSizeRatio); }
 
 #if defined (__android__)
     bool    isAndroid           () { return true;  }
@@ -113,11 +105,13 @@ public:
     bool    isiOS               () { return false; }
     bool    isMobile            () { return qgcApp()->fakeMobile(); }
 #endif
-    
+
 #ifdef QT_DEBUG
-    bool testHighDPI(void) { return qgcApp()->testHighDPI(); }
+    bool testHighDPI            () { return qgcApp()->testHighDPI(); }
+    bool isDebug                () { return true; }
 #else
-    bool testHighDPI(void) { return false; }
+    bool isDebug                () { return false; }
+    bool testHighDPI            () { return false; }
 #endif
 
 signals:
@@ -127,12 +121,10 @@ private slots:
     void _updateCanvas();
 
 private:
-	static const double _defaultFontPixelSizeRatio;
-	static const double _smallFontPixelSizeRatio;
+    static const double _defaultFontPixelSizeRatio;
+    static const double _smallFontPixelSizeRatio;
     static const double _mediumFontPixelSizeRatio;
     static const double _largeFontPixelSizeRatio;
-    
-    static int _qmlDefaultFontPixelSize;
 };
 
 #endif

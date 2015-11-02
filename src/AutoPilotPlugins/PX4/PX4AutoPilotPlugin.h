@@ -25,7 +25,6 @@
 #define PX4AUTOPILOT_H
 
 #include "AutoPilotPlugin.h"
-#include "PX4ParameterLoader.h"
 #include "PX4AirframeLoader.h"
 #include "AirframeComponent.h"
 #include "RadioComponent.h"
@@ -52,8 +51,6 @@ public:
     // Overrides from AutoPilotPlugin
     virtual const QVariantList& vehicleComponents(void);
 
-    static void clearStaticData(void);
-    
     // These methods should only be used by objects within the plugin
     AirframeComponent*      airframeComponent(void)     { return _airframeComponent; }
     RadioComponent*         radioComponent(void)        { return _radioComponent; }
@@ -62,14 +59,11 @@ public:
     SafetyComponent*        safetyComponent(void)       { return _safetyComponent; }
     PowerComponent*         powerComponent(void)        { return _powerComponent; }
 
-private slots:
-    void _pluginReadyPreChecks(void);
+public slots:
+    // FIXME: This is public until we restructure AutoPilotPlugin/FirmwarePlugin/Vehicle
+    void _parametersReadyPreChecks(bool missingParameters);
     
 private:
-	// Overrides from AutoPilotPlugin
-	virtual ParameterLoader* _getParameterLoader(void) { return _parameterFacts; }
-	
-    PX4ParameterLoader*     _parameterFacts;
     PX4AirframeLoader*      _airframeFacts;
     QVariantList            _components;
     AirframeComponent*      _airframeComponent;

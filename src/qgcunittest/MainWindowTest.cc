@@ -31,70 +31,18 @@
 #include "QGCMessageBox.h"
 #include "MultiVehicleManager.h"
 
-UT_REGISTER_TEST(MainWindowTest)
-
-MainWindowTest::MainWindowTest(void) :
-    _mainWindow(NULL),
-    _mainToolBar(NULL)
-{
-    
-}
-
-void MainWindowTest::init(void)
-{
-    UnitTest::init();
-
-    _mainWindow = MainWindow::_create(NULL);
-    Q_CHECK_PTR(_mainWindow);
-    
-    _mainToolBar = _mainWindow->getMainToolBar();
-    Q_ASSERT(_mainToolBar);
-}
-
-void MainWindowTest::cleanup(void)
-{
-    _mainWindow->close();
-    delete _mainWindow;
-    
-    UnitTest::cleanup();
-}
+// FIXME: Temporarily turned off
+//UT_REGISTER_TEST(MainWindowTest)
 
 void MainWindowTest::_connectWindowClose_test(MAV_AUTOPILOT autopilot)
 {
-    LinkManager* linkMgr = LinkManager::instance();
-    Q_CHECK_PTR(linkMgr);
-    
-    MockLink* link = new MockLink();
-    Q_CHECK_PTR(link);
-    link->setAutopilotType(autopilot);
-    LinkManager::instance()->_addLink(link);
-    
-    linkMgr->connectLink(link);
-    
-    // Wait for the Vehicle to work it's way through the various threads
-    
-    QSignalSpy spyVehicle(MultiVehicleManager::instance(), SIGNAL(activeVehicleChanged(Vehicle*)));
-    QCOMPARE(spyVehicle.wait(5000), true);
-    
-    // Cycle through all the top level views
-    
-    _mainToolBar->onSetupView();
-    QTest::qWait(200);
-    _mainToolBar->onPlanView();
-    QTest::qWait(200);
-    _mainToolBar->onFlyView();
-    QTest::qWait(200);
-    _mainToolBar->onAnalyzeView();
-    QTest::qWait(200);
+    _createMainWindow();
+    _connectMockLink(autopilot);
     
     // On MainWindow close we should get a message box telling the user to disconnect first. Cancel should do nothing.
     setExpectedMessageBox(QGCMessageBox::Cancel);
-    _mainWindow->close();
-    QTest::qWait(1000); // Need to allow signals to move between threads    
+    _closeMainWindow(true /* cancelExpected */);
     checkExpectedMessageBox();
-
-    linkMgr->disconnectLink(link);
-    QTest::qWait(1000); // Need to allow signals to move between threads
 }
 
 void MainWindowTest::_connectWindowClosePX4_test(void) {

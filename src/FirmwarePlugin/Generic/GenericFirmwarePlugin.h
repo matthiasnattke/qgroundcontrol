@@ -32,8 +32,6 @@
 class GenericFirmwarePlugin : public FirmwarePlugin
 {
     Q_OBJECT
-
-    DECLARE_QGC_SINGLETON(GenericFirmwarePlugin, FirmwarePlugin)
     
 public:
     // Overrides from FirmwarePlugin
@@ -44,10 +42,11 @@ public:
     virtual QString flightMode(uint8_t base_mode, uint32_t custom_mode);
     virtual bool setFlightMode(const QString& flightMode, uint8_t* base_mode, uint32_t* custom_mode);
     virtual int manualControlReservedButtonCount(void);
-    
-private:
-    /// All access to singleton is through AutoPilotPluginManager::instance
-    GenericFirmwarePlugin(QObject* parent = NULL);
+    virtual void adjustMavlinkMessage(mavlink_message_t* message);
+    virtual void initializeVehicle(Vehicle* vehicle);
+    virtual bool sendHomePositionToVehicle(void);
+    virtual void addMetaDataToFact(Fact* fact);
+    virtual QString getDefaultComponentIdParam(void) const { return QString(); }
 };
 
 #endif

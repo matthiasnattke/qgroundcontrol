@@ -23,11 +23,13 @@
 
 #include "PX4AutoPilotPlugin.h"
 #include "AutoPilotPluginManager.h"
-#include "PX4ParameterLoader.h"
 #include "PX4AirframeLoader.h"
 #include "FlightModesComponentController.h"
 #include "AirframeComponentController.h"
 #include "QGCMessageBox.h"
+#include "UAS.h"
+#include "FirmwarePlugin/PX4/PX4ParameterMetaData.h"  // FIXME: Hack
+#include "FirmwarePlugin/PX4/PX4FirmwarePlugin.h"  // FIXME: Hack
 
 /// @file
 ///     @brief This is the AutoPilotPlugin implementatin for the MAV_AUTOPILOT_PX4 type.
@@ -65,7 +67,6 @@ union px4_custom_mode {
 
 PX4AutoPilotPlugin::PX4AutoPilotPlugin(Vehicle* vehicle, QObject* parent) :
     AutoPilotPlugin(vehicle, parent),
-    _parameterFacts(NULL),
     _airframeComponent(NULL),
     _radioComponent(NULL),
     _flightModesComponent(NULL),
@@ -76,29 +77,15 @@ PX4AutoPilotPlugin::PX4AutoPilotPlugin(Vehicle* vehicle, QObject* parent) :
 {
     Q_ASSERT(vehicle);
     
-    _parameterFacts = new PX4ParameterLoader(this, vehicle, this);
-    Q_CHECK_PTR(_parameterFacts);
-    
-    connect(_parameterFacts, &PX4ParameterLoader::parametersReady, this, &PX4AutoPilotPlugin::_pluginReadyPreChecks);
-    connect(_parameterFacts, &PX4ParameterLoader::parameterListProgress, this, &PX4AutoPilotPlugin::parameterListProgress);
-
     _airframeFacts = new PX4AirframeLoader(this, _vehicle->uas(), this);
     Q_CHECK_PTR(_airframeFacts);
     
-    PX4ParameterLoader::loadParameterFactMetaData();
     PX4AirframeLoader::loadAirframeFactMetaData();
 }
 
 PX4AutoPilotPlugin::~PX4AutoPilotPlugin()
 {
-    delete _parameterFacts;
     delete _airframeFacts;
-}
-
-void PX4AutoPilotPlugin::clearStaticData(void)
-{
-    PX4ParameterLoader::clearStaticData();
-    PX4AirframeLoader::clearStaticData();
 }
 
 const QVariantList& PX4AutoPilotPlugin::vehicleComponents(void)
@@ -106,38 +93,38 @@ const QVariantList& PX4AutoPilotPlugin::vehicleComponents(void)
     if (_components.count() == 0 && !_incorrectParameterVersion) {
         Q_ASSERT(_vehicle);
         
-        if (pluginReady()) {
-            _airframeComponent = new AirframeComponent(_vehicle->uas(), this);
+        if (parametersReady()) {
+            _airframeComponent = new AirframeComponent(_vehicle, this);
             Q_CHECK_PTR(_airframeComponent);
             _airframeComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_airframeComponent));
             
-            _radioComponent = new RadioComponent(_vehicle->uas(), this);
+            _radioComponent = new RadioComponent(_vehicle, this);
             Q_CHECK_PTR(_radioComponent);
             _radioComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_radioComponent));
             
-            _flightModesComponent = new FlightModesComponent(_vehicle->uas(), this);
+            _flightModesComponent = new FlightModesComponent(_vehicle, this);
             Q_CHECK_PTR(_flightModesComponent);
             _flightModesComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_flightModesComponent));
             
-            _sensorsComponent = new SensorsComponent(_vehicle->uas(), this);
+            _sensorsComponent = new SensorsComponent(_vehicle, this);
             Q_CHECK_PTR(_sensorsComponent);
             _sensorsComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_sensorsComponent));
             
-            _powerComponent = new PowerComponent(_vehicle->uas(), this);
+            _powerComponent = new PowerComponent(_vehicle, this);
             Q_CHECK_PTR(_powerComponent);
             _powerComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_powerComponent));
             
-            _safetyComponent = new SafetyComponent(_vehicle->uas(), this);
+            _safetyComponent = new SafetyComponent(_vehicle, this);
             Q_CHECK_PTR(_safetyComponent);
             _safetyComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_safetyComponent));
         } else {
-            qWarning() << "Call to vehicleCompenents prior to pluginReady";
+            qWarning() << "Call to vehicleCompenents prior to parametersReady";
         }
     }
     
@@ -145,7 +132,7 @@ const QVariantList& PX4AutoPilotPlugin::vehicleComponents(void)
 }
 
 /// This will perform various checks prior to signalling that the plug in ready
-void PX4AutoPilotPlugin::_pluginReadyPreChecks(void)
+void PX4AutoPilotPlugin::_parametersReadyPreChecks(bool missingParameters)
 {
     // Check for older parameter version set
     // FIXME: Firmware is moving to version stamp parameter set. Once that is complete the version stamp
@@ -156,6 +143,8 @@ void PX4AutoPilotPlugin::_pluginReadyPreChecks(void)
 										"Please perform a Firmware Upgrade if you wish to use Vehicle Setup.");
 	}
 	
-    _pluginReady = true;
-    emit pluginReadyChanged(_pluginReady);
+    _parametersReady = true;
+    _missingParameters = missingParameters;
+    emit missingParametersChanged(_missingParameters);
+    emit parametersReadyChanged(_parametersReady);
 }

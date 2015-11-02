@@ -42,7 +42,7 @@ QGCView {
 
     QGCPalette { id: qgcPal; colorGroupEnabled: panel.enabled }
 
-    readonly property string dialogTitle: "Radio Config"
+    readonly property string dialogTitle: "Radio"
     readonly property real labelToMonitorMargin: defaultTextWidth * 3
     property bool controllerCompleted: false
     property bool controllerAndViewReady: false
@@ -269,23 +269,10 @@ QGCView {
 
         // Main view Qml starts here
 
-        QGCLabel {
-            id:             header
-            font.pixelSize: ScreenTools.largeFontPixelSize
-            text:           "RADIO CONFIG"
-        }
-
-        Item {
-            id:             spacer
-            anchors.top:    header.bottom
-            width:          parent.width
-            height:         10
-        }
-
         // Left side column
         Column {
             id:             leftColumn
-            anchors.top:    spacer.bottom
+            anchors.top:    parent.top
             anchors.left:   parent.left
             anchors.right:  columnSpacer.left
             spacing:        10
@@ -423,15 +410,17 @@ QGCView {
                 spacing: 10
 
                 QGCButton {
-                    id:     skipButton
-                    text:   "Skip"
+                    id:         skipButton
+                    showBorder: true
+                    text:       "Skip"
 
                     onClicked: controller.skipButtonClicked()
                 }
 
                 QGCButton {
-                    id:     cancelButton
-                    text:   "Cancel"
+                    id:         cancelButton
+                    showBorder: true
+                    text:       "Cancel"
 
                     onClicked: controller.cancelButtonClicked()
                 }
@@ -439,6 +428,7 @@ QGCView {
                 QGCButton {
                     id:         nextButton
                     primary:    true
+                    showBorder: true
                     text:       "Calibrate"
 
                     onClicked: {
@@ -481,16 +471,18 @@ QGCView {
                 }
 
                 QGCButton {
-                    id:     bindButton
-                    text:   "Spektrum Bind"
+                    id:         bindButton
+                    showBorder: true
+                    text:       "Spektrum Bind"
 
                     onClicked: showDialog(spektrumBindDialogComponent, dialogTitle, 50, StandardButton.Ok | StandardButton.Cancel)
                 }
             }
 
             QGCButton {
-                text: "Copy Trims"
-                onClicked: showDialog(copyTrimsDialogComponent, dialogTitle, 50, StandardButton.Ok | StandardButton.Cancel)
+                showBorder: true
+                text:       "Copy Trims"
+                onClicked:  showDialog(copyTrimsDialogComponent, dialogTitle, 50, StandardButton.Ok | StandardButton.Cancel)
             }
 
         } // Column - Left Column
@@ -504,7 +496,7 @@ QGCView {
         // Right side column
         Column {
             id:             rightColumn
-            anchors.top:    spacer.bottom
+            anchors.top:    parent.top
             anchors.right:  parent.right
             width:          defaultTextWidth * 35
             spacing:        10

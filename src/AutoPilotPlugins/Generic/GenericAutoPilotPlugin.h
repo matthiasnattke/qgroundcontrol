@@ -25,7 +25,6 @@
 #define GENERICAUTOPILOT_H
 
 #include "AutoPilotPlugin.h"
-#include "GenericParameterFacts.h"
 
 /// @file
 ///     @brief This is the generic implementation of the AutoPilotPlugin class for mavs
@@ -41,17 +40,10 @@ public:
     
     // Overrides from AutoPilotPlugin
     virtual const QVariantList& vehicleComponents(void);
-
-    static void clearStaticData(void);
     
-private slots:
-    void _parametersReady(void);
-    
-private:
-	// Overrides from AutoPilotPlugin
-	virtual ParameterLoader* _getParameterLoader(void) { return _parameterFacts; }
-	
-    GenericParameterFacts*  _parameterFacts;
+public slots:
+    // FIXME: This is public until we restructure AutoPilotPlugin/FirmwarePlugin/Vehicle
+    void _parametersReadyPreChecks(bool missingParameters);
 };
 
 #endif

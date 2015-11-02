@@ -38,6 +38,7 @@
 Q_DECLARE_LOGGING_CATEGORY(JoystickConfigControllerLog)
 
 class RadioConfigest;
+class JoystickManager;
 
 namespace Ui {
     class JoystickConfigController;
@@ -53,9 +54,6 @@ class JoystickConfigController : public FactPanelController
 public:
     JoystickConfigController(void);
     ~JoystickConfigController();
-    
-    Q_PROPERTY(int minAxisCount MEMBER _axisMinimum CONSTANT)
-    Q_PROPERTY(int axisCount READ axisCount NOTIFY axisCountChanged)
     
     Q_PROPERTY(QQuickItem* statusText   MEMBER _statusText)
     Q_PROPERTY(QQuickItem* cancelButton MEMBER _cancelButton)
@@ -102,7 +100,6 @@ public:
     int axisCount(void);
     
 signals:
-    void axisCountChanged(int axisCount);
     void axisValueChanged(int axis, int value);
     
     void rollAxisMappedChanged(bool mapped);
@@ -171,6 +168,8 @@ private:
     void _advanceState(void);
     void _setupCurrentState(void);
     
+    bool _validAxis(int axis);
+
     void _inputCenterWaitBegin  (Joystick::AxisFunction_t function, int axis, int value);
     void _inputStickDetect      (Joystick::AxisFunction_t function, int axis, int value);
     void _inputStickMin         (Joystick::AxisFunction_t function, int axis, int value);
@@ -182,7 +181,7 @@ private:
     void _skipFlaps(void);
     void _saveAllTrims(void);
     
-    bool _stickSettleComplete(int value);
+    bool _stickSettleComplete(int axis, int value);
     
     void _validateCalibration(void);
     void _writeCalibration(void);
@@ -196,9 +195,6 @@ private:
     void _calSaveCurrentValues(void);
     
     void _setHelpImage(const char* imageFile);
-    
-    void _loadSettings(void);
-    void _storeSettings(void);
     
     void _signalAllAttiudeValueChanges(void);
     
@@ -216,20 +212,19 @@ private:
     static const char* _imagePitchUp;
     static const char* _imagePitchDown;
     
-    static const char* _settingsGroup;
-    
     static const int _updateInterval;   ///< Interval for ui update timer
     
     int _rgFunctionAxisMapping[Joystick::maxFunction]; ///< Maps from joystick function to axis index. _axisMax indicates axis not set for this function.
 
     static const int _attitudeControls = 5;
     
-    int _axisCount;                     ///< Number of actual joystick axes available
-    static const int _axisMax = 4;      ///< Maximum number of supported joystick axes
-    static const int _axisMinimum = 4;  ///< Minimum numner of joystick axes required to run PX4
-    
-    struct AxisInfo _rgAxisInfo[_axisMax];  ///< Information associated with each axis
-    
+    int                 _axisCount;         ///< Number of actual joystick axes available
+    static const int    _axisNoAxis = -1;   ///< Signals no axis set
+    static const int    _axisMinimum = 4;   ///< Minimum numner of joystick axes required to run PX4
+    struct AxisInfo*    _rgAxisInfo;        ///< Information associated with each axis
+    int*                _axisValueSave;     ///< Saved values prior to detecting axis movement
+    int*                _axisRawValue;      ///< Current set of raw axis values
+
     enum calStates _calState;               ///< Current calibration state
     int     _calStateCurrentAxis;           ///< Current axis being worked on in calStateIdentify and calStateDetectInversion
     bool    _calStateAxisComplete;          ///< Work associated with current axis is complete
@@ -244,11 +239,7 @@ private:
     static const int _calRoughCenterDelta;
     static const int _calMoveDelta;
     static const int _calSettleDelta;
-    static const int _calMinDelta;
-    
-    int _axisValueSave[_axisMax];        ///< Saved values prior to detecting axis movement
-    
-    int _axisRawValue[_axisMax];         ///< Current set of raw axis values
+    static const int _calMinDelta;    
     
     int     _stickDetectAxis;
     int     _stickDetectInitialValue;
@@ -263,6 +254,8 @@ private:
     QQuickItem* _skipButton;
     
     QString _imageHelp;
+
+    JoystickManager*    _joystickManager;
 };
 
 #endif // JoystickConfigController_H

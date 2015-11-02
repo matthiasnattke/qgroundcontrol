@@ -27,19 +27,27 @@
 #ifndef MultiVehicleManager_H
 #define MultiVehicleManager_H
 
-#include "QGCSingleton.h"
 #include "Vehicle.h"
 #include "QGCMAVLink.h"
-#include "UASWaypointManager.h"
 #include "QmlObjectListModel.h"
+#include "QGCToolbox.h"
+#include "QGCLoggingCategory.h"
 
-class MultiVehicleManager : public QGCSingleton
+class FirmwarePluginManager;
+class AutoPilotPluginManager;
+class JoystickManager;
+class QGCApplication;
+class MAVLinkProtocol;
+
+Q_DECLARE_LOGGING_CATEGORY(MultiVehicleManagerLog)
+
+class MultiVehicleManager : public QGCTool
 {
     Q_OBJECT
     
-    DECLARE_QGC_SINGLETON(MultiVehicleManager, MultiVehicleManager)
-
 public:
+    MultiVehicleManager(QGCApplication* app);
+
     Q_INVOKABLE void        saveSetting (const QString &key, const QString& value);
     Q_INVOKABLE QString     loadSetting (const QString &key, const QString& defaultValue);
     
@@ -58,13 +66,9 @@ public:
     /// @return true: continue further processing of this message, false: disregard this message
     bool notifyHeartbeatInfo(LinkInterface* link, int vehicleId, mavlink_heartbeat_t& heartbeat);
     
-    Vehicle* getVehicleById(int vehicleId);
-    
-    void setHomePositionForAllVehicles(double lat, double lon, double alt);
+    Q_INVOKABLE Vehicle* getVehicleById(int vehicleId);
     
     UAS* activeUas(void) { return _activeVehicle ? _activeVehicle->uas() : NULL; }
-    
-    UASWaypointManager* activeWaypointManager(void);
     
     QList<Vehicle*> vehicles(void);
 
@@ -79,6 +83,9 @@ public:
     
     QmlObjectListModel* vehiclesModel(void) { return &_vehicles; }
     
+    // Override from QGCTool
+    virtual void setToolbox(QGCToolbox *toolbox);
+
 signals:
     void vehicleAdded(Vehicle* vehicle);
     void vehicleRemoved(Vehicle* vehicle);
@@ -92,13 +99,9 @@ private slots:
     void _deleteVehiclePhase1(Vehicle* vehicle);
     void _deleteVehiclePhase2(void);
     void _setActiveVehiclePhase2(void);
-    void _autopilotPluginReadyChanged(bool pluginReady);
+    void _autopilotParametersReadyChanged(bool parametersReady);
     
 private:
-    /// All access to singleton is through MultiVehicleManager::instance
-    MultiVehicleManager(QObject* parent = NULL);
-    ~MultiVehicleManager();
-    
     bool _vehicleExists(int vehicleId);
     
     bool        _activeVehicleAvailable;            ///< true: An active vehicle is available
@@ -111,8 +114,11 @@ private:
     QList<int>  _ignoreVehicleIds;          ///< List of vehicle id for which we ignore further communication
     
     QmlObjectListModel  _vehicles;
-    
-    UASWaypointManager* _offlineWaypointManager;
+
+    FirmwarePluginManager*  _firmwarePluginManager;
+    AutoPilotPluginManager* _autopilotPluginManager;
+    JoystickManager*        _joystickManager;
+    MAVLinkProtocol*        _mavlinkProtocol;
 };
 
 #endif

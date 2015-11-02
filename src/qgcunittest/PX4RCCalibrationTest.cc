@@ -24,6 +24,7 @@
 #include "PX4RCCalibrationTest.h"
 #include "RadioComponentController.h"
 #include "MultiVehicleManager.h"
+#include "QGCApplication.h"
 
 /// @file
 ///     @brief QRadioComponentController Widget unit test
@@ -149,22 +150,13 @@ void RadioConfigTest::init(void)
 {
     UnitTest::init();
     
-    _mockLink = new MockLink();
-    Q_CHECK_PTR(_mockLink);
-    LinkManager::instance()->_addLink(_mockLink);
-    LinkManager::instance()->connectLink(_mockLink);
+    _connectMockLink();
     
-    // Wait for the Vehicle to get created
-    QSignalSpy spyVehicle(MultiVehicleManager::instance(), SIGNAL(parameterReadyVehicleAvailableChanged(bool)));
-    QCOMPARE(spyVehicle.wait(5000), true);
-    QVERIFY(MultiVehicleManager::instance()->parameterReadyVehicleAvailable());
-    QVERIFY(MultiVehicleManager::instance()->activeVehicle());
-    
-    _autopilot = MultiVehicleManager::instance()->activeVehicle()->autopilotPlugin();
+    _autopilot = qgcApp()->toolbox()->multiVehicleManager()->activeVehicle()->autopilotPlugin();
     Q_ASSERT(_autopilot);
     
     // This will instatiate the widget with an active uas with ready parameters
-    _calWidget = new QGCQmlWidgetHolder();
+    _calWidget = new QGCQmlWidgetHolder(QString(), NULL);
     _calWidget->resize(600, 600);
     Q_CHECK_PTR(_calWidget);
     _calWidget->setAutoPilot(_autopilot);
@@ -191,8 +183,6 @@ void RadioConfigTest::cleanup(void)
     
     // Disconnecting the link will prompt for log file save
     setExpectedFileDialog(getSaveFileName, QStringList());
-    
-    LinkManager::instance()->disconnectLink(_mockLink);
     
     UnitTest::cleanup();
 }

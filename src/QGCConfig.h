@@ -12,27 +12,10 @@
 
 // If you need to make an incompatible changes to stored settings, bump this version number
 // up by 1. This will caused store settings to be cleared on next boot.
-#define QGC_SETTINGS_VERSION 6
+#define QGC_SETTINGS_VERSION 7
 
 #define QGC_APPLICATION_NAME "QGroundControl"
 #define QGC_ORG_NAME "QGroundControl.org"
 #define QGC_ORG_DOMAIN "org.qgroundcontrol"
-
-#define QGC_APPLICATION_VERSION_MAJOR 2
-#define QGC_APPLICATION_VERSION_MINOR 8
-
-// The following #definess can be overriden from the command line so that automated build systems can
-// add additional build identification.
-
-// Only comes from command line
-//#define QGC_APPLICATION_VERSION_COMMIT "..."
-
-#ifndef QGC_APPLICATION_VERSION_BUILDNUMBER
-#define QGC_APPLICATION_VERSION_BUILDNUMBER 0
-#endif
-
-#ifndef QGC_APPLICATION_VERSION_BUILDTYPE
-#define QGC_APPLICATION_VERSION_BUILDTYPE "(Development)"
-#endif
 
 #endif // QGC_CONFIGURATION_H

@@ -44,7 +44,7 @@ LinuxBuild {
     exists($$GST_ROOT) {
         CONFIG      += VideoEnabled
         INCLUDEPATH += $$GST_ROOT/Headers
-        LIBS        += -F$$(HOME)/Library/Developer/GStreamer/iPhone.sdk -framework GStreamer
+        LIBS        += -F$$(HOME)/Library/Developer/GStreamer/iPhone.sdk -framework GStreamer -liconv -lresolv
     }
 } else:WindowsBuild {
     #- gstreamer installed by default under c:/gstreamer
@@ -132,6 +132,7 @@ VideoEnabled {
         $$PWD/gstqtvideosink/painters/videonode.h \
         $$PWD/gstqtvideosink/utils/bufferformat.h \
         $$PWD/gstqtvideosink/utils/utils.h \
+        $$PWD/gstqtvideosink/utils/glutils.h \
 
     SOURCES += \
         $$PWD/gstqtvideosink/delegates/basedelegate.cpp \

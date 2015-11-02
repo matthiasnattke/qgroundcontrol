@@ -38,6 +38,7 @@
 
 class ParameterLoader;
 class Vehicle;
+class FirmwarePlugin;
 
 /// This is the base class for AutoPilot plugins
 ///
@@ -54,16 +55,17 @@ public:
     AutoPilotPlugin(Vehicle* vehicle, QObject* parent);
     ~AutoPilotPlugin();
     
-	/// true: plugin is ready for use, plugin should no longer be used
-	Q_PROPERTY(bool pluginReady READ pluginReady NOTIFY pluginReadyChanged)
+	/// true: parameters are ready for use
+	Q_PROPERTY(bool parametersReady READ parametersReady NOTIFY parametersReadyChanged)
+    
+    /// true: parameters are missing from firmware response, false: all parameters received from firmware
+    Q_PROPERTY(bool missingParameters READ missingParameters NOTIFY missingParametersChanged)
 	
     /// List of VehicleComponent objects
     Q_PROPERTY(QVariantList vehicleComponents READ vehicleComponents CONSTANT)
 
 	/// false: One or more vehicle components require setup
 	Q_PROPERTY(bool setupComplete READ setupComplete NOTIFY setupCompleteChanged)
-    
-    Q_PROPERTY(bool armed READ armed NOTIFY armedChanged)
     
     /// Reset all parameters to their default values
     Q_INVOKABLE void resetAllParametersToDefaults(void);
@@ -81,8 +83,7 @@ public:
     Q_INVOKABLE bool parameterExists(int componentId, const QString& name);
 	
 	/// Returns all parameter names
-	/// FIXME: component id missing, generic to fact
-	QStringList parameterNames(void);
+	QStringList parameterNames(int componentId);
 	
 	/// Returns the specified parameter Fact from the default component
 	/// WARNING: Returns a default Fact if parameter does not exists. If that possibility exists, check for existince first with
@@ -113,38 +114,35 @@ public:
     // Must be implemented by derived class
     virtual const QVariantList& vehicleComponents(void) = 0;
     
-    static void clearStaticData(void);
-	
 	// Property accessors
-	bool pluginReady(void) { return _pluginReady; }
+	bool parametersReady(void) { return _parametersReady; }
+    bool missingParameters(void) { return _missingParameters; }
 	bool setupComplete(void);
-    bool armed(void);
 	
     Vehicle* vehicle(void) { return _vehicle; }
     
 signals:
-    void pluginReadyChanged(bool pluginReady);
+    void parametersReadyChanged(bool parametersReady);
+    void missingParametersChanged(bool missingParameters);
 	void setupCompleteChanged(bool setupComplete);
     void parameterListProgress(float value);
-    void armedChanged(bool armed);
 	
 protected:
     /// All access to AutoPilotPugin objects is through getInstanceForAutoPilotPlugin
     AutoPilotPlugin(QObject* parent = NULL) : QObject(parent) { }
     
-	/// Returns the ParameterLoader
-	virtual ParameterLoader* _getParameterLoader(void) = 0;
-	
-    Vehicle*    _vehicle;
-    bool        _pluginReady;
-	bool		_setupComplete;
+    Vehicle*        _vehicle;
+    FirmwarePlugin* _firmwarePlugin;
+    bool            _parametersReady;
+    bool            _missingParameters;
+    bool            _setupComplete;
 	
 private slots:
 	void _uasDisconnected(void);
-	void _pluginReadyChanged(bool pluginReady);
+	void _parametersReadyChanged(bool parametersReady);
 	
 private:
-	void _recalcSetupComplete(void);
+	void _recalcSetupComplete(void);    
 };
 
 #endif

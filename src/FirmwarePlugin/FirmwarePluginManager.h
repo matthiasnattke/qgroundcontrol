@@ -29,28 +29,39 @@
 
 #include <QObject>
 
-#include "QGCSingleton.h"
 #include "FirmwarePlugin.h"
 #include "QGCMAVLink.h"
+#include "QGCToolbox.h"
+
+class QGCApplication;
+class ArduCopterFirmwarePlugin;
+class ArduPlaneFirmwarePlugin;
+class ArduRoverFirmwarePlugin;
+class PX4FirmwarePlugin;
+class GenericFirmwarePlugin;
 
 /// FirmwarePluginManager is a singleton which is used to return the correct FirmwarePlugin for a MAV_AUTOPILOT type.
 
-class FirmwarePluginManager : public QGCSingleton
+class FirmwarePluginManager : public QGCTool
 {
     Q_OBJECT
-    
-    DECLARE_QGC_SINGLETON(FirmwarePluginManager, FirmwarePluginManager)
 
 public:
+    FirmwarePluginManager(QGCApplication* app);
+    ~FirmwarePluginManager();
+
     /// Returns appropriate plugin for autopilot type.
     ///     @param autopilotType Type of autopilot to return plugin for.
+    ///     @param vehicleType Vehicle type of autopilot to return plugin for.
     /// @return Singleton FirmwarePlugin instance for the specified MAV_AUTOPILOT.
-    FirmwarePlugin* firmwarePluginForAutopilot(MAV_AUTOPILOT autopilotType);
-    
+    FirmwarePlugin* firmwarePluginForAutopilot(MAV_AUTOPILOT autopilotType, MAV_TYPE vehicleType);
+
 private:
-    /// All access to singleton is through FirmwarePluginManager::instance
-    FirmwarePluginManager(QObject* parent = NULL);
-    ~FirmwarePluginManager();
+    ArduCopterFirmwarePlugin*   _arduCopterFirmwarePlugin;
+    ArduPlaneFirmwarePlugin*    _arduPlaneFirmwarePlugin;
+    ArduRoverFirmwarePlugin*    _arduRoverFirmwarePlugin;
+    GenericFirmwarePlugin*      _genericFirmwarePlugin;
+    PX4FirmwarePlugin*          _px4FirmwarePlugin;
 };
 
 #endif

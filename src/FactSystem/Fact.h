@@ -46,22 +46,23 @@ public:
 
     const Fact& operator=(const Fact& other);
 
-    Q_PROPERTY(int componentId READ componentId CONSTANT)
-    Q_PROPERTY(QString name READ name CONSTANT)
-    Q_PROPERTY(QVariant value READ value WRITE setValue NOTIFY valueChanged USER true)
-    Q_PROPERTY(QVariant valueString READ valueString NOTIFY valueChanged)
-    Q_PROPERTY(QString units READ units CONSTANT)
-    Q_PROPERTY(QVariant defaultValue READ defaultValue CONSTANT)
-    Q_PROPERTY(bool defaultValueAvailable READ defaultValueAvailable CONSTANT)
-    Q_PROPERTY(bool valueEqualsDefault READ valueEqualsDefault NOTIFY valueChanged)
-    Q_PROPERTY(FactMetaData::ValueType_t type READ type CONSTANT)
-    Q_PROPERTY(QString shortDescription READ shortDescription CONSTANT)
-    Q_PROPERTY(QString longDescription READ longDescription CONSTANT)
-    Q_PROPERTY(QVariant min READ min CONSTANT)
-    Q_PROPERTY(bool minIsDefaultForType READ minIsDefaultForType CONSTANT)
-    Q_PROPERTY(QVariant max READ max CONSTANT)
-    Q_PROPERTY(bool maxIsDefaultForType READ maxIsDefaultForType CONSTANT)
-    Q_PROPERTY(QString group READ group CONSTANT)
+    Q_PROPERTY(int      componentId             READ componentId                            CONSTANT)
+    Q_PROPERTY(QString  group                   READ group                                  CONSTANT)
+    Q_PROPERTY(QString  name                    READ name                                   CONSTANT)
+    Q_PROPERTY(QVariant value                   READ value                  WRITE setValue  NOTIFY valueChanged USER true)
+    Q_PROPERTY(QVariant valueString             READ valueString                            NOTIFY valueChanged)
+    Q_PROPERTY(QString  units                   READ units                                  CONSTANT)
+    Q_PROPERTY(QVariant defaultValue            READ defaultValue                           CONSTANT)
+    Q_PROPERTY(bool     defaultValueAvailable   READ defaultValueAvailable                  CONSTANT)
+    Q_PROPERTY(bool     valueEqualsDefault      READ valueEqualsDefault                     NOTIFY valueChanged)
+    Q_PROPERTY(FactMetaData::ValueType_t type   READ type                                   CONSTANT)
+    Q_PROPERTY(QString  shortDescription        READ shortDescription                       CONSTANT)
+    Q_PROPERTY(QString  longDescription         READ longDescription                        CONSTANT)
+    Q_PROPERTY(QVariant min                     READ min                                    CONSTANT)
+    Q_PROPERTY(bool     minIsDefaultForType     READ minIsDefaultForType                    CONSTANT)
+    Q_PROPERTY(QVariant max                     READ max                                    CONSTANT)
+    Q_PROPERTY(bool     maxIsDefaultForType     READ maxIsDefaultForType                    CONSTANT)
+    Q_PROPERTY(int      decimalPlaces           READ decimalPlaces                          CONSTANT)
     
     /// Convert and validate value
     ///     @param convertOnly true: validate type conversion only, false: validate against meta data as well
@@ -74,18 +75,19 @@ public:
     QVariant value(void) const;
     QString valueString(void) const;
     void setValue(const QVariant& value);
-    QVariant defaultValue(void);
-	bool defaultValueAvailable(void);
-    bool valueEqualsDefault(void);
-    FactMetaData::ValueType_t type(void);
-    QString shortDescription(void);
-    QString longDescription(void);
-    QString units(void);
-    QVariant min(void);
-    bool minIsDefaultForType(void);
-    QVariant max(void);    
-    bool maxIsDefaultForType(void);
-    QString group(void);
+    QVariant defaultValue(void) const;
+	bool defaultValueAvailable(void) const;
+    bool valueEqualsDefault(void) const;
+    FactMetaData::ValueType_t type(void) const;
+    QString shortDescription(void) const;
+    QString longDescription(void) const;
+    QString units(void) const;
+    QVariant min(void) const;
+    bool minIsDefaultForType(void) const;
+    QVariant max(void) const;
+    bool maxIsDefaultForType(void) const;
+    QString group(void) const;
+    int decimalPlaces(void) const;
     
     /// Sets and sends new value to vehicle even if value is the same
     void forceSetValue(const QVariant& value);

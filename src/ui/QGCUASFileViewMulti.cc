@@ -3,21 +3,24 @@
 #include "UASInterface.h"
 #include "MultiVehicleManager.h"
 #include "QGCUASFileView.h"
+#include "QGCApplication.h"
 
-QGCUASFileViewMulti::QGCUASFileViewMulti(QWidget *parent) :
-    QWidget(parent),
+QGCUASFileViewMulti::QGCUASFileViewMulti(const QString& title, QAction* action, QWidget *parent) :
+    QGCDockWidget(title, action, parent),
     ui(new Ui::QGCUASFileViewMulti)
 {
     ui->setupUi(this);
     setMinimumSize(600, 80);
-    connect(MultiVehicleManager::instance(), &MultiVehicleManager::activeVehicleChanged, this, &QGCUASFileViewMulti::_activeVehicleChanged);
-    connect(MultiVehicleManager::instance(), &MultiVehicleManager::vehicleAdded, this, &QGCUASFileViewMulti::_vehicleAdded);
-    connect(MultiVehicleManager::instance(), &MultiVehicleManager::vehicleRemoved, this, &QGCUASFileViewMulti::_vehicleRemoved);
+    connect(qgcApp()->toolbox()->multiVehicleManager(), &MultiVehicleManager::activeVehicleChanged, this, &QGCUASFileViewMulti::_activeVehicleChanged);
+    connect(qgcApp()->toolbox()->multiVehicleManager(), &MultiVehicleManager::vehicleAdded, this, &QGCUASFileViewMulti::_vehicleAdded);
+    connect(qgcApp()->toolbox()->multiVehicleManager(), &MultiVehicleManager::vehicleRemoved, this, &QGCUASFileViewMulti::_vehicleRemoved);
 
-    if (MultiVehicleManager::instance()->activeVehicle()) {
-        _vehicleAdded(MultiVehicleManager::instance()->activeVehicle());
-        _activeVehicleChanged(MultiVehicleManager::instance()->activeVehicle());
+    if (qgcApp()->toolbox()->multiVehicleManager()->activeVehicle()) {
+        _vehicleAdded(qgcApp()->toolbox()->multiVehicleManager()->activeVehicle());
+        _activeVehicleChanged(qgcApp()->toolbox()->multiVehicleManager()->activeVehicle());
     }
+    
+    loadSettings();
 }
 
 void QGCUASFileViewMulti::_vehicleRemoved(Vehicle* vehicle)

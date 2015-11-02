@@ -38,6 +38,7 @@ This file is part of the QGROUNDCONTROL project
 #include "QGCMAVLink.h"
 #include "FileManager.h"
 #include "Vehicle.h"
+#include "FirmwarePluginManager.h"
 
 #ifndef __mobile__
 #include "QGCHilLink.h"
@@ -62,7 +63,7 @@ class UAS : public UASInterface
 {
     Q_OBJECT
 public:
-    UAS(MAVLinkProtocol* protocol, Vehicle* vehicle);
+    UAS(MAVLinkProtocol* protocol, Vehicle* vehicle, FirmwarePluginManager * firmwarePluginManager);
     ~UAS();
 
     float lipoFull;  ///< 100% charged voltage
@@ -70,34 +71,19 @@ public:
 
     /* MANAGEMENT */
 
-    /** @brief The name of the robot */
-    QString getUASName(void) const;
-    /** @brief Get short state */
-    const QString& getShortState() const;
-    /** @brief Get short mode */
-    const QString& getShortMode() const;
     /** @brief Get the unique system id */
     int getUASID() const;
-    /** @brief Get the airframe */
-    int getAirframe() const
-    {
-        return airframe;
-    }
     /** @brief Get the components */
     QMap<int, QString> getComponents();
 
     /** @brief The time interval the robot is switched on */
     quint64 getUptime() const;
     /** @brief Add one measurement and get low-passed voltage */
-    float filterVoltage(float value) const;
+    float filterVoltage(float value);
 
-    Q_PROPERTY(double localX READ getLocalX WRITE setLocalX NOTIFY localXChanged)
-    Q_PROPERTY(double localY READ getLocalY WRITE setLocalY NOTIFY localYChanged)
-    Q_PROPERTY(double localZ READ getLocalZ WRITE setLocalZ NOTIFY localZChanged)
     Q_PROPERTY(double latitude READ getLatitude WRITE setLatitude NOTIFY latitudeChanged)
     Q_PROPERTY(double longitude READ getLongitude WRITE setLongitude NOTIFY longitudeChanged)
     Q_PROPERTY(double satelliteCount READ getSatelliteCount WRITE setSatelliteCount NOTIFY satelliteCountChanged)
-    Q_PROPERTY(bool isLocalPositionKnown READ localPositionKnown)
     Q_PROPERTY(bool isGlobalPositionKnown READ globalPositionKnown)
     Q_PROPERTY(double roll READ getRoll WRITE setRoll NOTIFY rollChanged)
     Q_PROPERTY(double pitch READ getPitch WRITE setPitch NOTIFY pitchChanged)
@@ -251,11 +237,6 @@ public:
         return satelliteCount;
     }
 
-    virtual bool localPositionKnown() const
-    {
-        return isLocalPositionKnown;
-    }
-
     virtual bool globalPositionKnown() const
     {
         return isGlobalPositionKnown;
@@ -319,17 +300,6 @@ public:
         return yaw;
     }
 
-    QVector3D getNedPosGlobalOffset() const
-    {
-        return nedPosGlobalOffset;
-    }
-
-    QVector3D getNedAttGlobalOffset() const
-    {
-        return nedAttGlobalOffset;
-    }
-
-
     // Setters for HIL noise variance
     void setXaccVar(float var){
         xacc_var = var;
@@ -383,10 +353,6 @@ public:
         temperature_var = var;
     }
 
-    bool isRotaryWing();
-    bool isFixedWing();
-
-    friend class UASWaypointManager;
     friend class FileManager;
 
 protected: //COMMENTS FOR TEST UNIT
@@ -402,24 +368,9 @@ protected: //COMMENTS FOR TEST UNIT
     QTimer statusTimeout;       ///< Timer for various status timeouts
 
     /// BASIC UAS TYPE, NAME AND STATE
-    QString name;                 ///< Human-friendly name of the vehicle, e.g. bravo
-    unsigned char type;           ///< UAS type (from type enum)
-    int airframe;                 ///< The airframe type
-    int autopilot;                ///< Type of the Autopilot: -1: None, 0: Generic, 1: PIXHAWK, 2: SLUGS, 3: Ardupilot (up to 15 types), defined in MAV_AUTOPILOT_TYPE ENUM
-    bool systemIsArmed;           ///< If the system is armed
     uint8_t base_mode;                 ///< The current mode of the MAV
     uint32_t custom_mode;         ///< The current mode of the MAV
     int status;                   ///< The current status of the MAV
-    QString shortModeText;        ///< Short textual mode description
-    QString shortStateText;       ///< Short textual state description
-
-    /// OUTPUT
-    QList<double> actuatorValues;
-    QList<QString> actuatorNames;
-    QList<double> motorValues;
-    QList<QString> motorNames;
-    double thrustSum;           ///< Sum of forward/up thrust of all thrust actuators, in Newtons
-    double thrustMax;           ///< Maximum forward/up thrust of this vehicle, in Newtons
 
     // dongfang: This looks like a candidate for being moved off to a separate class.
     /// BATTERY / ENERGY
@@ -433,7 +384,6 @@ protected: //COMMENTS FOR TEST UNIT
     double currentCurrent;      ///< Battery current currently measured
     bool batteryRemainingEstimateEnabled; ///< If the estimate is enabled, QGC will try to estimate the remaining battery life
     float chargeLevel;          ///< Charge level of battery, in percent
-    int timeRemaining;          ///< Remaining time calculated based on previous and current
     bool lowBattAlarm;          ///< Switch if battery is low
 
 
@@ -454,7 +404,6 @@ protected: //COMMENTS FOR TEST UNIT
 
     /// POSITION
     bool positionLock;          ///< Status if position information is available or not
-    bool isLocalPositionKnown;  ///< If the local position has been received for this MAV
     bool isGlobalPositionKnown; ///< If the global position has been received for this MAV
 
     double localX;
@@ -476,9 +425,6 @@ protected: //COMMENTS FOR TEST UNIT
     double speedX;              ///< True speed in X axis
     double speedY;              ///< True speed in Y axis
     double speedZ;              ///< True speed in Z axis
-
-    QVector3D nedPosGlobalOffset;   ///< Offset between the system's NED position measurements and the swarm / global 0/0/0 origin
-    QVector3D nedAttGlobalOffset;   ///< Offset between the system's NED position measurements and the swarm / global 0/0/0 origin
 
     /// WAYPOINT NAVIGATION
     double distToWaypoint;       ///< Distance to next waypoint
@@ -532,27 +478,10 @@ protected: //COMMENTS FOR TEST UNIT
 #endif
 
 public:
-    /** @brief Set the current battery type */
-    void setBattery(BatteryType type, int cells);
-    /** @brief Estimate how much flight time is remaining */
-    int calculateTimeRemaining();
     /** @brief Get the current charge level */
     float getChargeLevel();
     /** @brief Get the human-readable status message for this code */
     void getStatusForCode(int statusCode, QString& uasState, QString& stateDescription);
-    /** @brief Check if vehicle is in autonomous mode */
-    bool isAuto();
-    /** @brief Check if vehicle is armed */
-    bool isArmed() const { return systemIsArmed; }
-    /** @brief Check if vehicle is supposed to be in HIL mode by the GS */
-    bool isHilEnabled() const { return hilEnabled; }
-    /** @brief Check if vehicle is in HIL mode */
-    bool isHilActive() const { return base_mode & MAV_MODE_FLAG_HIL_ENABLED; }
-
-    /** @brief Get reference to the waypoint manager **/
-    UASWaypointManager* getWaypointManager() {
-        return _waypointManager;
-    }
 
     virtual FileManager* getFileManager() {
         return &fileManager;
@@ -565,206 +494,15 @@ public:
     }
 #endif
 
-    int  getSystemType();
-    bool isAirplane();
-
-    /**
-     * @brief Returns true for systems that can reverse. If the system has no control over position, it returns false as
-     * @return If the specified vehicle type can
-     */
-    bool systemCanReverse() const
-    {
-        switch(type)
-        {
-        case MAV_TYPE_GENERIC:
-        case MAV_TYPE_FIXED_WING:
-        case MAV_TYPE_ROCKET:
-        case MAV_TYPE_FLAPPING_WING:
-
-        // System types that don't have movement
-        case MAV_TYPE_ANTENNA_TRACKER:
-        case MAV_TYPE_GCS:
-        case MAV_TYPE_FREE_BALLOON:
-        default:
-            return false;
-        case MAV_TYPE_QUADROTOR:
-        case MAV_TYPE_COAXIAL:
-        case MAV_TYPE_HELICOPTER:
-        case MAV_TYPE_AIRSHIP:
-        case MAV_TYPE_GROUND_ROVER:
-        case MAV_TYPE_SURFACE_BOAT:
-        case MAV_TYPE_SUBMARINE:
-        case MAV_TYPE_HEXAROTOR:
-        case MAV_TYPE_OCTOROTOR:
-        case MAV_TYPE_TRICOPTER:
-            return true;
-        }
-    }
-
-    QString getSystemTypeName()
-    {
-        switch(type)
-        {
-        case MAV_TYPE_GENERIC:
-            return "GENERIC";
-            break;
-        case MAV_TYPE_FIXED_WING:
-            return "FIXED_WING";
-            break;
-        case MAV_TYPE_QUADROTOR:
-            return "QUADROTOR";
-            break;
-        case MAV_TYPE_COAXIAL:
-            return "COAXIAL";
-            break;
-        case MAV_TYPE_HELICOPTER:
-            return "HELICOPTER";
-            break;
-        case MAV_TYPE_ANTENNA_TRACKER:
-            return "ANTENNA_TRACKER";
-            break;
-        case MAV_TYPE_GCS:
-            return "GCS";
-            break;
-        case MAV_TYPE_AIRSHIP:
-            return "AIRSHIP";
-            break;
-        case MAV_TYPE_FREE_BALLOON:
-            return "FREE_BALLOON";
-            break;
-        case MAV_TYPE_ROCKET:
-            return "ROCKET";
-            break;
-        case MAV_TYPE_GROUND_ROVER:
-            return "GROUND_ROVER";
-            break;
-        case MAV_TYPE_SURFACE_BOAT:
-            return "BOAT";
-            break;
-        case MAV_TYPE_SUBMARINE:
-            return "SUBMARINE";
-            break;
-        case MAV_TYPE_HEXAROTOR:
-            return "HEXAROTOR";
-            break;
-        case MAV_TYPE_OCTOROTOR:
-            return "OCTOROTOR";
-            break;
-        case MAV_TYPE_TRICOPTER:
-            return "TRICOPTER";
-            break;
-        case MAV_TYPE_FLAPPING_WING:
-            return "FLAPPING_WING";
-            break;
-        default:
-            return "";
-            break;
-        }
-    }
-
     QImage getImage();
     void requestImage();
-    int getAutopilotType(){
-        return autopilot;
-    }
-    QString getAutopilotTypeName()
-    {
-        switch (autopilot)
-        {
-        case MAV_AUTOPILOT_GENERIC:
-            return "GENERIC";
-            break;
-        case MAV_AUTOPILOT_SLUGS:
-            return "SLUGS";
-            break;
-        case MAV_AUTOPILOT_ARDUPILOTMEGA:
-            return "ARDUPILOTMEGA";
-            break;
-        case MAV_AUTOPILOT_OPENPILOT:
-            return "OPENPILOT";
-            break;
-        case MAV_AUTOPILOT_GENERIC_WAYPOINTS_ONLY:
-            return "GENERIC_WAYPOINTS_ONLY";
-            break;
-        case MAV_AUTOPILOT_GENERIC_WAYPOINTS_AND_SIMPLE_NAVIGATION_ONLY:
-            return "GENERIC_MISSION_NAVIGATION_ONLY";
-            break;
-        case MAV_AUTOPILOT_GENERIC_MISSION_FULL:
-            return "GENERIC_MISSION_FULL";
-            break;
-        case MAV_AUTOPILOT_INVALID:
-            return "NO AP";
-            break;
-        case MAV_AUTOPILOT_PPZ:
-            return "PPZ";
-            break;
-        case MAV_AUTOPILOT_UDB:
-            return "UDB";
-            break;
-        case MAV_AUTOPILOT_FP:
-            return "FP";
-            break;
-        case MAV_AUTOPILOT_PX4:
-            return "PX4";
-            break;
-        default:
-            return "UNKNOWN";
-            break;
-        }
-    }
-    /** From UASInterface */
-    QList<QAction*> getActions() const
-    {
-        return actions;
-    }
 
 public slots:
-    /** @brief Set the autopilot type */
-    void setAutopilotType(int apType)
-    {
-        autopilot = apType;
-        emit systemSpecsChanged(uasId);
-    }
-    /** @brief Set the type of airframe */
-    void setSystemType(int systemType);
-    /** @brief Set the specific airframe type */
-    void setAirframe(int airframe)
-    {
-        if((airframe >= QGC_AIRFRAME_GENERIC) && (airframe < QGC_AIRFRAME_END_OF_ENUM))
-        {
-          this->airframe = airframe;
-          emit systemSpecsChanged(uasId);
-        }
-
-    }
-    /** @brief Set a new name **/
-    void setUASName(const QString& name);
-    /** @brief Executes a command **/
-    void executeCommand(MAV_CMD command);
     /** @brief Executes a command with 7 params */
     void executeCommand(MAV_CMD command, int confirmation, float param1, float param2, float param3, float param4, float param5, float param6, float param7, int component);
-    /** @brief Executes a command ack, with success boolean **/
-    void executeCommandAck(int num, bool success);
-    /** @brief Set the current battery type and voltages */
-    void setBatterySpecs(const QString& specs);
-    /** @brief Get the current battery type and specs */
-    QString getBatterySpecs();
 
-    /** @brief Launches the system **/
-    void launch();
-    /** @brief Write this waypoint to the list of waypoints */
-    //void setWaypoint(MissionItem* wp); FIXME tbd
-    /** @brief Set currently active waypoint */
-    //void setWaypointActive(int id); FIXME tbd
-    /** @brief Order the robot to return home **/
-    void home();
-    /** @brief Order the robot to land **/
-    void land();
     /** @brief Order the robot to pair its receiver **/
     void pairRX(int rxType, int rxSubType);
-
-    void halt();
-    void go();
 
     /** @brief Enable / disable HIL */
 #ifndef __mobile__
@@ -813,39 +551,8 @@ public slots:
     void stopHil();
 #endif
 
-    /** @brief Stops the robot system. If it is an MAV, the robot starts the emergency landing procedure **/
-    void emergencySTOP();
-
-    /** @brief Kills the robot. All systems are immediately shut down (e.g. the main power line is cut). This might lead to a crash **/
-    bool emergencyKILL();
-
-    /** @brief Shut the system cleanly down. Will shut down any onboard computers **/
-    void shutdown();
-
-    /** @brief Set the target position for the robot to navigate to. */
-    void setTargetPosition(float x, float y, float z, float yaw);
-
     void startLowBattAlarm();
     void stopLowBattAlarm();
-
-    /** @brief Arm system */
-    void armSystem();
-    /** @brief Disable the motors */
-    void disarmSystem();
-    /** @brief Toggle the armed state of the system. */
-    void toggleArmedState();
-    /**
-     * @brief Tell the UAS to switch into a completely-autonomous mode, so disable manual input.
-     */
-    void goAutonomous();
-    /**
-     * @brief Tell the UAS to switch to manual control. Stabilized attitude may simultaneously be engaged.
-     */
-    void goManual();
-    /**
-     * @brief Tell the UAS to switch between manual and autonomous control.
-     */
-    void toggleAutonomy();
 
     /** @brief Set the values for the manual control of the vehicle */
 #ifndef __mobile__
@@ -860,39 +567,8 @@ public slots:
     /** @brief Receive a message from one of the communication links. */
     virtual void receiveMessage(mavlink_message_t message);
 
-#ifdef QGC_PROTOBUF_ENABLED
-    /** @brief Receive a message from one of the communication links. */
-    virtual void receiveExtendedMessage(LinkInterface* link, std::tr1::shared_ptr<google::protobuf::Message> message);
-#endif
-
-    /** @brief Set current mode of operation, e.g. auto or manual, always uses the current arming status for safety reason */
-    void setMode(uint8_t newBaseMode, uint32_t newCustomMode);
-
-    /** @brief Set current mode of operation, e.g. auto or manual, does not check the arming status, for anything else than arming/disarming operations use setMode instead */
-    void setModeArm(uint8_t newBaseMode, uint32_t newCustomMode);
-
-    void enableAllDataTransmission(int rate);
-    void enableRawSensorDataTransmission(int rate);
-    void enableExtendedSystemStatusTransmission(int rate);
-    void enableRCChannelDataTransmission(int rate);
-    void enableRawControllerDataTransmission(int rate);
-    //void enableRawSensorFusionTransmission(int rate);
-    void enablePositionTransmission(int rate);
-    void enableExtra1Transmission(int rate);
-    void enableExtra2Transmission(int rate);
-    void enableExtra3Transmission(int rate);
-
     /** @brief Update the system state */
     void updateState();
-
-    /** @brief Set world frame origin at current GPS position */
-    void setLocalOriginAtCurrentGPSPosition();
-    /** @brief Set world frame origin / home position at this GPS position */
-    void setHomePosition(double lat, double lon, double alt);
-    /** @brief Set local position setpoint */
-    void setLocalPositionSetpoint(float x, float y, float z, float yaw);
-    /** @brief Add an offset in body frame to the setpoint */
-    void setLocalPositionOffset(float x, float y, float z, float yaw);
 
     void startCalibration(StartCalibrationType calType);
     void stopCalibration(void);
@@ -900,27 +576,12 @@ public slots:
     void startBusConfig(StartBusConfigType calType);
     void stopBusConfig(void);
 
-    void startDataRecording();
-    void stopDataRecording();
-    void deleteSettings();
-
-    /** @brief Triggers the action associated with the given ID. */
-    void triggerAction(int action);
-
     /** @brief Send command to map a RC channel to a parameter */
     void sendMapRCToParam(QString param_id, float scale, float value0, quint8 param_rc_channel_index, float valueMin, float valueMax);
 
     /** @brief Send command to disable all bindings/maps between RC and parameters */
     void unsetRCToParameterMap();
 signals:
-    /** @brief The main/battery voltage has changed/was updated */
-    //void voltageChanged(int uasId, double voltage); // Defined in UASInterface already
-    /** @brief An actuator value has changed */
-    //void actuatorChanged(UASInterface*, int actId, double value); // Defined in UASInterface already
-    /** @brief An actuator value has changed */
-    void actuatorChanged(UASInterface* uas, QString actuatorName, double min, double max, double value);
-    void motorChanged(UASInterface* uas, QString motorName, double min, double max, double value);
-    /** @brief The system load (MCU/CPU usage) changed */
     void loadChanged(UASInterface* uas, double load);
     /** @brief Propagate a heartbeat received from the system */
     //void heartbeat(UASInterface* uas); // Defined in UASInterface already
@@ -966,26 +627,18 @@ protected:
     quint64 lastVoltageWarning; ///< Time at which the last voltage warning occured
     quint64 lastNonNullTime;    ///< The last timestamp from the MAV that was not null
     unsigned int onboardTimeOffsetInvalidCount;     ///< Count when the offboard time offset estimation seemed wrong
-    bool hilEnabled;            ///< Set to true if HIL mode is enabled from GCS (UAS might be in HIL even if this flag is not set, this defines the GCS HIL setting)
+    bool hilEnabled;
     bool sensorHil;             ///< True if sensor HIL is enabled
     quint64 lastSendTimeGPS;     ///< Last HIL GPS message sent
     quint64 lastSendTimeSensors; ///< Last HIL Sensors message sent
     quint64 lastSendTimeOpticalFlow; ///< Last HIL Optical Flow message sent
-    QList<QAction*> actions; ///< A list of actions that this UAS can perform.
 
-
-protected slots:
-    /** @brief Write settings to disk */
-    void writeSettings();
-    /** @brief Read settings from disk */
-    void readSettings();
-    
 private:
     void _say(const QString& text, int severity = 6);
     
 private:
-    UASWaypointManager* _waypointManager;
-    Vehicle*            _vehicle;
+    Vehicle*                _vehicle;
+    FirmwarePluginManager*  _firmwarePluginManager;
 };
 
 

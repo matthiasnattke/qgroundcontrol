@@ -131,10 +131,24 @@ QVariant Fact::value(void) const
 
 QString Fact::valueString(void) const
 {
-    return _value.toString();
+    QString valueString;
+
+    switch (type()) {
+        case FactMetaData::valueTypeFloat:
+            valueString = QString("%1").arg(value().toFloat(), 0, 'g', decimalPlaces());
+            break;
+        case FactMetaData::valueTypeDouble:
+            valueString = QString("%1").arg(value().toDouble(), 0, 'g', decimalPlaces());
+            break;
+        default:
+            valueString = value().toString();
+            break;
+    }
+
+    return valueString;
 }
 
-QVariant Fact::defaultValue(void)
+QVariant Fact::defaultValue(void) const
 {
     if (_metaData) {
         if (!_metaData->defaultValueAvailable()) {
@@ -147,12 +161,12 @@ QVariant Fact::defaultValue(void)
     }
 }
 
-FactMetaData::ValueType_t Fact::type(void)
+FactMetaData::ValueType_t Fact::type(void) const
 {
     return _type;
 }
 
-QString Fact::shortDescription(void)
+QString Fact::shortDescription(void) const
 {
     if (_metaData) {
         return _metaData->shortDescription();
@@ -162,7 +176,7 @@ QString Fact::shortDescription(void)
     }
 }
 
-QString Fact::longDescription(void)
+QString Fact::longDescription(void) const
 {
     if (_metaData) {
         return _metaData->longDescription();
@@ -172,7 +186,7 @@ QString Fact::longDescription(void)
     }
 }
 
-QString Fact::units(void)
+QString Fact::units(void) const
 {
     if (_metaData) {
         return _metaData->units();
@@ -182,7 +196,7 @@ QString Fact::units(void)
     }
 }
 
-QVariant Fact::min(void)
+QVariant Fact::min(void) const
 {
     if (_metaData) {
         return _metaData->min();
@@ -192,7 +206,7 @@ QVariant Fact::min(void)
     }
 }
 
-QVariant Fact::max(void)
+QVariant Fact::max(void) const
 {
     if (_metaData) {
         return _metaData->max();
@@ -202,7 +216,7 @@ QVariant Fact::max(void)
     }
 }
 
-bool Fact::minIsDefaultForType(void)
+bool Fact::minIsDefaultForType(void) const
 {
     if (_metaData) {
         return _metaData->minIsDefaultForType();
@@ -212,7 +226,7 @@ bool Fact::minIsDefaultForType(void)
     }
 }
 
-bool Fact::maxIsDefaultForType(void)
+bool Fact::maxIsDefaultForType(void) const
 {
     if (_metaData) {
         return _metaData->maxIsDefaultForType();
@@ -222,7 +236,17 @@ bool Fact::maxIsDefaultForType(void)
     }
 }
 
-QString Fact::group(void)
+int Fact::decimalPlaces(void) const
+{
+    if (_metaData) {
+        return _metaData->decimalPlaces();
+    } else {
+        qWarning() << "Meta data pointer missing";
+        return FactMetaData::defaultDecimalPlaces;
+    }
+}
+
+QString Fact::group(void) const
 {
     if (_metaData) {
         return _metaData->group();
@@ -237,7 +261,7 @@ void Fact::setMetaData(FactMetaData* metaData)
     _metaData = metaData;
 }
 
-bool Fact::valueEqualsDefault(void)
+bool Fact::valueEqualsDefault(void) const
 {
     if (_metaData) {
         if (_metaData->defaultValueAvailable()) {
@@ -251,7 +275,7 @@ bool Fact::valueEqualsDefault(void)
     }
 }
 
-bool Fact::defaultValueAvailable(void)
+bool Fact::defaultValueAvailable(void) const
 {
     if (_metaData) {
         return _metaData->defaultValueAvailable();

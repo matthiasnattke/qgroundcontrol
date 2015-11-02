@@ -9,12 +9,16 @@ QGCComboBox         1.0 QGCComboBox.qml
 QGCColoredImage     1.0 QGCColoredImage.qml
 QGCToolBarButton    1.0 QGCToolBarButton.qml
 QGCMovableItem      1.0 QGCMovableItem.qml
+QGCCanvas           1.0 QGCCanvas.qml
 
 SubMenuButton       1.0 SubMenuButton.qml
 IndicatorButton     1.0 IndicatorButton.qml
+DropButton          1.0 DropButton.qml
+RoundButton         1.0 RoundButton.qml
 VehicleRotationCal  1.0 VehicleRotationCal.qml
 VehicleSummaryRow   1.0 VehicleSummaryRow.qml
 ViewWidget          1.0 ViewWidget.qml
+ExclusiveGroupItem  1.0 ExclusiveGroupItem.qml
 
 ParameterEditor         1.0 ParameterEditor.qml
 ParameterEditorDialog   1.0 ParameterEditorDialog.qml
@@ -30,3 +34,6 @@ MissionItemIndexLabel   1.0 MissionItemIndexLabel.qml
 MissionItemSummary      1.0 MissionItemSummary.qml
 MissionItemEditor       1.0 MissionItemEditor.qml
 
+MainToolBar 1.0 MainToolBar.qml
+
+ClickableColor 1.0 ClickableColor.qml

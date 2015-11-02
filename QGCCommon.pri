@@ -69,6 +69,17 @@ MobileBuild {
     DEFINES += __mobile__
 }
 
+# set the QGC version from git
+
+exists ($$PWD/.git) {
+  GIT_DESCRIBE = $$system(git --git-dir $$PWD/.git --work-tree $$PWD describe --always --tags)
+  message(QGroundControl version $${GIT_DESCRIBE})
+} else {
+  GIT_DESCRIBE = None
+}
+
+DEFINES += GIT_VERSION=\"\\\"$$GIT_DESCRIBE\\\"\"
+
 # Installer configuration
 
 installer {
@@ -157,19 +168,15 @@ MacBuild {
     CONFIG += x86_64
     CONFIG -= x86
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.6
-    QMAKE_MAC_SDK = macosx10.9
+    QMAKE_MAC_SDK = macosx10.11
 }
 
 LinuxBuild {
-	DEFINES += __STDC_LIMIT_MACROS
+    DEFINES += __STDC_LIMIT_MACROS
 }
 
 WindowsBuild {
-	DEFINES += __STDC_LIMIT_MACROS
-	# Specify multi-process compilation within Visual Studio.
-	# (drastically improves compilation times for multi-core computers)
-	QMAKE_CXXFLAGS_DEBUG += -MP
-	QMAKE_CXXFLAGS_RELEASE += -MP
+    DEFINES += __STDC_LIMIT_MACROS
 }
 
 #
@@ -181,14 +188,14 @@ WindowsBuild {
 #
 
 MacBuild | LinuxBuild {
-	QMAKE_CXXFLAGS_WARN_ON += -Wall
+    QMAKE_CXXFLAGS_WARN_ON += -Wall
     WarningsAsErrorsOn {
         QMAKE_CXXFLAGS_WARN_ON += -Werror
     }
 }
 
 WindowsBuild {
-	QMAKE_CXXFLAGS_WARN_ON += /W3 \
+    QMAKE_CXXFLAGS_WARN_ON += /W3 \
         /wd4996 \   # silence warnings about deprecated strcpy and whatnot
         /wd4005 \   # silence warnings about macro redefinition
         /wd4290 \   # ignore exception specifications
@@ -204,14 +211,14 @@ WindowsBuild {
 
 ReleaseBuild {
     DEFINES += QT_NO_DEBUG
-	WindowsBuild {
-		# Use link time code generation for better optimization (I believe this is supported in MSVC Express, but not 100% sure)
-		QMAKE_LFLAGS_LTCG = /LTCG
-		QMAKE_CFLAGS_LTCG = -GL
+    WindowsBuild {
+        # Use link time code generation for better optimization (I believe this is supported in MSVC Express, but not 100% sure)
+        QMAKE_LFLAGS_LTCG = /LTCG
+        QMAKE_CFLAGS_LTCG = -GL
 
-		# Turn on debugging information so we can collect good crash dumps from release builds
-		QMAKE_CXXFLAGS_RELEASE += /Zi 
-		QMAKE_LFLAGS_RELEASE += /DEBUG
+        # Turn on debugging information so we can collect good crash dumps from release builds
+        QMAKE_CXXFLAGS_RELEASE += /Zi
+        QMAKE_LFLAGS_RELEASE += /DEBUG
     }
 }
 

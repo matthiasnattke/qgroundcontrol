@@ -27,9 +27,9 @@
 #include "ScreenToolsController.h"
 #include "MainWindow.h"
 
-int ScreenToolsController::_qmlDefaultFontPixelSize = -1;
-
 #ifdef Q_OS_WIN
+const double ScreenToolsController::_defaultFontPixelSizeRatio = 1.0;
+#elif __mobile__
 const double ScreenToolsController::_defaultFontPixelSizeRatio = 1.0;
 #else
 const double ScreenToolsController::_defaultFontPixelSizeRatio = 0.8;
@@ -52,21 +52,3 @@ void ScreenToolsController::_updateCanvas()
     emit repaintRequested();
 }
 
-double ScreenToolsController::getQmlDefaultFontPixelSize(void)
-{
-    if (_qmlDefaultFontPixelSize == -1) {
-        QGCQmlWidgetHolder qmlWidgetHolder;
-        
-        qmlWidgetHolder.setSource(QUrl::fromUserInput("qrc:/qml/ScreenToolsFontQuery.qml"));
-    }
-
-    double qmlDefaultFontPixelSize = _qmlDefaultFontPixelSize;
-    
-#ifdef QT_DEBUG
-    if (qgcApp()->testHighDPI()) {
-        qmlDefaultFontPixelSize *= 2;
-    }
-#endif
-    
-    return qmlDefaultFontPixelSize;
-}

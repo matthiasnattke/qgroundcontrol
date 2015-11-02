@@ -32,46 +32,43 @@ This file is part of the QGROUNDCONTROL project
 #include <QDebug>
 #include <QTimer>
 #include <QHostInfo>
-#include <QSplashScreen>
-#ifndef __mobile__
-#include <QGCHilLink.h>
-#include <QGCHilConfiguration.h>
-#include <QGCHilFlightGearConfiguration.h>
-#endif
 #include <QQuickView>
 #include <QDesktopWidget>
+#include <QScreen>
+#include <QDesktopServices>
+#include <QDockWidget>
+#include <QMenuBar>
 
 #include "QGC.h"
-#ifndef __ios__
-#include "SerialLink.h"
-#endif
 #include "MAVLinkProtocol.h"
-#include "QGCWaypointListMulti.h"
 #include "MainWindow.h"
 #include "GAudioOutput.h"
 #include "QGCMAVLinkLogPlayer.h"
 #include "SettingsDialog.h"
-#include "QGCMapTool.h"
-#include "QGCMapDisplay.h"
 #include "MAVLinkDecoder.h"
-#include "QGCMAVLinkMessageSender.h"
-#include "UASQuickView.h"
-#include "QGCDataPlot2D.h"
-#include "Linecharts.h"
-#include "QGCTabbedInfoView.h"
-#include "UASRawStatusView.h"
-#include "FlightDisplayView.h"
-#include "FlightDisplayWidget.h"
-#include "SetupView.h"
-#include "QGCUASFileViewMulti.h"
 #include "QGCApplication.h"
 #include "QGCFileDialog.h"
 #include "QGCMessageBox.h"
-#include "QGCDockWidget.h"
 #include "MultiVehicleManager.h"
-#include "CustomCommandWidget.h"
 #include "HomePositionManager.h"
-#include "MissionEditor.h"
+#include "LogCompressor.h"
+#include "UAS.h"
+
+#ifndef __mobile__
+#include "QGCDataPlot2D.h"
+#include "Linecharts.h"
+#include "QGCUASFileViewMulti.h"
+#include "UASQuickView.h"
+#include "QGCTabbedInfoView.h"
+#include "CustomCommandWidget.h"
+#include "QGCDockWidget.h"
+#include "UASInfoWidget.h"
+#include "HILDockWidget.h"
+#endif
+
+#ifndef __ios__
+#include "SerialLink.h"
+#endif
 
 #ifdef UNITTEST_BUILD
 #include "QmlControls/QmlTestWidget.h"
@@ -81,29 +78,42 @@ This file is part of the QGROUNDCONTROL project
 #include "Q3DWidgetFactory.h"
 #endif
 
-#include "LogCompressor.h"
 
 /// The key under which the Main Window settings are saved
 const char* MAIN_SETTINGS_GROUP = "QGC_MAINWINDOW";
 
-const char* MainWindow::_uasControlDockWidgetName = "UNMANNED_SYSTEM_CONTROL_DOCKWIDGET";
-const char* MainWindow::_uasListDockWidgetName = "UNMANNED_SYSTEM_LIST_DOCKWIDGET";
-const char* MainWindow::_waypointsDockWidgetName = "WAYPOINT_LIST_DOCKWIDGET";
-const char* MainWindow::_mavlinkDockWidgetName = "MAVLINK_INSPECTOR_DOCKWIDGET";
-const char* MainWindow::_parametersDockWidgetName = "PARAMETER_INTERFACE_DOCKWIDGET";
-const char* MainWindow::_customCommandWidgetName = "CUSTOM_COMMAND_DOCKWIDGET";
-const char* MainWindow::_filesDockWidgetName = "FILE_VIEW_DOCKWIDGET";
-const char* MainWindow::_uasStatusDetailsDockWidgetName = "UAS_STATUS_DETAILS_DOCKWIDGET";
-const char* MainWindow::_mapViewDockWidgetName = "MAP_VIEW_DOCKWIDGET";
-const char* MainWindow::_pfdDockWidgetName = "PRIMARY_FLIGHT_DISPLAY_DOCKWIDGET";
-const char* MainWindow::_uasInfoViewDockWidgetName = "UAS_INFO_INFOVIEW_DOCKWIDGET";
+#ifndef __mobile__
+enum DockWidgetTypes { 
+    MAVLINK_INSPECTOR, 
+    CUSTOM_COMMAND, 
+    ONBOARD_FILES,
+    STATUS_DETAILS,
+    INFO_VIEW,
+    HIL_CONFIG,
+    ANALYZE
+};
+
+static const char *rgDockWidgetNames[] = {
+    "MAVLink Inspector",
+    "Custom Command",
+    "Onboard Files",
+    "Status Details",
+    "Info View",
+    "HIL Config",
+    "Analyze"
+};
+
+#define ARRAY_SIZE(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
+
+static const char* _visibleWidgetsKey = "VisibleWidgets";
+#endif
 
 static MainWindow* _instance = NULL;   ///< @brief MainWindow singleton
 
-MainWindow* MainWindow::_create(QSplashScreen* splashScreen)
+MainWindow* MainWindow::_create()
 {
     Q_ASSERT(_instance == NULL);
-    new MainWindow(splashScreen);
+    new MainWindow();
     // _instance is set in constructor
     Q_ASSERT(_instance);
     return _instance;
@@ -122,22 +132,14 @@ void MainWindow::deleteInstance(void)
 /// @brief Private constructor for MainWindow. MainWindow singleton is only ever created
 ///         by MainWindow::_create method. Hence no other code should have access to
 ///         constructor.
-MainWindow::MainWindow(QSplashScreen* splashScreen)
+MainWindow::MainWindow()
     : _autoReconnect(false)
     , _lowPowerMode(false)
     , _showStatusBar(false)
-    , _centerStackActionGroup(new QActionGroup(this))
-    , _centralLayout(NULL)
-    , _currentViewWidget(NULL)
-    , _splashScreen(splashScreen)
-    , _currentView(VIEW_SETUP)
+    , _mainQmlWidgetHolder(NULL)
 {
     Q_ASSERT(_instance == NULL);
     _instance = this;
-
-    if (splashScreen) {
-        connect(this, &MainWindow::initStatusChanged, splashScreen, &QSplashScreen::showMessage);
-    }
 
     // Qt 4/5 on Ubuntu does place the native menubar correctly so on Linux we revert back to in-window menu bar.
 #ifdef Q_OS_LINUX
@@ -146,6 +148,7 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
     // Setup user interface
     loadSettings();
     emit initStatusChanged(tr("Setting up user interface"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
+
     _ui.setupUi(this);
     // Make sure tool bar elements all fit before changing minimum width
     setMinimumWidth(1008);
@@ -153,10 +156,18 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
 
     // Setup central widget with a layout to hold the views
     _centralLayout = new QVBoxLayout();
-    _centralLayout->setContentsMargins(0,0,0,0);
+    _centralLayout->setContentsMargins(0, 0, 0, 0);
     centralWidget()->setLayout(_centralLayout);
+
+    _mainQmlWidgetHolder = new QGCQmlWidgetHolder(QString(), NULL, this);
+    _centralLayout->addWidget(_mainQmlWidgetHolder);
+    _mainQmlWidgetHolder->setVisible(true);
+
+    _mainQmlWidgetHolder->setContextPropertyObject("controller", this);
+    _mainQmlWidgetHolder->setSource(QUrl::fromUserInput("qrc:qml/MainWindow.qml"));
+
     // Set dock options
-    setDockOptions(AnimatedDocks | AllowTabbedDocks | AllowNestedDocks);
+    setDockOptions(0);
     // Setup corners
     setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
 
@@ -168,28 +179,19 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
 #ifdef UNITTEST_BUILD
     QAction* qmlTestAction = new QAction("Test QML palette and controls", NULL);
     connect(qmlTestAction, &QAction::triggered, this, &MainWindow::_showQmlTestWidget);
-    _ui.menuTools->addAction(qmlTestAction);
+    _ui.menuWidgets->addAction(qmlTestAction);
 #endif
 
-    // Load QML Toolbar
-    QDockWidget* widget = new QDockWidget(this);
-    widget->setObjectName("ToolBarDockWidget");
-    qmlRegisterType<MainToolBar>("QGroundControl.MainToolBar", 1, 0, "MainToolBar");
-    _mainToolBar = new MainToolBar(widget);
-    widget->setWidget(_mainToolBar);
-    widget->setFeatures(QDockWidget::NoDockWidgetFeatures);
-    widget->setTitleBarWidget(new QWidget(this)); // Disables the title bar
-    addDockWidget(Qt::TopDockWidgetArea, widget);
-
-    // Setup UI state machines
-    _centerStackActionGroup->setExclusive(true);
     // Status Bar
     setStatusBar(new QStatusBar(this));
     statusBar()->setSizeGripEnabled(true);
 
+#ifndef __mobile__
     emit initStatusChanged(tr("Building common widgets."), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
     _buildCommonWidgets();
     emit initStatusChanged(tr("Building common actions"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
+#endif
+
     // Create actions
     connectCommonActions();
     // Connect user interface devices
@@ -207,8 +209,8 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
 #endif //QGC_MOUSE_ENABLED_LINUX
 
     // These also cause the screen to redraw so we need to update any OpenGL canvases in QML controls
-    connect(LinkManager::instance(), &LinkManager::linkConnected,    this, &MainWindow::_linkStateChange);
-    connect(LinkManager::instance(), &LinkManager::linkDisconnected, this, &MainWindow::_linkStateChange);
+    connect(qgcApp()->toolbox()->linkManager(), &LinkManager::linkConnected,    this, &MainWindow::_linkStateChange);
+    connect(qgcApp()->toolbox()->linkManager(), &LinkManager::linkDisconnected, this, &MainWindow::_linkStateChange);
 
     // Connect link
     if (_autoReconnect)
@@ -219,8 +221,7 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
     // Set low power mode
     enableLowPowerMode(_lowPowerMode);
     emit initStatusChanged(tr("Restoring last view state"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
-    // Restore the window setup
-    _loadCurrentViewState();
+
 #ifndef __mobile__
 
     // Restore the window position and size
@@ -248,16 +249,8 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
     }
 
     // Make sure the proper fullscreen/normal menu item is checked properly.
-    if (isFullScreen())
-    {
-        _ui.actionFullscreen->setChecked(true);
-        _ui.actionNormal->setChecked(false);
-    }
-    else
-    {
-        _ui.actionFullscreen->setChecked(false);
-        _ui.actionNormal->setChecked(true);
-    }
+    _ui.actionFullscreen->setChecked(isFullScreen());
+    _ui.actionNormal->setChecked(!isFullScreen());
 
     // And that they will stay checked properly after user input
     connect(_ui.actionFullscreen, &QAction::triggered, this, &MainWindow::fullScreenActionItemCallback);
@@ -271,17 +264,15 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
     _ui.actionSetup->setShortcut(QApplication::translate("MainWindow", "Meta+1", 0));
     _ui.actionPlan->setShortcut(QApplication::translate("MainWindow", "Meta+2", 0));
     _ui.actionFlight->setShortcut(QApplication::translate("MainWindow", "Meta+3", 0));
-    _ui.actionAnalyze->setShortcut(QApplication::translate("MainWindow", "Meta+4", 0));
-    _ui.actionSimulationView->setShortcut(QApplication::translate("MainWindow", "Meta+5", 0));
     _ui.actionFullscreen->setShortcut(QApplication::translate("MainWindow", "Meta+Return", 0));
 #else
     _ui.actionSetup->setShortcut(QApplication::translate("MainWindow", "Ctrl+1", 0));
     _ui.actionPlan->setShortcut(QApplication::translate("MainWindow", "Ctrl+2", 0));
     _ui.actionFlight->setShortcut(QApplication::translate("MainWindow", "Ctrl+3", 0));
-    _ui.actionAnalyze->setShortcut(QApplication::translate("MainWindow", "Ctrl+4", 0));
-    _ui.actionSimulationView->setShortcut(QApplication::translate("MainWindow", "Ctrl+5", 0));
     _ui.actionFullscreen->setShortcut(QApplication::translate("MainWindow", "Ctrl+Return", 0));
 #endif
+
+    _ui.actionFlight->setChecked(true);
 
     connect(&windowNameUpdateTimer, SIGNAL(timeout()), this, SLOT(configureWindowName()));
     windowNameUpdateTimer.start(15000);
@@ -310,26 +301,15 @@ MainWindow::MainWindow(QSplashScreen* splashScreen)
         qd.close();
 #endif
     }
+
+#ifndef __mobile__
+    _loadVisibleWidgetsSettings();
+#endif
 }
 
 MainWindow::~MainWindow()
 {
-    // Delete all UAS objects
-    for (int i=0;i<_commsWidgetList.size();i++)
-    {
-        _commsWidgetList[i]->deleteLater();
-    }
     _instance = NULL;
-}
-
-void MainWindow::resizeEvent(QResizeEvent * event)
-{
-    QMainWindow::resizeEvent(event);
-}
-
-QString MainWindow::_getWindowStateKey()
-{
-	return QString::number(_currentView)+"_windowstate_";
 }
 
 QString MainWindow::_getWindowGeometryKey()
@@ -337,39 +317,12 @@ QString MainWindow::_getWindowGeometryKey()
     return "_geometry";
 }
 
-void MainWindow::_createDockWidget(const QString& title, const QString& name, Qt::DockWidgetArea area, QWidget* innerWidget)
-{
-    Q_ASSERT(!_mapName2DockWidget.contains(name));
-	
-    // Add to menu
-    QAction* action = new QAction(title, NULL);
-    action->setCheckable(true);
-    action->setData(name);
-    connect(action, &QAction::triggered, this, &MainWindow::_showDockWidgetAction);
-    _ui.menuTools->addAction(action);
-	
-	// Create widget
-	QGCDockWidget* dockWidget = new QGCDockWidget(title, action, this);
-	Q_CHECK_PTR(dockWidget);
-	dockWidget->setObjectName(name);
-	dockWidget->setVisible (false);
-	if (innerWidget) {
-		// Put inner widget inside QDockWidget
-		innerWidget->setParent(dockWidget);
-		dockWidget->setWidget(innerWidget);
-		innerWidget->setVisible(true);
-	}
-	
-    _mapName2DockWidget[name] = dockWidget;
-    _mapDockWidget2Action[dockWidget] = action;
-    addDockWidget(area, dockWidget);
-}
-
+#ifndef __mobile__
 void MainWindow::_buildCommonWidgets(void)
 {
     // Add generic MAVLink decoder
     // TODO: This is never deleted
-    mavlinkDecoder = new MAVLinkDecoder(MAVLinkProtocol::instance(), this);
+    mavlinkDecoder = new MAVLinkDecoder(qgcApp()->toolbox()->mavlinkProtocol(), this);
     connect(mavlinkDecoder, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)),
                       this, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)));
 
@@ -378,202 +331,100 @@ void MainWindow::_buildCommonWidgets(void)
     logPlayer = new QGCMAVLinkLogPlayer(statusBar());
     statusBar()->addPermanentWidget(logPlayer);
 
-    // In order for Qt to save and restore state of widgets all widgets must be created ahead of time. We only create the QDockWidget
-    // holders. We do not create the actual inner widget until it is needed. This saves memory and cpu from running widgets that are
-    // never shown.
+    for (int i = 0, end = ARRAY_SIZE(rgDockWidgetNames); i < end; i++) {
 
-    struct DockWidgetInfo {
-        const char* name;
-        const char* title;
-        Qt::DockWidgetArea area;
-    };
+        const char* pDockWidgetName = rgDockWidgetNames[i];
 
-    static const struct DockWidgetInfo rgDockWidgetInfo[] = {
-        { _uasControlDockWidgetName,        "Control",                  Qt::LeftDockWidgetArea },
-        { _uasListDockWidgetName,           "Unmanned Systems",         Qt::RightDockWidgetArea },
-        { _waypointsDockWidgetName,         "Mission Plan",             Qt::BottomDockWidgetArea },
-        { _mavlinkDockWidgetName,           "MAVLink Inspector",        Qt::RightDockWidgetArea },
-        { _parametersDockWidgetName,        "Parameter Editor",			Qt::RightDockWidgetArea },
-        { _customCommandWidgetName,         "Custom Command",			Qt::RightDockWidgetArea },
-        { _filesDockWidgetName,             "Onboard Files",            Qt::RightDockWidgetArea },
-        { _uasStatusDetailsDockWidgetName,  "Status Details",           Qt::RightDockWidgetArea },
-        { _mapViewDockWidgetName,           "Map view",                 Qt::RightDockWidgetArea },
-        { _pfdDockWidgetName,               "Primary Flight Display",   Qt::RightDockWidgetArea },
-        { _uasInfoViewDockWidgetName,       "Info View",                Qt::LeftDockWidgetArea },
-    };
-    static const size_t cDockWidgetInfo = sizeof(rgDockWidgetInfo) / sizeof(rgDockWidgetInfo[0]);
-
-    for (size_t i=0; i<cDockWidgetInfo; i++) {
-        const struct DockWidgetInfo* pDockInfo = &rgDockWidgetInfo[i];
-        _createDockWidget(pDockInfo->title, pDockInfo->name, pDockInfo->area, NULL /* no inner widget yet */);
-    }
-}
-
-void MainWindow::_buildPlanView(void)
-{
-    if (!_planView) {
-        _planView = new QGCMapTool(this);
-        _planView->setVisible(false);
-    }
-}
-
-void MainWindow::_buildMissionEditorView(void)
-{
-    if (!_missionEditorView) {
-        _missionEditorView = new MissionEditor(this);
-        _missionEditorView->setVisible(false);
-    }
-}
-
-void MainWindow::_buildFlightView(void)
-{
-    if (!_flightView) {
-        _flightView = new FlightDisplayView(this);
-        _flightView->setVisible(false);
-    }
-}
-
-void MainWindow::_buildSetupView(void)
-{
-    if (!_setupView) {
-        _setupView = new SetupView(this);
-        _setupView->setVisible(false);
-    }
-}
-
-void MainWindow::_buildAnalyzeView(void)
-{
-    if (!_analyzeView) {
-        _analyzeView = new QGCDataPlot2D(this);
-        _analyzeView->setVisible(false);
-    }
-}
-
-void MainWindow::_buildSimView(void)
-{
-    if (!_simView) {
-        _simView = new QGCMapTool(this);
-        _simView->setVisible(false);
+        // Add to menu
+        QAction* action = new QAction(tr(pDockWidgetName), NULL);
+        action->setCheckable(true);
+        action->setData(i);
+        connect(action, &QAction::triggered, this, &MainWindow::_showDockWidgetAction);
+        _ui.menuWidgets->addAction(action);
+        _mapName2Action[pDockWidgetName] = action;
     }
 }
 
 /// Shows or hides the specified dock widget, creating if necessary
 void MainWindow::_showDockWidget(const QString& name, bool show)
 {
-    if (!_mapName2DockWidget.contains(name)) {
-        // Don't show any sort of warning here. Dock Widgets which have been remove could still be in settings.
-        // Which would cause us to end up here.
-        return;
-    }
-
     // Create the inner widget if we need to
-    if (!_mapName2DockWidget[name]->widget()) {
+    if (!_mapName2DockWidget.contains(name)) {
         _createInnerDockWidget(name);
     }
 
     Q_ASSERT(_mapName2DockWidget.contains(name));
-    QDockWidget* dockWidget = _mapName2DockWidget[name];
+    QGCDockWidget* dockWidget = _mapName2DockWidget[name];
     Q_ASSERT(dockWidget);
 
     dockWidget->setVisible(show);
 
-    Q_ASSERT(_mapDockWidget2Action.contains(dockWidget));
-    _mapDockWidget2Action[dockWidget]->setChecked(show);
+    Q_ASSERT(_mapName2Action.contains(name));
+    _mapName2Action[name]->setChecked(show);
 }
 
 /// Creates the specified inner dock widget and adds to the QDockWidget
 void MainWindow::_createInnerDockWidget(const QString& widgetName)
 {
-    Q_ASSERT(_mapName2DockWidget.contains(widgetName)); // QDockWidget should already exist
-    Q_ASSERT(!_mapName2DockWidget[widgetName]->widget());     // Inner widget should not
-
-    QWidget* widget = NULL;
-
-    if (widgetName == _uasControlDockWidgetName) {
-        widget = new UASControlWidget(this);
-    } else if (widgetName == _uasListDockWidgetName) {
-        widget = new UASListWidget(this);
-    } else if (widgetName == _waypointsDockWidgetName) {
-        widget = new QGCWaypointListMulti(this);
-    } else if (widgetName == _mavlinkDockWidgetName) {
-        widget = new QGCMAVLinkInspector(MAVLinkProtocol::instance(),this);
-    } else if (widgetName == _parametersDockWidgetName) {
-        widget = new ParameterEditorWidget(this);
-    } else if (widgetName == _customCommandWidgetName) {
-        widget = new CustomCommandWidget(this);
-    } else if (widgetName == _filesDockWidgetName) {
-        widget = new QGCUASFileViewMulti(this);
-    } else if (widgetName == _uasStatusDetailsDockWidgetName) {
-        widget = new UASInfoWidget(this);
-    } else if (widgetName == _mapViewDockWidgetName) {
-        widget = new QGCMapTool(this);
-    } else if (widgetName == _pfdDockWidgetName) {
-        widget = new FlightDisplayWidget(this);
-    } else if (widgetName == _uasInfoViewDockWidgetName) {
-        QGCTabbedInfoView* pInfoView = new QGCTabbedInfoView(this);
-        pInfoView->addSource(mavlinkDecoder);
-        widget = pInfoView;
-    } else {
-        qWarning() << "Attempt to create unknown Inner Dock Widget" << widgetName;
+    QGCDockWidget* widget = NULL;
+    QAction *action = _mapName2Action[widgetName];
+    
+    switch(action->data().toInt()) {
+        case MAVLINK_INSPECTOR:
+            widget = new QGCMAVLinkInspector(widgetName, action, qgcApp()->toolbox()->mavlinkProtocol(),this);
+            break;
+        case CUSTOM_COMMAND:
+            widget = new CustomCommandWidget(widgetName, action, this);
+            break;
+        case ONBOARD_FILES:
+            widget = new QGCUASFileViewMulti(widgetName, action, this);
+            break;
+        case STATUS_DETAILS:
+            widget = new UASInfoWidget(widgetName, action, this);
+            break;
+        case HIL_CONFIG:
+            widget = new HILDockWidget(widgetName, action, this);
+            break;
+        case ANALYZE:
+            widget = new Linecharts(widgetName, action, mavlinkDecoder, this);
+            break;
+        case INFO_VIEW:
+            widget= new QGCTabbedInfoView(widgetName, action, this);
+            break;
     }
 
-    if (widget) {
-        QDockWidget* dockWidget = _mapName2DockWidget[widgetName];
-        Q_CHECK_PTR(dockWidget);
-        widget->setParent(dockWidget);
-        dockWidget->setWidget(widget);
+    if(action->data().toInt() == INFO_VIEW) {
+        qobject_cast<QGCTabbedInfoView*>(widget)->addSource(mavlinkDecoder);
+    }
+    _mapName2DockWidget[widgetName] = widget;
+}
+
+void MainWindow::_hideAllDockWidgets(void)
+{
+    foreach(QGCDockWidget* dockWidget, _mapName2DockWidget) {
+        dockWidget->setVisible(false);
     }
 }
 
-#ifndef __mobile__
-void MainWindow::_showHILConfigurationWidgets(void)
+void MainWindow::_showDockWidgetAction(bool show)
 {
-    Vehicle* vehicle = MultiVehicleManager::instance()->activeVehicle();
-
-    if (!vehicle) {
-        return;
-    }
-
-    UAS* mav = vehicle->uas();
-    Q_ASSERT(mav);
-
-    int uasId = mav->getUASID();
-
-    if (!_mapUasId2HilDockWidget.contains(uasId)) {
-
-        // Create QDockWidget
-        QGCDockWidget* dockWidget = new QGCDockWidget(tr("HIL Config %1").arg(uasId), NULL, this);
-        Q_CHECK_PTR(dockWidget);
-        dockWidget->setObjectName(tr("HIL_CONFIG_%1").arg(uasId));
-        dockWidget->setVisible (false);
-
-        // Create inner widget and set it
-        QWidget* widget = new QGCHilConfiguration(mav, dockWidget);
-
-        widget->setParent(dockWidget);
-        dockWidget->setWidget(widget);
-
-        _mapUasId2HilDockWidget[uasId] = dockWidget;
-
-        addDockWidget(Qt::LeftDockWidgetArea, dockWidget);
-    }
-
-    if (_currentView == VIEW_SIMULATION) {
-        // HIL dock widgets only show up on simulation view
-        foreach (QDockWidget* dockWidget, _mapUasId2HilDockWidget) {
-            dockWidget->setVisible(true);
-        }
-    }
+    QAction* action = qobject_cast<QAction*>(QObject::sender());
+    Q_ASSERT(action);
+    _showDockWidget(rgDockWidgetNames[action->data().toInt()], show);
 }
 #endif
 
 void MainWindow::fullScreenActionItemCallback(bool)
 {
+    if (!_ui.actionFullscreen->isChecked())
+        _ui.actionFullscreen->setChecked(true);
     _ui.actionNormal->setChecked(false);
 }
 
 void MainWindow::normalActionItemCallback(bool)
 {
+    if (!_ui.actionNormal->isChecked())
+        _ui.actionNormal->setChecked(true);
     _ui.actionFullscreen->setChecked(false);
 }
 
@@ -586,20 +437,20 @@ void MainWindow::showStatusBarCallback(bool checked)
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     // Disallow window close if there are active connections
-    if (LinkManager::instance()->anyConnectedLinks()) {
+    if (qgcApp()->toolbox()->linkManager()->anyConnectedLinks()) {
         QGCMessageBox::StandardButton button =
             QGCMessageBox::warning(
                 tr("QGroundControl close"),
                 tr("There are still active connections to vehicles. Do you want to disconnect these before closing?"),
                 QMessageBox::Yes | QMessageBox::Cancel,
                 QMessageBox::Cancel);
-		if (button == QMessageBox::Yes) {
-			LinkManager::instance()->disconnectAll();
-			// The above disconnect causes a flurry of activity as the vehicle components are removed. This in turn
-			// causes the Windows Version of Qt to crash if you allow the close event to be accepted. In order to prevent
-			// the crash, we ignore the close event and setup a delayed timer to close the window after things settle down.
-			QTimer::singleShot(1500, this, &MainWindow::_closeWindow);
-		}
+        if (button == QMessageBox::Yes) {
+            qgcApp()->toolbox()->linkManager()->disconnectAll();
+            // The above disconnect causes a flurry of activity as the vehicle components are removed. This in turn
+            // causes the Windows Version of Qt to crash if you allow the close event to be accepted. In order to prevent
+            // the crash, we ignore the close event and setup a delayed timer to close the window after things settle down.
+            QTimer::singleShot(1500, this, &MainWindow::_closeWindow);
+        }
 
         event->ignore();
         return;
@@ -607,14 +458,24 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
     // This will process any remaining flight log save dialogs
     qgcApp()->processEvents(QEventLoop::ExcludeUserInputEvents);
-    
+
     // Should not be any active connections
-    Q_ASSERT(!LinkManager::instance()->anyConnectedLinks());
-    
+    Q_ASSERT(!qgcApp()->toolbox()->linkManager()->anyConnectedLinks());
+
+    // We have to pull out the QmlWidget from the main window and delete it here, before
+    // the MainWindow ends up getting deleted. Otherwise the Qml has a reference to MainWindow
+    // inside it which in turn causes a shutdown crash.
+    _centralLayout->removeWidget(_mainQmlWidgetHolder);
+    delete _mainQmlWidgetHolder;
+    _mainQmlWidgetHolder = NULL;
+
     _storeCurrentViewState();
     storeSettings();
-    HomePositionManager::instance()->storeSettings();
+
     event->accept();
+
+    _instance = NULL;
+    emit mainWindowClosed();
 }
 
 void MainWindow::loadSettings()
@@ -637,16 +498,21 @@ void MainWindow::storeSettings()
     settings.setValue("SHOW_STATUSBAR",     _showStatusBar);
     settings.endGroup();
     settings.setValue(_getWindowGeometryKey(), saveGeometry());
-	
-    // Save the last current view in any case
-    settings.setValue("CURRENT_VIEW", _currentView);
-    settings.setValue(_getWindowStateKey(), saveState());
+
+#ifndef __mobile__
+    _storeVisibleWidgetsSettings();
+#endif
 }
 
 void MainWindow::configureWindowName()
 {
     QList<QHostAddress> hostAddresses = QNetworkInterface::allAddresses();
     QString windowname = qApp->applicationName() + " " + qApp->applicationVersion();
+
+    // XXX we do have UDP MAVLink heartbeat broadcast now in SITL and will have it on the
+    // WIFI radio, so people should not be in need any more of knowing their IP.
+    // this can go once we are certain its not needed any more.
+    #if 0
     bool prevAddr = false;
     windowname.append(" (" + QHostInfo::localHostName() + ": ");
     for (int i = 0; i < hostAddresses.size(); i++)
@@ -660,6 +526,7 @@ void MainWindow::configureWindowName()
         }
     }
     windowname.append(")");
+    #endif
     setWindowTitle(windowname);
 }
 
@@ -674,73 +541,36 @@ void MainWindow::enableAutoReconnect(bool enabled)
 **/
 void MainWindow::connectCommonActions()
 {
-    // Bind together the perspective actions
-    QActionGroup* perspectives = new QActionGroup(_ui.menuPerspectives);
-    perspectives->addAction(_ui.actionAnalyze);
-    perspectives->addAction(_ui.actionFlight);
-    perspectives->addAction(_ui.actionSimulationView);
-    perspectives->addAction(_ui.actionPlan);
-    perspectives->addAction(_ui.actionSetup);
-    perspectives->setExclusive(true);
-
-    // Mark the right one as selected
-    if (_currentView == VIEW_ANALYZE)
-    {
-        _ui.actionAnalyze->setChecked(true);
-        _ui.actionAnalyze->activate(QAction::Trigger);
-    }
-    if (_currentView == VIEW_FLIGHT)
-    {
-        _ui.actionFlight->setChecked(true);
-        _ui.actionFlight->activate(QAction::Trigger);
-    }
-    if (_currentView == VIEW_SIMULATION)
-    {
-        _ui.actionSimulationView->setChecked(true);
-        _ui.actionSimulationView->activate(QAction::Trigger);
-    }
-    if (_currentView == VIEW_PLAN || _currentView == VIEW_MISSIONEDITOR)
-    {
-        _ui.actionPlan->setChecked(true);
-        _ui.actionPlan->activate(QAction::Trigger);
-    }
-    if (_currentView == VIEW_SETUP)
-    {
-        _ui.actionSetup->setChecked(true);
-        _ui.actionSetup->activate(QAction::Trigger);
-    }
-
     // Connect actions from ui
     connect(_ui.actionAdd_Link, SIGNAL(triggered()), this, SLOT(manageLinks()));
 
-    // Connect internal actions
-    connect(MultiVehicleManager::instance(), &MultiVehicleManager::vehicleAdded, this, &MainWindow::_vehicleAdded);
-    connect(MultiVehicleManager::instance(), &MultiVehicleManager::vehicleRemoved, this, &MainWindow::_vehicleRemoved);
-
-    // Views actions
-    connect(_ui.actionFlight,           SIGNAL(triggered()), this, SLOT(loadFlightView()));
-    connect(_ui.actionSimulationView,   SIGNAL(triggered()), this, SLOT(loadSimulationView()));
-    connect(_ui.actionAnalyze,          SIGNAL(triggered()), this, SLOT(loadAnalyzeView()));
-    connect(_ui.actionPlan,             SIGNAL(triggered()), this, SLOT(loadPlanView()));
-    
-    _ui.actionUseMissionEditor->setChecked(qgcApp()->useNewMissionEditor());
-    connect(_ui.actionUseMissionEditor, &QAction::triggered, this, &MainWindow::_setUseMissionEditor);
-    
-    // Help Actions
-    connect(_ui.actionOnline_Documentation, SIGNAL(triggered()), this, SLOT(showHelp()));
-    connect(_ui.actionDeveloper_Credits, SIGNAL(triggered()), this, SLOT(showCredits()));
-    connect(_ui.actionProject_Roadmap, SIGNAL(triggered()), this, SLOT(showRoadMap()));
-
     // Audio output
-    _ui.actionMuteAudioOutput->setChecked(GAudioOutput::instance()->isMuted());
-    connect(GAudioOutput::instance(), SIGNAL(mutedChanged(bool)), _ui.actionMuteAudioOutput, SLOT(setChecked(bool)));
-    connect(_ui.actionMuteAudioOutput, SIGNAL(triggered(bool)), GAudioOutput::instance(), SLOT(mute(bool)));
+    _ui.actionMuteAudioOutput->setChecked(qgcApp()->toolbox()->audioOutput()->isMuted());
+    connect(qgcApp()->toolbox()->audioOutput(), SIGNAL(mutedChanged(bool)), _ui.actionMuteAudioOutput, SLOT(setChecked(bool)));
+    connect(_ui.actionMuteAudioOutput, SIGNAL(triggered(bool)), qgcApp()->toolbox()->audioOutput(), SLOT(mute(bool)));
 
     // Application Settings
     connect(_ui.actionSettings, SIGNAL(triggered()), this, SLOT(showSettings()));
 
-    // Update Tool Bar
-    _mainToolBar->setCurrentView(_currentView);
+    // Views actions
+    connect(_ui.actionFlight,   &QAction::triggered,    this, &MainWindow::showFlyView);
+    connect(_ui.actionPlan,     &QAction::triggered,    this, &MainWindow::showPlanView);
+    connect(_ui.actionSetup,    &QAction::triggered,    this, &MainWindow::showSetupView);
+    connect(_ui.actionFlight,   &QAction::triggered,    this, &MainWindow::handleActiveViewActionState);
+    connect(_ui.actionPlan,     &QAction::triggered,    this, &MainWindow::handleActiveViewActionState);
+    connect(_ui.actionSetup,    &QAction::triggered,    this, &MainWindow::handleActiveViewActionState);
+
+    // Connect internal actions
+    connect(qgcApp()->toolbox()->multiVehicleManager(), &MultiVehicleManager::vehicleAdded, this, &MainWindow::_vehicleAdded);
+}
+
+void MainWindow::handleActiveViewActionState(bool triggered)
+{
+    Q_UNUSED(triggered);
+    QAction *triggeredAction = qobject_cast<QAction*>(sender());
+    _ui.actionFlight->setChecked(triggeredAction == _ui.actionFlight);
+    _ui.actionPlan->setChecked(triggeredAction == _ui.actionPlan);
+    _ui.actionSetup->setChecked(triggeredAction == _ui.actionSetup);
 }
 
 void MainWindow::_openUrl(const QString& url, const QString& errorMessage)
@@ -753,289 +583,32 @@ void MainWindow::_openUrl(const QString& url, const QString& errorMessage)
     }
 }
 
-void MainWindow::showHelp()
-{
-    _openUrl(
-        "http://qgroundcontrol.org/users/start",
-        tr("To get to the online help, please open http://qgroundcontrol.org/user_guide in a browser."));
-}
-
-void MainWindow::showCredits()
-{
-    _openUrl(
-        "http://qgroundcontrol.org/credits",
-        tr("To get to the credits, please open http://qgroundcontrol.org/credits in a browser."));
-}
-
-void MainWindow::showRoadMap()
-{
-    _openUrl(
-        "http://qgroundcontrol.org/dev/roadmap",
-        tr("To get to the online help, please open http://qgroundcontrol.org/roadmap in a browser."));
-}
-
 void MainWindow::showSettings()
 {
-    SettingsDialog settings(this);
+    SettingsDialog settings(qgcApp()->toolbox()->audioOutput(), qgcApp()->toolbox()->flightMapSettings(), this);
     settings.exec();
-}
-
-void MainWindow::commsWidgetDestroyed(QObject *obj)
-{
-    // Do not dynamic cast or de-reference QObject, since object is either in destructor or may have already
-    // been destroyed.
-    if (_commsWidgetList.contains(obj))
-    {
-        _commsWidgetList.removeOne(obj);
-    }
 }
 
 void MainWindow::_vehicleAdded(Vehicle* vehicle)
 {
     connect(vehicle->uas(), SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)), this, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)));
-
-    // HIL
-#ifndef __mobile__
-    _showHILConfigurationWidgets();
-#endif
-
-    if (!linechartWidget)
-    {
-        linechartWidget = new Linecharts(this);
-        linechartWidget->setVisible(false);
-    }
-
-    linechartWidget->addSource(mavlinkDecoder);
-    if (_analyzeView != linechartWidget)
-    {
-        _analyzeView = linechartWidget;
-    }
-}
-
-void MainWindow::_vehicleRemoved(Vehicle* vehicle)
-{
-    int vehicleId = vehicle->id();
-    
-    if (_mapUasId2HilDockWidget.contains(vehicleId)) {
-        _mapUasId2HilDockWidget[vehicleId]->deleteLater();
-        _mapUasId2HilDockWidget.remove(vehicleId);
-    }
 }
 
 /// Stores the state of the toolbar, status bar and widgets associated with the current view
 void MainWindow::_storeCurrentViewState(void)
 {
-    // HIL dock widgets are dynamic and are not part of the saved state
-    _hideAllHilDockWidgets();
-    // Save list of visible widgets
-    bool firstWidget = true;
-    QString widgetNames = "";
-    foreach(QDockWidget* dockWidget, _mapName2DockWidget) {
-        if (dockWidget->isVisible()) {
-            if (!firstWidget) {
-                widgetNames += ",";
-            }
-            widgetNames += dockWidget->objectName();
-            firstWidget = false;
-        }
-    }
-    settings.setValue(_getWindowStateKey() + "WIDGETS", widgetNames);
-    settings.setValue(_getWindowStateKey(), saveState());
-    settings.setValue(_getWindowGeometryKey(), saveGeometry());
-}
-
-/// Restores the state of the toolbar, status bar and widgets associated with the current view
-void MainWindow::_loadCurrentViewState(void)
-{
-    QWidget* centerView = NULL;
-    QString defaultWidgets;
-
-    switch (_currentView) {
-        case VIEW_SETUP:
-            _buildSetupView();
-            centerView = _setupView;
-            break;
-
-        case VIEW_ANALYZE:
-            _buildAnalyzeView();
-            centerView = _analyzeView;
-            defaultWidgets = "PARAMETER_INTERFACE_DOCKWIDGET,FILE_VIEW_DOCKWIDGET";
-            break;
-
-        case VIEW_FLIGHT:
-            _buildFlightView();
-            centerView = _flightView;
-            defaultWidgets = "COMMUNICATION_CONSOLE_DOCKWIDGET,UAS_INFO_INFOVIEW_DOCKWIDGET";
-            break;
-
-        case VIEW_PLAN:
-            _buildPlanView();
-            centerView = _planView;
-            defaultWidgets = "WAYPOINT_LIST_DOCKWIDGET";
-            break;
-
-        case VIEW_MISSIONEDITOR:
-            _buildMissionEditorView();
-            centerView = _missionEditorView;
-            break;
-
-        case VIEW_SIMULATION:
-            _buildSimView();
-            centerView = _simView;
-            defaultWidgets = "UNMANNED_SYSTEM_CONTROL_DOCKWIDGET,WAYPOINT_LIST_DOCKWIDGET,PARAMETER_INTERFACE_DOCKWIDGET,PRIMARY_FLIGHT_DISPLAY_DOCKWIDGET";
-            break;
-
-        default:
-            Q_ASSERT(false);
-            break;
-    }
-
-    // Remove old view
-    if (_currentViewWidget) {
-        _currentViewWidget->setVisible(false);
-        Q_ASSERT(_centralLayout->count() == 1);
-        QLayoutItem *child = _centralLayout->takeAt(0);
-        Q_ASSERT(child);
-        delete child;
-    }
-
-    // Add the new one
-    Q_ASSERT(centerView);
-    Q_ASSERT(_centralLayout->count() == 0);
-    _currentViewWidget = centerView;
-    _centralLayout->addWidget(_currentViewWidget);
-    _centralLayout->setContentsMargins(0, 0, 0, 0);
-    _currentViewWidget->setVisible(true);
-
-    // Hide all widgets from previous view
-    _hideAllDockWidgets();
-
-    // Restore the widgets for the new view
-    QString widgetNames = settings.value(_getWindowStateKey() + "WIDGETS", defaultWidgets).toString();
-    qDebug() << widgetNames;
-    if (!widgetNames.isEmpty()) {
-        QStringList split = widgetNames.split(",");
-        foreach (QString widgetName, split) {
-            Q_ASSERT(!widgetName.isEmpty());
-            _showDockWidget(widgetName, true);
-        }
-    }
-
-    if (settings.contains(_getWindowStateKey())) {
-        restoreState(settings.value(_getWindowStateKey()).toByteArray());
-    }
-
-    // HIL dock widget are dynamic and don't take part in the saved window state, so this
-    // need to happen after we restore state
 #ifndef __mobile__
-    _showHILConfigurationWidgets();
+    foreach(QGCDockWidget* dockWidget, _mapName2DockWidget) {
+        dockWidget->saveSettings();
+    }
 #endif
 
-    // There is a bug in Qt where a Canvas element inside a QQuickWidget does not
-    // receive update requests. Here we emit a signal for them to get repainted.
-    emit repaintCanvas();
-}
-
-void MainWindow::_hideAllHilDockWidgets(void)
-{
-    foreach(QDockWidget* dockWidget, _mapUasId2HilDockWidget) {
-        dockWidget->setVisible(false);
-    }
-}
-
-void MainWindow::_hideAllDockWidgets(void)
-{
-    foreach(QDockWidget* dockWidget, _mapName2DockWidget) {
-        dockWidget->setVisible(false);
-    }
-    _hideAllHilDockWidgets();
-}
-
-void MainWindow::_showDockWidgetAction(bool show)
-{
-    QAction* action = dynamic_cast<QAction*>(QObject::sender());
-    Q_ASSERT(action);
-    _showDockWidget(action->data().toString(), show);
-}
-
-
-void MainWindow::loadAnalyzeView()
-{
-    if (_currentView != VIEW_ANALYZE)
-    {
-        _storeCurrentViewState();
-        _currentView = VIEW_ANALYZE;
-        _ui.actionAnalyze->setChecked(true);
-        _loadCurrentViewState();
-    }
-}
-
-void MainWindow::loadPlanView()
-{
-    if (qgcApp()->useNewMissionEditor()) {
-        if (_currentView != VIEW_MISSIONEDITOR)
-        {
-            _storeCurrentViewState();
-            _currentView = VIEW_MISSIONEDITOR;
-            _ui.actionPlan->setChecked(true);
-            _loadCurrentViewState();
-        }
-    } else {
-        if (_currentView != VIEW_PLAN)
-        {
-            _storeCurrentViewState();
-            _currentView = VIEW_PLAN;
-            _ui.actionPlan->setChecked(true);
-            _loadCurrentViewState();
-        }
-    }
-}
-
-void MainWindow::loadSetupView()
-{
-    if (_currentView != VIEW_SETUP)
-    {
-        _storeCurrentViewState();
-        _currentView = VIEW_SETUP;
-        _ui.actionSetup->setChecked(true);
-        _loadCurrentViewState();
-    }
-}
-
-void MainWindow::loadFlightView()
-{
-    if (_currentView != VIEW_FLIGHT)
-    {
-        _storeCurrentViewState();
-        _currentView = VIEW_FLIGHT;
-        _ui.actionFlight->setChecked(true);
-        _loadCurrentViewState();
-    }
-}
-
-void MainWindow::loadSimulationView()
-{
-    if (_currentView != VIEW_SIMULATION)
-    {
-        _storeCurrentViewState();
-        _currentView = VIEW_SIMULATION;
-        _ui.actionSimulationView->setChecked(true);
-        _loadCurrentViewState();
-    }
-}
-
-/// @brief Hides the spash screen if it is currently being shown
-void MainWindow::hideSplashScreen(void)
-{
-    if (_splashScreen) {
-        _splashScreen->hide();
-        _splashScreen = NULL;
-    }
+    settings.setValue(_getWindowGeometryKey(), saveGeometry());
 }
 
 void MainWindow::manageLinks()
 {
-    SettingsDialog settings(this, SettingsDialog::ShowCommLinks);
+    SettingsDialog settings(qgcApp()->toolbox()->audioOutput(), qgcApp()->toolbox()->flightMapSettings(), this, SettingsDialog::ShowCommLinks);
     settings.exec();
 }
 
@@ -1061,7 +634,7 @@ void MainWindow::restoreLastUsedConnection()
     if(settings.contains(key)) {
         QString connection = settings.value(key).toString();
         // Create a link for it
-        LinkManager::instance()->createConnectedLink(connection);
+        qgcApp()->toolbox()->linkManager()->createConnectedLink(connection);
     }
 }
 
@@ -1085,7 +658,41 @@ void MainWindow::_showQmlTestWidget(void)
 }
 #endif
 
-void MainWindow::_setUseMissionEditor(bool checked)
+#ifndef __mobile__
+void MainWindow::_loadVisibleWidgetsSettings(void)
 {
-    qgcApp()->setUseNewMissionEditor(checked);
+    QSettings settings;
+
+    QString widgets = settings.value(_visibleWidgetsKey).toString();
+
+    if (!widgets.isEmpty()) {
+        QStringList nameList = widgets.split(",");
+
+        foreach (const QString &name, nameList) {
+            _showDockWidget(name, true);
+        }
+    }
 }
+
+void MainWindow::_storeVisibleWidgetsSettings(void)
+{
+    QString widgetNames;
+    bool firstWidget = true;
+
+    foreach (const QString &name, _mapName2DockWidget.keys()) {
+        if (_mapName2DockWidget[name]->isVisible()) {
+            if (!firstWidget) {
+                widgetNames += ",";
+            } else {
+                firstWidget = false;
+            }
+
+            widgetNames += name;
+        }
+    }
+
+    QSettings settings;
+
+    settings.setValue(_visibleWidgetsKey, widgetNames);
+}
+#endif

@@ -26,27 +26,17 @@
 
 #include "AutoPilotPluginManager.h"
 #include "PX4/PX4AutoPilotPlugin.h"
+#include "APM/APMAutoPilotPlugin.h"
 #include "Generic/GenericAutoPilotPlugin.h"
-
-IMPLEMENT_QGC_SINGLETON(AutoPilotPluginManager, AutoPilotPluginManager)
-
-AutoPilotPluginManager::AutoPilotPluginManager(QObject* parent) :
-    QGCSingleton(parent)
-{
-
-}
-
-AutoPilotPluginManager::~AutoPilotPluginManager()
-{
-    PX4AutoPilotPlugin::clearStaticData();
-    GenericAutoPilotPlugin::clearStaticData();
-}
 
 AutoPilotPlugin* AutoPilotPluginManager::newAutopilotPluginForVehicle(Vehicle* vehicle)
 {
-    if (vehicle->firmwareType() == MAV_AUTOPILOT_PX4) {
-        return new PX4AutoPilotPlugin(vehicle, vehicle);
-    } else {
-        return new GenericAutoPilotPlugin(vehicle, vehicle);
+    switch (vehicle->firmwareType()) {
+        case MAV_AUTOPILOT_PX4:
+            return new PX4AutoPilotPlugin(vehicle, vehicle);
+        case MAV_AUTOPILOT_ARDUPILOTMEGA:
+            return new APMAutoPilotPlugin(vehicle, vehicle);
+        default:
+            return new GenericAutoPilotPlugin(vehicle, vehicle);
     }
 }

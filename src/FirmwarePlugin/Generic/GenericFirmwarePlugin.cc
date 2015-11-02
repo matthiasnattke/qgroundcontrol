@@ -25,16 +25,9 @@
 ///     @author Don Gagne <don@thegagnes.com>
 
 #include "GenericFirmwarePlugin.h"
+#include "AutoPilotPlugins/Generic/GenericAutoPilotPlugin.h"    // FIXME: Hack
 
 #include <QDebug>
-
-IMPLEMENT_QGC_SINGLETON(GenericFirmwarePlugin, FirmwarePlugin)
-
-GenericFirmwarePlugin::GenericFirmwarePlugin(QObject* parent) :
-    FirmwarePlugin(parent)
-{
-    
-}
 
 QList<VehicleComponent*> GenericFirmwarePlugin::componentsForVehicle(AutoPilotPlugin* vehicle)
 {
@@ -95,4 +88,33 @@ int GenericFirmwarePlugin::manualControlReservedButtonCount(void)
     // We don't know whether the firmware is going to used any of these buttons.
     // So reserve them all.
     return -1;
+}
+
+void GenericFirmwarePlugin::adjustMavlinkMessage(mavlink_message_t* message)
+{
+    Q_UNUSED(message);
+    
+    // Generic plugin does no message adjustment
+}
+
+void GenericFirmwarePlugin::initializeVehicle(Vehicle* vehicle)
+{
+    Q_UNUSED(vehicle);
+    
+    // Generic Flight Stack is by definition "generic", so no extra work
+}
+
+bool GenericFirmwarePlugin::sendHomePositionToVehicle(void)
+{
+    // Generic stack does not want home position sent in the first position.
+    // Subsequent sequence numbers must be adjusted.
+    // This is the mavlink spec default.
+    return false;
+}
+
+void GenericFirmwarePlugin::addMetaDataToFact(Fact* fact)
+{
+    // Add default meta data
+    FactMetaData* metaData = new FactMetaData(fact->type(), fact);
+    fact->setMetaData(metaData);
 }

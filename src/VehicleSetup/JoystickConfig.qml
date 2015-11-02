@@ -67,7 +67,6 @@ QGCView {
         if (controllerCompleted) {
             controllerAndViewReady = true
             controller.start()
-            updateAxisCount()
         }
     }
 
@@ -149,8 +148,8 @@ QGCView {
 
         QGCLabel {
             id:             header
-            font.pixelSize: ScreenTools.largeFontPixelSize
-            text:           "JOYSTICK CONFIG"
+            font.pixelSize: ScreenTools.mediumFontPixelSize
+            text:           "JOYSTICK"
         }
 
         Item {
@@ -381,7 +380,16 @@ QGCView {
                                 width:              parent.width - activeJoystickLabel.width - parent.spacing
                                 model:              joystickManager.joystickNames
 
-                                onActivated: _activeJoystick.setActiveJoystickName(textAt(index))
+                                onActivated: joystickManager.activeJoystickName = textAt(index)
+
+                                Component.onCompleted: {
+                                    var index = joystickCombo.find(joystickManager.activeJoystickName)
+                                    if (index == -1) {
+                                        console.warn("Active joystick name not in combo", joystickManager.activeJoystickName)
+                                    } else {
+                                        joystickCombo.currentIndex = index
+                                    }
+                                }
                             }
                         }
 
@@ -482,9 +490,9 @@ QGCView {
 
                                 QGCCheckBox {
                                     anchors.verticalCenter:     parent.verticalCenter
-                                    checked:                    _activeJoystick.buttonActions[modelData] != -1
+                                    checked:                    _activeJoystick.buttonActions[modelData] != ""
 
-                                    onClicked: _activeJoystick.setButtonAction(modelData, checked ? buttonActionCombo.currentIndex : -1)
+                                    onClicked: _activeJoystick.setButtonAction(modelData, checked ? buttonActionCombo.textAt(buttonActionCombo.currentIndex) : "")
                                 }
 
                                 Rectangle {
@@ -509,9 +517,9 @@ QGCView {
                                     id:             buttonActionCombo
                                     width:          ScreenTools.defaultFontPixelWidth * 20
                                     model:          _activeJoystick.actions
-                                    currentIndex:   _activeJoystick.buttonActions[modelData]
 
-                                    onActivated: _activeJoystick.setButtonAction(modelData, index)
+                                    onActivated:            _activeJoystick.setButtonAction(modelData, textAt(index))
+                                    Component.onCompleted:  currentIndex = find(_activeJoystick.buttonActions[modelData])
                                 }
                             }
                         } // Repeater
@@ -555,7 +563,7 @@ QGCView {
 
                 Repeater {
                     id:     axisMonitorRepeater
-                    model:  controller.axisCount
+                    model:  _activeJoystick.axisCount
                     width:  parent.width
 
                     Row {

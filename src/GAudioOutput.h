@@ -38,20 +38,23 @@ This file is part of the PIXHAWK project
 #include <QStringList>
 
 #include "QGCAudioWorker.h"
-#include "QGCSingleton.h"
+#include "QGCToolbox.h"
+
+class QGCApplication;
 
 /**
  * @brief Audio Output (speech synthesizer and "beep" output)
  * This class follows the singleton design pattern
  * @see http://en.wikipedia.org/wiki/Singleton_pattern
  */
-class GAudioOutput : public QGCSingleton
+class GAudioOutput : public QGCTool
 {
     Q_OBJECT
-    
-    DECLARE_QGC_SINGLETON(GAudioOutput, GAudioOutput)
-    
+
 public:
+    GAudioOutput(QGCApplication* app);
+    ~GAudioOutput();
+
     /** @brief List available voices */
     QStringList listVoices(void);
     enum
@@ -88,13 +91,13 @@ signals:
 
 protected:
     bool muted;
+
+#if !defined __android__
     QThread* thread;
     QGCAudioWorker* worker;
-    
+#endif
+
 private:
-    GAudioOutput(QObject *parent = NULL);
-    ~GAudioOutput();
-    
     static const char* _mutedKey;
 };
 

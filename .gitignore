@@ -72,3 +72,7 @@ ui_*
 # android
 android/local.properties
 android/gradle.properties
+
+# doxygen
+src/html/
+src/latex/

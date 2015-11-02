@@ -40,6 +40,7 @@
 ///     @author Don Gagne <don@thegagnes.com>
 
 Q_DECLARE_LOGGING_CATEGORY(ParameterLoaderLog)
+Q_DECLARE_LOGGING_CATEGORY(ParameterLoaderVerboseLog)
 
 /// Connects to Parameter Manager to load/update Facts
 class ParameterLoader : public QObject
@@ -54,10 +55,12 @@ public:
     
     /// Returns true if the full set of facts are ready
     bool parametersAreReady(void) { return _parametersReady; }
-    
+
+public slots:
     /// Re-request the full set of parameters from the autopilot
     void refreshAllParameters(void);
-    
+
+public:
     /// Request a refresh on the specific parameter
     void refreshParameter(int componentId, const QString& name);
     
@@ -69,8 +72,7 @@ public:
 						 const QString& name);          ///< fact name
 	
 	/// Returns all parameter names
-	/// FIXME: component id missing
-	QStringList parameterNames(void);
+	QStringList parameterNames(int componentId);
     
     /// Returns the specified Fact.
     /// WARNING: Will assert if parameter does not exists. If that possibily exists, check for existince first with
@@ -83,15 +85,11 @@ public:
     /// Returns error messages from loading
     QString readParametersFromStream(QTextStream& stream);
     
-    void writeParametersToStream(QTextStream &stream, const QString& name);
-
-    /// Return the parameter for which the default component id is derived from. Return an empty
-    /// string is this is not available.
-    virtual QString getDefaultComponentIdParam(void) const = 0;
+    void writeParametersToStream(QTextStream &stream);
     
 signals:
     /// Signalled when the full set of facts are ready
-    void parametersReady(void);
+    void parametersReady(bool missingParameters);
 
     /// Signalled to update progress of full parameter list request
     void parameterListProgress(float value);
@@ -100,15 +98,16 @@ signals:
     void restartWaitingParamTimer(void);
     
 protected:
-    /// Base implementation adds generic meta data based on variant type. Derived class can override to provide
-    /// more details meta data.
-    virtual void _addMetaDataToFact(Fact* fact);
+    AutoPilotPlugin*    _autopilot;
+    Vehicle*            _vehicle;
+    MAVLinkProtocol*    _mavlink;
     
 private slots:
     void _parameterUpdate(int uasId, int componentId, QString parameterName, int parameterCount, int parameterId, int mavType, QVariant value);
     void _valueUpdated(const QVariant& value);
     void _restartWaitingParamTimer(void);
     void _waitingParamTimeout(void);
+    void _tryCacheLookup(void);
     
 private:
     static QVariant _stringToTypedVariant(const QString& string, FactMetaData::ValueType_t type, bool failOk = false);
@@ -117,18 +116,18 @@ private:
     void _setupGroupMap(void);
     void _readParameterRaw(int componentId, const QString& paramName, int paramIndex);
     void _writeParameterRaw(int componentId, const QString& paramName, const QVariant& value);
+    void _writeLocalParamCache();
+    void _tryCacheHashLoad(int uasId, QVariant hash_value);
+
     MAV_PARAM_TYPE _factTypeToMavType(FactMetaData::ValueType_t factType);
     FactMetaData::ValueType_t _mavTypeToFactType(MAV_PARAM_TYPE mavType);
     void _saveToEEPROM(void);
     void _checkInitialLoadComplete(void);
     
-    AutoPilotPlugin*    _autopilot;
-    Vehicle*            _vehicle;
-    MAVLinkProtocol*    _mavlink;
-    
     /// First mapping is by component id
     /// Second mapping is parameter name, to Fact* in QVariant
-    QMap<int, QVariantMap> _mapParameterName2Variant;
+    QMap<int, QVariantMap>            _mapParameterName2Variant;
+    QMap<int, QMap<int, QString> >    _mapParameterId2Name;
     
     /// First mapping is by component id
     /// Second mapping is group name, to Fact
@@ -150,6 +149,7 @@ private:
     int _totalParamCount;   ///< Number of parameters across all components
     
     QTimer _waitingParamTimeoutTimer;
+    QTimer _cacheTimeoutTimer;
     
     QMutex _dataMutex;
     

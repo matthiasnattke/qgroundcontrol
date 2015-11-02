@@ -33,23 +33,39 @@
 #include "QGCMAVLink.h"
 
 Q_DECLARE_LOGGING_CATEGORY(MockLinkLog)
-
-/// @file
-///     @brief Mock implementation of a Link.
-///
-///     @author Don Gagne <don@thegagnes.com>
+Q_DECLARE_LOGGING_CATEGORY(MockLinkVerboseLog)
 
 class MockConfiguration : public LinkConfiguration
 {
 public:
+    MockConfiguration(const QString& name);
+    MockConfiguration(MockConfiguration* source);
 
-    MockConfiguration(const QString& name) : LinkConfiguration(name) {}
-    MockConfiguration(MockConfiguration* source) : LinkConfiguration(source) {}
-    int  type() { return LinkConfiguration::TypeMock; }
-    void copyFrom(LinkConfiguration* source) { LinkConfiguration::copyFrom(source); }
-    void loadSettings(QSettings& settings, const QString& root) { Q_UNUSED(settings); Q_UNUSED(root); }
-    void saveSettings(QSettings& settings, const QString& root) { Q_UNUSED(settings); Q_UNUSED(root); }
-    void updateSettings() {}
+    MAV_AUTOPILOT firmwareType(void) { return _firmwareType; }
+    void setFirmwareType(MAV_AUTOPILOT firmwareType) { _firmwareType = firmwareType; }
+
+    MAV_TYPE vehicleType(void) { return _vehicleType; }
+    void setVehicleType(MAV_TYPE vehicleType) { _vehicleType = vehicleType; }
+
+    /// @param sendStatusText true: mavlink status text messages will be sent for each severity, as well as voice output info message
+    void setSendStatusText(bool sendStatusText) { _sendStatusText = sendStatusText; }
+    bool sendStatusText(void) { return _sendStatusText; }
+
+    // Overrides from LinkConfiguration
+    int  type(void) { return LinkConfiguration::TypeMock; }
+    void copyFrom(LinkConfiguration* source);
+    void loadSettings(QSettings& settings, const QString& root);
+    void saveSettings(QSettings& settings, const QString& root);
+    void updateSettings(void);
+
+private:
+    MAV_AUTOPILOT   _firmwareType;
+    MAV_TYPE        _vehicleType;
+    bool            _sendStatusText;
+
+    static const char* _firmwareTypeKey;
+    static const char* _vehicleTypeKey;
+    static const char* _sendStatusTextKey;
 };
 
 class MockLink : public LinkInterface
@@ -61,16 +77,18 @@ public:
     MockLink(MockConfiguration* config = NULL);
     ~MockLink(void);
 
-    // Virtuals from LinkInterface
-    virtual QString getName(void) const { return _name; }
-    virtual void requestReset(void){ }
-    virtual bool isConnected(void) const { return _connected; }
-    virtual qint64 getConnectionSpeed(void) const { return 100000000; }
-    virtual qint64 bytesAvailable(void) { return 0; }
-
     // MockLink methods
-    MAV_AUTOPILOT getAutopilotType(void) { return _autopilotType; }
-    void setAutopilotType(MAV_AUTOPILOT autopilot) { _autopilotType = autopilot; }
+    int vehicleId(void) { return _vehicleSystemId; }
+    MAV_AUTOPILOT getFirmwareType(void) { return _firmwareType; }
+    void setFirmwareType(MAV_AUTOPILOT autopilot) { _firmwareType = autopilot; }
+    void setSendStatusText(bool sendStatusText) { _sendStatusText = sendStatusText; }
+
+    /// APM stack has strange handling of the first item of the mission list. If it has no
+    /// onboard mission items, sometimes it sends back a home position in position 0 and
+    /// sometimes it doesn't. Don't ask. This option allows you to configure that behavior
+    /// for unit testing.
+    void setAPMMissionResponseMode(bool sendHomePositionOnEmptyList) { _apmSendHomePositionOnEmptyList = sendHomePositionOnEmptyList; }
+
     void emitRemoteControlChannelRawChanged(int channel, uint16_t raw);
     
     /// Sends the specified mavlink message to QGC
@@ -78,12 +96,36 @@ public:
     
     MockLinkFileServer* getFileServer(void) { return _fileServer; }
 
+    // Virtuals from LinkInterface
+    virtual QString getName(void) const { return _name; }
+    virtual void requestReset(void){ }
+    virtual bool isConnected(void) const { return _connected; }
+    virtual qint64 getConnectionSpeed(void) const { return 100000000; }
+    virtual qint64 bytesAvailable(void) { return 0; }
+
     // These are left unimplemented in order to cause linker errors which indicate incorrect usage of
     // connect/disconnect on link directly. All connect/disconnect calls should be made through LinkManager.
     bool connect(void);
     bool disconnect(void);
 
     LinkConfiguration* getLinkConfiguration() { return _config; }
+    
+    /// Sets a failure mode for unit testing
+    ///     @param failureMode Type of failure to simulate
+    ///     @param firstTimeOnly true: fail first call, success subsequent calls, false: fail all calls
+    void setMissionItemFailureMode(MockLinkMissionItemHandler::FailureMode_t failureMode, bool firstTimeOnly);
+    
+    /// Called to send a MISSION_ACK message while the MissionManager is in idle state
+    void sendUnexpectedMissionAck(MAV_MISSION_RESULT ackType) { _missionItemHandler.sendUnexpectedMissionAck(ackType); }
+    
+    /// Called to send a MISSION_ITEM message while the MissionManager is in idle state
+    void sendUnexpectedMissionItem(void) { _missionItemHandler.sendUnexpectedMissionItem(); }
+    
+    /// Called to send a MISSION_REQUEST message while the MissionManager is in idle state
+    void sendUnexpectedMissionRequest(void) { _missionItemHandler.sendUnexpectedMissionRequest(); }
+    
+    /// Reset the state of the MissionItemHandler to no items, no transactions in progress.
+    void resetMissionItemHandler(void) { _missionItemHandler.reset(); }
 
 signals:
     /// @brief Used internally to move data to the thread.
@@ -120,14 +162,15 @@ private:
     void _handleParamRequestList(const mavlink_message_t& msg);
     void _handleParamSet(const mavlink_message_t& msg);
     void _handleParamRequestRead(const mavlink_message_t& msg);
-    void _handleMissionRequestList(const mavlink_message_t& msg);
-    void _handleMissionRequest(const mavlink_message_t& msg);
-    void _handleMissionItem(const mavlink_message_t& msg);
     void _handleFTP(const mavlink_message_t& msg);
+    void _handleCommandLong(const mavlink_message_t& msg);
     float _floatUnionForParam(int componentId, const QString& paramName);
     void _setParamFloatUnionIntoMap(int componentId, const QString& paramName, float paramFloat);
+    void _sendHomePosition(void);
+    void _sendGpsRawInt(void);
+    void _sendStatusTextMessages(void);
 
-    MockLinkMissionItemHandler* _missionItemHandler;
+    MockLinkMissionItemHandler  _missionItemHandler;
 
     QString _name;
     bool    _connected;
@@ -141,17 +184,24 @@ private:
     QMap<int, QMap<QString, QVariant> > _mapParamName2Value;
     QMap<QString, MAV_PARAM_TYPE>       _mapParamName2MavParamType;
 
-    typedef QMap<uint16_t, mavlink_mission_item_t>   MissionList_t;
-    MissionList_t   _missionItems;
-
     uint8_t     _mavBaseMode;
     uint32_t    _mavCustomMode;
     uint8_t     _mavState;
 
-    MockConfiguration* _config;
-    MAV_AUTOPILOT _autopilotType;
+    MockConfiguration*  _config;
+    MAV_AUTOPILOT       _firmwareType;
+    MAV_TYPE            _vehicleType;
     
     MockLinkFileServer* _fileServer;
+
+    bool _sendStatusText;
+    bool _apmSendHomePositionOnEmptyList;
+
+    int _sendHomePositionDelayCount;
+
+    static float _vehicleLatitude;
+    static float _vehicleLongitude;
+    static float _vehicleAltitude;
 };
 
 #endif

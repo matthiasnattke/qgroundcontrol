@@ -35,6 +35,10 @@
 #include "MavlinkQmlSingleton.h"
 #include "QmlObjectListModel.h"
 #include "Fact.h"
+#include "QGCLoggingCategory.h"
+#include "QmlObjectListModel.h"
+
+Q_DECLARE_LOGGING_CATEGORY(MissionItemLog)
 
 class MissionItem : public QObject
 {
@@ -44,34 +48,52 @@ public:
     MissionItem(QObject         *parent = 0,
                 int             sequenceNumber = 0,
                 QGeoCoordinate  coordiante = QGeoCoordinate(),
+                int             action = MAV_CMD_NAV_WAYPOINT,
                 double          param1 = 0.0,
-                double          param2 = 0.0,
-                double          param3 = 0.0,
-                double          param4 = 0.0,
+                double          param2 = defaultAcceptanceRadius,
+                double          param3 = defaultLoiterOrbitRadius,
+                double          param4 = defaultHeading,
                 bool            autocontinue = true,
                 bool            isCurrentItem = false,
-                int             frame = MAV_FRAME_GLOBAL,
-                int             action = MAV_CMD_NAV_WAYPOINT);
+                int             frame = MAV_FRAME_GLOBAL_RELATIVE_ALT);
 
     MissionItem(const MissionItem& other, QObject* parent = NULL);
     ~MissionItem();
 
     const MissionItem& operator=(const MissionItem& other);
     
+    /// Returns true if the item has been modified since the last time dirty was false
+    Q_PROPERTY(bool                 dirty               READ dirty                  WRITE setDirty          NOTIFY dirtyChanged)
+    
     Q_PROPERTY(int                  sequenceNumber      READ sequenceNumber         WRITE setSequenceNumber NOTIFY sequenceNumberChanged)
     Q_PROPERTY(bool                 isCurrentItem       READ isCurrentItem          WRITE setIsCurrentItem  NOTIFY isCurrentItemChanged)
+
     Q_PROPERTY(bool                 specifiesCoordinate READ specifiesCoordinate                            NOTIFY commandChanged)
     Q_PROPERTY(QGeoCoordinate       coordinate          READ coordinate             WRITE setCoordinate     NOTIFY coordinateChanged)
-    Q_PROPERTY(double               yaw                 READ yawDegrees             WRITE setYawDegrees     NOTIFY yawChanged)
+
+    Q_PROPERTY(bool                 specifiesHeading    READ specifiesHeading                               NOTIFY commandChanged)
+    Q_PROPERTY(double               heading             READ headingDegrees         WRITE setHeadingDegrees NOTIFY headingDegreesChanged)
+
     Q_PROPERTY(QStringList          commandNames        READ commandNames                                   CONSTANT)
     Q_PROPERTY(QString              commandName         READ commandName                                    NOTIFY commandChanged)
+    Q_PROPERTY(QString              commandDescription  READ commandDescription                             NOTIFY commandChanged)
     Q_PROPERTY(QStringList          valueLabels         READ valueLabels                                    NOTIFY commandChanged)
     Q_PROPERTY(QStringList          valueStrings        READ valueStrings                                   NOTIFY valueStringsChanged)
     Q_PROPERTY(int                  commandByIndex      READ commandByIndex         WRITE setCommandByIndex NOTIFY commandChanged)
     Q_PROPERTY(QmlObjectListModel*  textFieldFacts      READ textFieldFacts                                 NOTIFY commandChanged)
     Q_PROPERTY(QmlObjectListModel*  checkboxFacts       READ checkboxFacts                                  NOTIFY commandChanged)
     Q_PROPERTY(MavlinkQmlSingleton::Qml_MAV_CMD command READ command                WRITE setCommand        NOTIFY commandChanged)
+    Q_PROPERTY(QmlObjectListModel*  childItems          READ childItems                                     CONSTANT)
+
+    /// true: this item is being used as a home position indicator
+    Q_PROPERTY(bool                 homePosition        READ homePosition                                   CONSTANT)
     
+    /// true: home position should be shown
+    Q_PROPERTY(bool                 homePositionValid   READ homePositionValid      WRITE setHomePositionValid NOTIFY homePositionValidChanged)
+
+    /// Distance to previous waypoint, set by UI controller
+    Q_PROPERTY(double               distance            READ distance               WRITE setDistance       NOTIFY distanceChanged)
+
     // Property accesors
     
     int sequenceNumber(void) const { return _sequenceNumber; }
@@ -81,12 +103,19 @@ public:
     void setIsCurrentItem(bool isCurrentItem);
     
     bool specifiesCoordinate(void) const;
-    
     QGeoCoordinate coordinate(void) const;
     void setCoordinate(const QGeoCoordinate& coordinate);
     
+    bool specifiesHeading(void) const;
+    double headingDegrees(void) const;
+    void setHeadingDegrees(double headingDegrees);
+
+    // This is public for unit testing
+    double _yawRadians(void) const;
+
     QStringList commandNames(void);
     QString commandName(void);
+    QString commandDescription(void);
 
     int commandByIndex(void);
     void setCommandByIndex(int index);
@@ -100,10 +129,22 @@ public:
     QmlObjectListModel* textFieldFacts(void);
     QmlObjectListModel* checkboxFacts(void);
     
-    double yawDegrees(void) const;
-    void setYawDegrees(double yaw);
+    bool dirty(void) { return _dirty; }
+    void setDirty(bool dirty);
+    
+    QmlObjectListModel* childItems(void) { return &_childItems; }
+
+    bool homePosition(void) { return _homePositionSpecialCase; }
+    bool homePositionValid(void) { return _homePositionValid; }
+    void setHomePositionValid(bool homePositionValid);
+
+    double distance(void) { return _distance; }
+    void setDistance(double distance);
     
     // C++ only methods
+    
+    /// Returns true if this item can be edited in the ui
+    bool canEdit(void);
 
     double latitude(void)  const { return _latitudeFact->value().toDouble(); }
     double longitude(void) const { return _longitudeFact->value().toDouble(); }
@@ -120,9 +161,6 @@ public:
     void setX(double x);
     void setY(double y);
     void setZ(double z);
-    
-    double yawRadians(void) const;
-    void setYawRadians(double yaw);
     
     bool autoContinue() const {
         return _autocontinue;
@@ -146,7 +184,7 @@ public:
         return loiterOrbitRadius();
     }
     double param4() const {
-        return yawRadians();
+        return _yawRadians();
     }
     double param5() const {
         return latitude();
@@ -173,20 +211,31 @@ public:
     void save(QTextStream &saveStream);
     bool load(QTextStream &loadStream);
     
+    void setHomePositionSpecialCase(bool homePositionSpecialCase) { _homePositionSpecialCase = homePositionSpecialCase; }
+
+    bool relativeAltitude(void) { return _frame == MAV_FRAME_GLOBAL_RELATIVE_ALT; }
+
+    static const double defaultPitch;
+    static const double defaultHeading;
+    static const double defaultAltitude;
+    static const double defaultAcceptanceRadius;
+    static const double defaultLoiterOrbitRadius;
+    static const double defaultLoiterTurns;
+
 signals:
     void sequenceNumberChanged(int sequenceNumber);
     void isCurrentItemChanged(bool isCurrentItem);
     void coordinateChanged(const QGeoCoordinate& coordinate);
-    void yawChanged(double yaw);
-
-    /** @brief Announces a change to the waypoint data */
-    void changed(MissionItem* wp);
-
-    
+    void headingDegreesChanged(double heading);
+    void dirtyChanged(bool dirty);
+    void homePositionValidChanged(bool homePostionValid);
+    void distanceChanged(float distance);
+    void frameChanged(int frame);
     void commandNameChanged(QString type);
     void commandChanged(MavlinkQmlSingleton::Qml_MAV_CMD command);
     void valueLabelsChanged(QStringList valueLabels);
     void valueStringsChanged(QStringList valueStrings);
+    bool autoContinueChanged(bool autoContinue);
     
 public:
     /** @brief Set the waypoint action */
@@ -210,12 +259,16 @@ public:
     /** @brief Wether this waypoint has been reached yet */
     bool isReached      () { return (_reachedTime > 0); }
 
-    void setChanged() {
-        emit changed(this);
-    }
+private slots:
+    void _factValueChanged(QVariant value);
+    void _coordinateFactChanged(QVariant value);
+    void _headingDegreesFactChanged(QVariant value);
+    void _altitudeRelativeToHomeFactChanged(QVariant value);
 
 private:
     QString _oneDecimalString(double value);
+    void _connectSignals(void);
+    void _setYawRadians(double yawRadians);
 
 private:
     typedef struct {
@@ -229,11 +282,12 @@ private:
     bool                                _autocontinue;
     bool                                _isCurrentItem;
     quint64                             _reachedTime;
+    double                              _distance;
     
     Fact*           _latitudeFact;
     Fact*           _longitudeFact;
     Fact*           _altitudeFact;
-    Fact*           _yawRadiansFact;
+    Fact*           _headingDegreesFact;
     Fact*           _loiterOrbitRadiusFact;
     Fact*           _param1Fact;
     Fact*           _param2Fact;
@@ -247,6 +301,14 @@ private:
     FactMetaData*   _delaySecondsMetaData;
     FactMetaData*   _jumpSequenceMetaData;
     FactMetaData*   _jumpRepeatMetaData;
+    
+    bool _dirty;
+    
+    bool _homePositionSpecialCase;  ///< true: this item is being used as a ui home position indicator
+    bool _homePositionValid;        ///< true: home psition should be displayed
+    
+    /// This is used to reference any subsequent mission items which do not specify a coordinate.
+    QmlObjectListModel  _childItems;
     
     static const int            _cMavCmd2Name = 9;
     static const MavCmd2Name_t  _rgMavCmd2Name[_cMavCmd2Name];

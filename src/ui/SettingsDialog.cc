@@ -36,22 +36,28 @@
 #include "QGCApplication.h"
 #include "QGCFileDialog.h"
 #include "QGCMessageBox.h"
-#include "MainToolBar.h"
+#include "MainToolBarController.h"
+#include "FlightMapSettings.h"
 
-SettingsDialog::SettingsDialog(QWidget *parent, int showTab, Qt::WindowFlags flags) :
-QDialog(parent, flags),
-_mainWindow(MainWindow::instance()),
-_ui(new Ui::SettingsDialog)
+SettingsDialog::SettingsDialog(GAudioOutput* audioOutput, FlightMapSettings* flightMapSettings, QWidget *parent, int showTab, Qt::WindowFlags flags)
+    : QDialog(parent, flags)
+    , _mainWindow(MainWindow::instance())
+    , _audioOutput(audioOutput)
+    , _flightMapSettings(flightMapSettings)
+    , _ui(new Ui::SettingsDialog)
 {
     _ui->setupUi(this);
 
     // Center the window on the screen.
+    QDesktopWidget *desktop = QApplication::desktop();
+    int screen = desktop->screenNumber(parent);
+
     QRect position = frameGeometry();
-    position.moveCenter(QApplication::desktop()->availableGeometry().center());
+    position.moveCenter(QApplication::desktop()->availableGeometry(screen).center());
     move(position.topLeft());
 
     QGCLinkConfiguration*  pLinkConf     = new QGCLinkConfiguration(this);
-    MAVLinkSettingsWidget* pMavsettings  = new MAVLinkSettingsWidget(MAVLinkProtocol::instance(), this);
+    MAVLinkSettingsWidget* pMavsettings  = new MAVLinkSettingsWidget(qgcApp()->toolbox()->mavlinkProtocol(), this);
 
     // Add the link settings pane
     _ui->tabWidget->addTab(pLinkConf,     "Comm Links");
@@ -60,19 +66,10 @@ _ui(new Ui::SettingsDialog)
 
     this->window()->setWindowTitle(tr("QGroundControl Settings"));
 
-    // Tool Bar Preferences
-    QSettings settings;
-    settings.beginGroup(TOOL_BAR_SETTINGS_GROUP);
-    _ui->showBattery->setChecked(settings.value( TOOL_BAR_SHOW_BATTERY,  true).toBool());
-    _ui->showGPS->setChecked(settings.value(     TOOL_BAR_SHOW_GPS,      true).toBool());
-    _ui->showMav->setChecked(settings.value(     TOOL_BAR_SHOW_MAV,      true).toBool());
-    _ui->showMessages->setChecked(settings.value(TOOL_BAR_SHOW_MESSAGES, true).toBool());
-    _ui->showRSSI->setChecked(settings.value(   TOOL_BAR_SHOW_RSSI,      true).toBool());
-    settings.endGroup();
     // Audio preferences
-    _ui->audioMuteCheckBox->setChecked(GAudioOutput::instance()->isMuted());
-    connect(_ui->audioMuteCheckBox, SIGNAL(toggled(bool)), GAudioOutput::instance(), SLOT(mute(bool)));
-    connect(GAudioOutput::instance(), SIGNAL(mutedChanged(bool)), _ui->audioMuteCheckBox, SLOT(setChecked(bool)));
+    _ui->audioMuteCheckBox->setChecked(_audioOutput->isMuted());
+    connect(_ui->audioMuteCheckBox, SIGNAL(toggled(bool)), _audioOutput, SLOT(mute(bool)));
+    connect(_audioOutput, SIGNAL(mutedChanged(bool)), _ui->audioMuteCheckBox, SLOT(setChecked(bool)));
 
     // Reconnect
     _ui->reconnectCheckBox->setChecked(_mainWindow->autoReconnectEnabled());
@@ -94,7 +91,18 @@ _ui(new Ui::SettingsDialog)
     connect(_ui->styleChooser, SIGNAL(currentIndexChanged(int)), this, SLOT(styleChanged(int)));
     connect(_ui->browseSavedFilesLocation, &QPushButton::clicked, this, &SettingsDialog::_selectSavedFilesDirectory);
     connect(_ui->buttonBox, &QDialogButtonBox::accepted, this, &SettingsDialog::_validateBeforeClose);
+    
+    // Flight Map settings
+    
+    FlightMapSettings* fmSettings = _flightMapSettings;
+    _ui->bingMapRadio->setChecked(fmSettings->mapProvider() == "Bing");
+    _ui->googleMapRadio->setChecked(fmSettings->mapProvider() == "Google");
+    _ui->openMapRadio->setChecked(fmSettings->mapProvider() == "Open");
 
+    connect(_ui->bingMapRadio,      &QRadioButton::clicked, this, &SettingsDialog::_bingMapRadioClicked);
+    connect(_ui->googleMapRadio,    &QRadioButton::clicked, this, &SettingsDialog::_googleMapRadioClicked);
+    connect(_ui->openMapRadio,      &QRadioButton::clicked, this, &SettingsDialog::_openMapRadioClicked);
+    
     switch (showTab) {
         case ShowCommLinks:
             _ui->tabWidget->setCurrentWidget(pLinkConf);
@@ -169,27 +177,23 @@ void SettingsDialog::_selectSavedFilesDirectory(void)
     // * Parameters
 }
 
-void SettingsDialog::on_showGPS_clicked(bool checked)
+void SettingsDialog::_bingMapRadioClicked(bool checked)
 {
-    _mainWindow->getMainToolBar()->viewStateChanged(TOOL_BAR_SHOW_GPS, checked);
+    if (checked) {
+        _flightMapSettings->setMapProvider("Bing");
+    }
 }
 
-void SettingsDialog::on_showBattery_clicked(bool checked)
+void SettingsDialog::_googleMapRadioClicked(bool checked)
 {
-    _mainWindow->getMainToolBar()->viewStateChanged(TOOL_BAR_SHOW_BATTERY, checked);
+    if (checked) {
+        _flightMapSettings->setMapProvider("Google");
+    }
 }
 
-void SettingsDialog::on_showMessages_clicked(bool checked)
+void SettingsDialog::_openMapRadioClicked(bool checked)
 {
-    _mainWindow->getMainToolBar()->viewStateChanged(TOOL_BAR_SHOW_MESSAGES, checked);
-}
-
-void SettingsDialog::on_showMav_clicked(bool checked)
-{
-    _mainWindow->getMainToolBar()->viewStateChanged(TOOL_BAR_SHOW_MAV, checked);
-}
-
-void SettingsDialog::on_showRSSI_clicked(bool checked)
-{
-    _mainWindow->getMainToolBar()->viewStateChanged(TOOL_BAR_SHOW_RSSI, checked);
+    if (checked) {
+        _flightMapSettings->setMapProvider("Open");
+    }
 }

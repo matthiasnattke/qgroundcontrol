@@ -27,13 +27,14 @@
 #ifndef FirmwarePlugin_H
 #define FirmwarePlugin_H
 
-#include "QGCSingleton.h"
 #include "QGCMAVLink.h"
 #include "VehicleComponent.h"
 #include "AutoPilotPlugin.h"
 
 #include <QList>
 #include <QString>
+
+class Vehicle;
 
 /// This is the base class for Firmware specific plugins
 ///
@@ -44,14 +45,16 @@
 /// in the base class supports mavlink generic firmware. Override the base clase virtuals
 /// to create you firmware specific plugin.
 
-class FirmwarePlugin : public QGCSingleton
+class FirmwarePlugin : public QObject
 {
     Q_OBJECT
 
 public:
     /// Set of optional capabilites which firmware may support
     typedef enum {
-        SetFlightModeCapability,
+        SetFlightModeCapability,            ///< FirmwarePlugin::setFlightMode method is supported
+        MavCmdPreflightStorageCapability,   ///< MAV_CMD_PREFLIGHT_STORAGE is supported
+        
     } FirmwareCapabilities;
     
     /// @return true: Firmware supports all specified capabilites
@@ -76,14 +79,36 @@ public:
     ///     @param[out] custom_mode Custom mode for SET_MODE mavlink message
     virtual bool setFlightMode(const QString& flightMode, uint8_t* base_mode, uint32_t* custom_mode) = 0;
     
+    /// FIXME: This isn't quite correct being here. All code for Joystick support is currently firmware specific
+    /// not just this. I'm going to try to change that. If not, this will need to be removed.
     /// Returns the number of buttons which are reserved for firmware use in the MANUAL_CONTROL mavlink
     /// message. For example PX4 Flight Stack reserves the first 8 buttons to simulate rc switches.
     /// The remainder can be assigned to Vehicle actions.
     /// @return -1: reserver all buttons, >0 number of buttons to reserve
     virtual int manualControlReservedButtonCount(void) = 0;
     
-protected:
-    FirmwarePlugin(QObject* parent = NULL) : QGCSingleton(parent) { }
+    /// Called before any mavlink message is processed by Vehicle such taht the firmwre plugin
+    /// can adjust any message characteristics. This is handy to adjust or differences in mavlink
+    /// spec implementations such that the base code can remain mavlink generic.
+    ///     @param message[in,out] Mavlink message to adjust if needed.
+    virtual void adjustMavlinkMessage(mavlink_message_t* message) = 0;
+    
+    /// Called when Vehicle is first created to send any necessary mavlink messages to the firmware.
+    virtual void initializeVehicle(Vehicle* vehicle) = 0;
+
+    /// Determines how to handle the first item of the mission item list. Internally to QGC the first item
+    /// is always the home position.
+    /// @return
+    ///     true: Send first mission item as home position to vehicle. When vehicle has no mission items on
+    ///             it, it may or may not return a home position back in position 0.
+    ///     false: Do not send first item to vehicle, sequence numbers must be adjusted
+    virtual bool sendHomePositionToVehicle(void) = 0;
+    
+    /// Returns the parameter that is used to identify the default component
+    virtual QString getDefaultComponentIdParam(void) const = 0;
+
+    /// Adds the parameter meta data to the Fact
+    virtual void addMetaDataToFact(Fact* fact) = 0;
 };
 
 #endif

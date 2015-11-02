@@ -25,10 +25,9 @@
 ///     @author Don Gagne <don@thegagnes.com>
 
 #include "PX4FirmwarePlugin.h"
+#include "AutoPilotPlugins/PX4/PX4AutoPilotPlugin.h"    // FIXME: Hack
 
 #include <QDebug>
-
-IMPLEMENT_QGC_SINGLETON(PX4FirmwarePlugin, FirmwarePlugin)
 
 enum PX4_CUSTOM_MAIN_MODE {
     PX4_CUSTOM_MAIN_MODE_MANUAL = 1,
@@ -38,6 +37,7 @@ enum PX4_CUSTOM_MAIN_MODE {
     PX4_CUSTOM_MAIN_MODE_ACRO,
     PX4_CUSTOM_MAIN_MODE_OFFBOARD,
     PX4_CUSTOM_MAIN_MODE_STABILIZED,
+    PX4_CUSTOM_MAIN_MODE_RATTITUDE
 };
 
 enum PX4_CUSTOM_SUB_MODE_AUTO {
@@ -73,6 +73,7 @@ static const struct Modes2Name rgModes2Name[] = {
     { PX4_CUSTOM_MAIN_MODE_MANUAL,      0,                                  "Manual",           true },
     { PX4_CUSTOM_MAIN_MODE_ACRO,        0,                                  "Acro",             true },
     { PX4_CUSTOM_MAIN_MODE_STABILIZED,  0,                                  "Stabilized",       true },
+    { PX4_CUSTOM_MAIN_MODE_RATTITUDE,   0,                                  "Rattitude",        true },
     { PX4_CUSTOM_MAIN_MODE_ALTCTL,      0,                                  "Altitude control", true },
     { PX4_CUSTOM_MAIN_MODE_POSCTL,      0,                                  "Position control", true },
     { PX4_CUSTOM_MAIN_MODE_OFFBOARD,    0,                                  "Offboard control", true },
@@ -84,12 +85,6 @@ static const struct Modes2Name rgModes2Name[] = {
     { PX4_CUSTOM_MAIN_MODE_AUTO,        PX4_CUSTOM_SUB_MODE_AUTO_LAND,      "Landing",          false },
 };
 
-
-PX4FirmwarePlugin::PX4FirmwarePlugin(QObject* parent) :
-    FirmwarePlugin(parent)
-{
-    
-}
 
 QList<VehicleComponent*> PX4FirmwarePlugin::componentsForVehicle(AutoPilotPlugin* vehicle)
 {
@@ -180,4 +175,35 @@ bool PX4FirmwarePlugin::setFlightMode(const QString& flightMode, uint8_t* base_m
 int PX4FirmwarePlugin::manualControlReservedButtonCount(void)
 {
     return 8;   // 8 buttons reserved for rc switch simulation
+}
+
+void PX4FirmwarePlugin::adjustMavlinkMessage(mavlink_message_t* message)
+{
+    Q_UNUSED(message);
+    
+    // PX4 Flight Stack plugin does no message adjustment
+}
+
+bool PX4FirmwarePlugin::isCapable(FirmwareCapabilities capabilities)
+{
+    return (capabilities & (MavCmdPreflightStorageCapability | SetFlightModeCapability)) == capabilities;
+}
+
+void PX4FirmwarePlugin::initializeVehicle(Vehicle* vehicle)
+{
+    Q_UNUSED(vehicle);
+    
+    // PX4 Flight Stack doesn't need to do any extra work
+}
+
+bool PX4FirmwarePlugin::sendHomePositionToVehicle(void)
+{
+    // PX4 stack does not want home position sent in the first position.
+    // Subsequent sequence numbers must be adjusted.
+    return false;
+}
+
+void PX4FirmwarePlugin::addMetaDataToFact(Fact* fact)
+{
+    _parameterMetaData.addMetaDataToFact(fact);
 }

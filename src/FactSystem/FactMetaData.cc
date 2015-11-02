@@ -32,30 +32,32 @@
 
 #include <limits>
 
-FactMetaData::FactMetaData(QObject* parent) :
-    QObject(parent),
-    _group("*Default Group"),
-    _type(valueTypeInt32),
-    _defaultValue(0),
-    _defaultValueAvailable(false),
-    _min(_minForType()),
-    _max(_maxForType()),
-    _minIsDefaultForType(true),
-    _maxIsDefaultForType(true)
+FactMetaData::FactMetaData(QObject* parent)
+    : QObject(parent)
+    , _group("*Default Group")
+    , _type(valueTypeInt32)
+    , _defaultValue(0)
+    , _defaultValueAvailable(false)
+    , _min(_minForType())
+    , _max(_maxForType())
+    , _minIsDefaultForType(true)
+    , _maxIsDefaultForType(true)
+    , _decimalPlaces(defaultDecimalPlaces)
 {
 
 }
 
-FactMetaData::FactMetaData(ValueType_t type, QObject* parent) :
-    QObject(parent),
-    _group("*Default Group"),
-    _type(type),
-    _defaultValue(0),
-    _defaultValueAvailable(false),
-    _min(_minForType()),
-    _max(_maxForType()),
-    _minIsDefaultForType(true),
-    _maxIsDefaultForType(true)
+FactMetaData::FactMetaData(ValueType_t type, QObject* parent)
+    : QObject(parent)
+    , _group("*Default Group")
+    , _type(type)
+    , _defaultValue(0)
+    , _defaultValueAvailable(false)
+    , _min(_minForType())
+    , _max(_maxForType())
+    , _minIsDefaultForType(true)
+    , _maxIsDefaultForType(true)
+    , _decimalPlaces(defaultDecimalPlaces)
 {
 
 }
@@ -76,11 +78,12 @@ const FactMetaData& FactMetaData::operator=(const FactMetaData& other)
     _max                    = other._max;
     _minIsDefaultForType    = other._minIsDefaultForType;
     _maxIsDefaultForType    = other._maxIsDefaultForType;
+    _decimalPlaces          = other._decimalPlaces;
     
     return *this;
 }
 
-QVariant FactMetaData::defaultValue(void)
+QVariant FactMetaData::defaultValue(void) const
 {
     if (_defaultValueAvailable) {
         return _defaultValue;
@@ -122,7 +125,7 @@ void FactMetaData::setMax(const QVariant& max)
     }
 }
 
-QVariant FactMetaData::_minForType(void)
+QVariant FactMetaData::_minForType(void) const
 {
     switch (_type) {
         case valueTypeUint8:
@@ -147,7 +150,7 @@ QVariant FactMetaData::_minForType(void)
     return QVariant();
 }
 
-QVariant FactMetaData::_maxForType(void)
+QVariant FactMetaData::_maxForType(void) const
 {
     switch (_type) {
         case valueTypeUint8:

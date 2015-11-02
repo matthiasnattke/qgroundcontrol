@@ -32,6 +32,7 @@ import QtQuick.Controls 1.3
 import QtLocation       5.3
 import QtPositioning    5.3
 
+import QGroundControl                       1.0
 import QGroundControl.Controls              1.0
 import QGroundControl.FlightMap             1.0
 import QGroundControl.ScreenTools           1.0
@@ -47,59 +48,39 @@ Map {
     property real   heading:            0
     property bool   interactive:        true
     property string mapName:            'defaultMap'
-    property alias  mapWidgets:         controlWidgets
-    property bool   isSatelliteMap:     false
-        
+    property string mapType:            QGroundControl.flightMapSettings.mapTypeForMapName(mapName)
+//  property alias  mapWidgets:         controlWidgets
+    property bool   isSatelliteMap:     mapType == "Satellite Map" || mapType == "Hybrid Map"
+
     property real   lon: (longitude >= -180 && longitude <= 180) ? longitude : 0
     property real   lat: (latitude  >=  -90 && latitude  <=  90) ? latitude  : 0
 
-    zoomLevel:  18
-    center:     QtPositioning.coordinate(lat, lon)
-    gesture.flickDeceleration: 3000
-    gesture.enabled: interactive
+    readonly property real maxZoomLevel:    20
+
+    zoomLevel:                  18
+    center:                     QtPositioning.coordinate(lat, lon)
+    gesture.flickDeceleration:  3000
+    gesture.enabled:            interactive
+    gesture.activeGestures:     MapGestureArea.ZoomGesture | MapGestureArea.PanGesture | MapGestureArea.FlickGesture
 
     plugin: Plugin { name: "QGroundControl" }
 
     ExclusiveGroup { id: mapTypeGroup }
-    
-    // Map type selection MenuItem
-    Component {
-        id: menuItemComponent
-        
-        MenuItem {
-            checkable:      true
-            checked:        text == _map.activeMapType.name
-            exclusiveGroup: mapTypeGroup
-            visible:        _map.visible
-            
-            onTriggered: setCurrentMap(text)
-        }
-    }
-    
-    // Set the current map type to the specified type name
-    function setCurrentMap(name) {
+
+    Component.onCompleted: onMapTypeChanged
+
+    onMapTypeChanged: {
+        QGroundControl.flightMapSettings.setMapTypeForMapName(mapName, mapType)
+        var fullMapName = QGroundControl.flightMapSettings.mapProvider + " " + mapType
         for (var i = 0; i < _map.supportedMapTypes.length; i++) {
-            if (name === _map.supportedMapTypes[i].name) {
+            if (fullMapName === _map.supportedMapTypes[i].name) {
                 _map.activeMapType = _map.supportedMapTypes[i]
-                multiVehicleManager.saveSetting(_map.mapName + "/currentMapType", name);
-                return;
+                return
             }
         }
     }
-    
-    // Add menu map types to the specified menu and sets the current map type from settings
-    function addMapMenuItems(menu) {
-        var savedMapName = multiVehicleManager.loadSetting(_map.mapName + "/currentMapType", "")
-        
-        setCurrentMap(savedMapName)
-        
-        for (var i = 0; i < _map.supportedMapTypes.length; i++) {
-            var menuItem = menuItemComponent.createObject()
-            menuItem.text = _map.supportedMapTypes[i].name
-            menu.insertItem(menu.items.length, menuItem)
-        }
-    }
-    
+
+/*********************************************
     /// Map control widgets
     Column {
         id:                 controlWidgets
@@ -107,6 +88,9 @@ Map {
         anchors.right:      parent.right
         anchors.bottom:     parent.bottom
         spacing:            ScreenTools.defaultFontPixelWidth / 2
+        z:                  1000    // Must be on top for clicking
+        // Pinch zoom doesn't seem to be working, so zoom buttons in mobile on for now
+        //visible:            !ScreenTools.isMobile
 
         Row {
             layoutDirection:    Qt.RightToLeft
@@ -114,19 +98,19 @@ Map {
 
             readonly property real _zoomIncrement: 1.0
             property real _buttonWidth: ScreenTools.defaultFontPixelWidth * 5
-            
+
             NumberAnimation {
                 id: animateZoom
-                
+
                 property real startZoom
                 property real endZoom
-                
+
                 target:     _map
                 properties: "zoomLevel"
                 from:       startZoom
                 to:         endZoom
                 duration:   500
-                
+
                 easing {
                     type: Easing.OutExpo
                 }
@@ -135,8 +119,10 @@ Map {
 
             QGCButton {
                 width:  parent._buttonWidth
+                z:      QGroundControl.zOrderWidgets
+                //iconSource: "/qmlimages/ZoomPlus.svg"
                 text:   "+"
-                
+
                 onClicked: {
                     var endZoomLevel = _map.zoomLevel + parent._zoomIncrement
                     if (endZoomLevel > _map.maximumZoomLevel) {
@@ -147,11 +133,13 @@ Map {
                     animateZoom.start()
                 }
             }
-            
+
             QGCButton {
                 width:  parent._buttonWidth
+                z:      QGroundControl.zOrderWidgets
+                //iconSource: "/qmlimages/ZoomMinus.svg"
                 text:   "-"
-                
+
                 onClicked: {
                     var endZoomLevel = _map.zoomLevel - parent._zoomIncrement
                     if (endZoomLevel < _map.minimumZoomLevel) {
@@ -164,13 +152,14 @@ Map {
             }
         } // Row - +/- buttons
     } // Column - Map control widgets
+*********************************************/
 
 /*
  The slider and scale display are commented out for now to try to save real estate - DonLakeFlyer
  Not sure if I'll bring them back or not. Need room for waypoint list at bottom
- 
+
  property variant scaleLengths: [5, 10, 25, 50, 100, 150, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000]
- 
+
     function formatDistance(meters)
     {
         var dist = Math.round(meters)
@@ -201,7 +190,7 @@ Map {
         onZoomLevelChanged:{
             scaleTimer.restart()
         }
- 
+
         function calculateScale() {
             var coord1, coord2, dist, text, f
             f = 0

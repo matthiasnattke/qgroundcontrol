@@ -25,22 +25,12 @@
 ///     @author Don Gagne <don@thegagnes.com>
 
 #include "GenericAutoPilotPlugin.h"
+#include "FirmwarePlugin/Generic/GenericFirmwarePlugin.h"  // FIXME: Hack
 
 GenericAutoPilotPlugin::GenericAutoPilotPlugin(Vehicle* vehicle, QObject* parent) :
     AutoPilotPlugin(vehicle, parent)
 {
     Q_ASSERT(vehicle);
-    
-    _parameterFacts = new GenericParameterFacts(this, vehicle, this);
-    Q_CHECK_PTR(_parameterFacts);
-    
-    connect(_parameterFacts, &GenericParameterFacts::parametersReady, this, &GenericAutoPilotPlugin::_parametersReady);
-    connect(_parameterFacts, &GenericParameterFacts::parameterListProgress, this, &GenericAutoPilotPlugin::parameterListProgress);
-}
-
-void GenericAutoPilotPlugin::clearStaticData(void)
-{
-    // No Static data yet
 }
 
 const QVariantList& GenericAutoPilotPlugin::vehicleComponents(void)
@@ -50,8 +40,11 @@ const QVariantList& GenericAutoPilotPlugin::vehicleComponents(void)
     return emptyList;
 }
 
-void GenericAutoPilotPlugin::_parametersReady(void)
+/// This will perform various checks prior to signalling that the plug in ready
+void GenericAutoPilotPlugin::_parametersReadyPreChecks(bool missingParameters)
 {
-    _pluginReady = true;
-    emit pluginReadyChanged(_pluginReady);
+    _parametersReady = true;
+    _missingParameters = missingParameters;
+    emit missingParametersChanged(_missingParameters);
+    emit parametersReadyChanged(_parametersReady);
 }

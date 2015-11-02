@@ -27,6 +27,7 @@
 #include "PowerComponentController.h"
 #include "QGCMAVLink.h"
 #include "QGCMessageBox.h"
+#include "UAS.h"
 
 #include <QVariant>
 #include <QQmlProperty>
@@ -53,6 +54,12 @@ void PowerComponentController::busConfigureActuators(void)
     _warningMessages.clear();
     connect(_uas, &UASInterface::textMessageReceived, this, &PowerComponentController::_handleUASTextMessage);
     _uas->startBusConfig(UASInterface::StartBusConfigActuators);
+}
+
+void PowerComponentController::stopBusConfigureActuators(void)
+{
+    disconnect(_uas, &UASInterface::textMessageReceived, this, &PowerComponentController::_handleUASTextMessage);
+    _uas->startBusConfig(UASInterface::EndBusConfigActuators);
 }
 
 void PowerComponentController::_stopCalibration(void)

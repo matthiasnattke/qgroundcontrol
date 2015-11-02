@@ -42,7 +42,7 @@ QGCView {
 
     // User visible strings
 
-    readonly property string title:                     "FLIGHT MODES CONFIG"
+    readonly property string title:                     "FLIGHT MODES"
 
 
     property string topHelpText:                        "Assign Flight Modes to radio control channels and adjust the thresholds for triggering them. " +
@@ -216,23 +216,8 @@ QGCView {
                 id:     scrollItem
                 width:  scroll.viewport.width
 
-                QGCLabel {
-                    id:             header
-                    width:          parent.width
-                    font.pixelSize: ScreenTools.largeFontPixelSize
-                    text:           title
-                }
-
-                Item {
-                    id:             headingSpacer
-                    anchors.top:    header.bottom
-                    height:         ScreenTools.defaultFontPixelHeight
-                    width:          20
-                }
-
                 Item {
                     id:             helpApplyRow
-                    anchors.top:    headingSpacer.bottom
                     width:          parent.width
                     height:         Math.max(helpText.contentHeight, applyButton.height)
 
@@ -242,6 +227,7 @@ QGCView {
                         anchors.left:           parent.left
                         anchors.right:          applyButton.left
                         text:                   topHelpText
+                        font.pixelSize:         ScreenTools.mediumFontPixelSize
                         wrapMode:               Text.WordWrap
                     }
 
@@ -274,7 +260,7 @@ QGCView {
                     thresholdValue:         controller.manualModeThreshold
                     thresholdDragEnabled:   false
 
-                    onModeChannelIndexChanged: controller.manualModeChannelIndex = modeChannelIndex
+                    onModeChannelIndexSelected: controller.manualModeChannelIndex = index
                 }
 
                 ModeSwitchDisplay {
@@ -322,7 +308,7 @@ QGCView {
                     thresholdValue:         controller.acroModeThreshold
                     thresholdDragEnabled:   true
 
-                    onModeChannelIndexChanged:  controller.acroModeChannelIndex = modeChannelIndex
+                    onModeChannelIndexSelected:  controller.acroModeChannelIndex = index
                     onThresholdValueChanged:    controller.acroModeThreshold = thresholdValue
 
                     Behavior on y { PropertyAnimation { easing.type: Easing.InOutQuad; duration: 1000 } }
@@ -355,7 +341,7 @@ QGCView {
                     thresholdValue:         controller.posCtlModeThreshold
                     thresholdDragEnabled:   true
 
-                    onModeChannelIndexChanged:  controller.posCtlModeChannelIndex = modeChannelIndex
+                    onModeChannelIndexSelected:  controller.posCtlModeChannelIndex = index
                     onThresholdValueChanged:    controller.posCtlModeThreshold = thresholdValue
 
                     Behavior on y { PropertyAnimation { easing.type: Easing.InOutQuad; duration: 1000 } }
@@ -388,7 +374,7 @@ QGCView {
                     thresholdValue:         controller.loiterModeThreshold
                     thresholdDragEnabled:   true
 
-                    onModeChannelIndexChanged:  controller.loiterModeChannelIndex = modeChannelIndex
+                    onModeChannelIndexSelected:  controller.loiterModeChannelIndex = index
                     onThresholdValueChanged:    controller.loiterModeThreshold = thresholdValue
 
                     Behavior on y { PropertyAnimation { easing.type: Easing.InOutQuad; duration: 1000 } }
@@ -405,7 +391,7 @@ QGCView {
                     thresholdValue:         controller.returnModeThreshold
                     thresholdDragEnabled:   true
 
-                    onModeChannelIndexChanged:  controller.returnModeChannelIndex = modeChannelIndex
+                    onModeChannelIndexSelected:  controller.returnModeChannelIndex = index
                     onThresholdValueChanged:    controller.returnModeThreshold = thresholdValue
 
                     Behavior on y { PropertyAnimation { easing.type: Easing.InOutQuad; duration: 1000 } }
@@ -422,7 +408,7 @@ QGCView {
                     thresholdValue:         controller.offboardModeThreshold
                     thresholdDragEnabled:   true
 
-                    onModeChannelIndexChanged:  controller.offboardModeChannelIndex = modeChannelIndex
+                    onModeChannelIndexSelected:  controller.offboardModeChannelIndex = index
                     onThresholdValueChanged:    controller.offboardModeThreshold = thresholdValue
 
                     Behavior on y { PropertyAnimation { easing.type: Easing.InOutQuad; duration: 1000 } }

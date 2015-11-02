@@ -29,6 +29,7 @@
 
 #include "QGCLoggingCategory.h"
 #include "Vehicle.h"
+#include "MultiVehicleManager.h"
 
 Q_DECLARE_LOGGING_CATEGORY(JoystickLog)
 Q_DECLARE_LOGGING_CATEGORY(JoystickValuesLog)
@@ -38,7 +39,7 @@ class Joystick : public QThread
     Q_OBJECT
     
 public:
-    Joystick(const QString& name, int axisCount, int buttonCount, int sdlIndex);
+    Joystick(const QString& name, int axisCount, int buttonCount, int sdlIndex, MultiVehicleManager* multiVehicleManager);
     ~Joystick();
     
     typedef struct {
@@ -67,16 +68,21 @@ public:
     
     Q_PROPERTY(bool calibrated MEMBER _calibrated NOTIFY calibratedChanged)
     
-    Q_PROPERTY(int buttonCount MEMBER _buttonCount CONSTANT)
-    Q_PROPERTY(int axisCount MEMBER _axisCount CONSTANT)
+    Q_PROPERTY(int buttonCount  READ buttonCount    CONSTANT)
+    Q_PROPERTY(int axisCount    READ axisCount      CONSTANT)
     
     Q_PROPERTY(QStringList actions READ actions CONSTANT)
     
     Q_PROPERTY(QVariantList buttonActions READ buttonActions NOTIFY buttonActionsChanged)
-    Q_INVOKABLE void setButtonAction(int button, int action);
-    Q_INVOKABLE int getButtonAction(int button);
+    Q_INVOKABLE void setButtonAction(int button, const QString& action);
+    Q_INVOKABLE QString getButtonAction(int button);
     
     Q_PROPERTY(int throttleMode READ throttleMode WRITE setThrottleMode NOTIFY throttleModeChanged)
+
+    // Property accessors
+
+    int axisCount(void) { return _axisCount; }
+    int buttonCount(void) { return _buttonCount; }
     
     /// Start the polling thread which will in turn emit joystick signals
     void startPolling(Vehicle* vehicle);
@@ -135,7 +141,10 @@ private:
     void _saveSettings(void);
     void _loadSettings(void);
     float _adjustRange(int value, Calibration_t calibration);
-    
+    void _buttonAction(const QString& action);
+    bool _validAxis(int axis);
+    bool _validButton(int button);
+
     // Override from QThread
     virtual void run(void);
 
@@ -151,20 +160,20 @@ private:
     
     CalibrationMode_t   _calibrationMode;
     
-    static const int    _cAxes = 4;
-    int                 _rgAxisValues[_cAxes];
-    Calibration_t       _rgCalibration[_cAxes];
+    int*                _rgAxisValues;
+    Calibration_t*      _rgCalibration;
     int                 _rgFunctionAxis[maxFunction];
     
-    static const int    _cButtons = 12;
-    bool                _rgButtonValues[_cButtons];
-    int                 _rgButtonActions[_cButtons];
+    bool*               _rgButtonValues;
+    QString*            _rgButtonActions;
     quint16             _lastButtonBits;
     
     ThrottleMode_t      _throttleMode;
     
     Vehicle*            _activeVehicle;
     bool                _pollingStartedForCalibration;
+
+    MultiVehicleManager*    _multiVehicleManager;
 #endif // __mobile__
     
 private:

@@ -66,7 +66,7 @@ FlightModesComponentController::~FlightModesComponentController()
 void FlightModesComponentController::_init(void)
 {
     // FIXME: What about VTOL? That confuses the whole Flight Mode naming scheme
-    _fixedWing = _uas->getSystemType() == MAV_TYPE_FIXED_WING;
+    _fixedWing = _vehicle->vehicleType() == MAV_TYPE_FIXED_WING;
     
     // We need to know min and max for channel in order to calculate percentage range
     for (int channel=0; channel<_chanMax; channel++) {
@@ -656,6 +656,8 @@ void FlightModesComponentController::setManualModeChannelIndex(int index)
     
     _recalcModeSelections();
     _recalcModeRows();
+    emit channelIndicesChanged();
+
 }
 
 void FlightModesComponentController::setAcroModeChannelIndex(int index)
@@ -680,11 +682,12 @@ void FlightModesComponentController::setPosCtlModeChannelIndex(int index)
         _assistModeVisible = channel != getParameterFact(-1, "RC_MAP_MODE_SW")->value().toInt();
     }
     
-    emit altCtlModeChannelIndexChanged(index);
     emit modesVisibleChanged();
 
     _recalcModeSelections();
     _recalcModeRows();
+    emit channelIndicesChanged();
+
 }
 
 void FlightModesComponentController::setLoiterModeChannelIndex(int index)
@@ -701,11 +704,12 @@ void FlightModesComponentController::setLoiterModeChannelIndex(int index)
         _autoModeVisible = channel != getParameterFact(-1, "RC_MAP_MODE_SW")->value().toInt();
     }
     
-    emit missionModeChannelIndexChanged(index);
     emit modesVisibleChanged();
     
     _recalcModeSelections();
     _recalcModeRows();
+    emit channelIndicesChanged();
+
 }
 
 void FlightModesComponentController::setReturnModeChannelIndex(int index)
@@ -713,6 +717,8 @@ void FlightModesComponentController::setReturnModeChannelIndex(int index)
     getParameterFact(-1, "RC_MAP_RETURN_SW")->setValue(_channelIndexToChannel(index));
     _recalcModeSelections();
     _recalcModeRows();
+    emit channelIndicesChanged();
+
 }
 
 void FlightModesComponentController::setOffboardModeChannelIndex(int index)
@@ -720,6 +726,8 @@ void FlightModesComponentController::setOffboardModeChannelIndex(int index)
     getParameterFact(-1, "RC_MAP_OFFB_SW")->setValue(_channelIndexToChannel(index));
     _recalcModeSelections();
     _recalcModeRows();
+    emit channelIndicesChanged();
+
 }
 
 void FlightModesComponentController::generateThresholds(void)
