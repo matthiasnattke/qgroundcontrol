@@ -63,69 +63,28 @@ SerialConfigurationWindow::SerialConfigurationWindow(SerialConfiguration *config
 
     // Keep track of all desired baud rates by OS. These are iterated through
     // later and added to _ui.baudRate.
-    QList<int> supportedBaudRates;
-
-#if USE_ANCIENT_RATES
-    // Baud rates supported only by POSIX systems
-#if defined(Q_OS_UNIX) || defined(Q_OS_LINUX) || defined(Q_OS_DARWIN)
-    supportedBaudRates << 50;
-    supportedBaudRates << 75;
-    supportedBaudRates << 134;
-    supportedBaudRates << 150;
-    supportedBaudRates << 200;
-    supportedBaudRates << 1800;
-#endif
-#endif //USE_ANCIENT_RATES
-
-    // Baud rates supported only by Windows
-#if defined(Q_OS_WIN)
-    supportedBaudRates << 14400;
-    supportedBaudRates << 56000;
-    supportedBaudRates << 128000;
-    supportedBaudRates << 256000;
-#endif
-
-    // Baud rates supported by everyone
-#if USE_ANCIENT_RATES
-    supportedBaudRates << 110;
-    supportedBaudRates << 300;
-    supportedBaudRates << 600;
-    supportedBaudRates << 1200;
-#endif //USE_ANCIENT_RATES
-    supportedBaudRates << 2400;
-    supportedBaudRates << 4800;
-    supportedBaudRates << 9600;
-    supportedBaudRates << 19200;
-    supportedBaudRates << 38400;
-    supportedBaudRates << 57600;
-    supportedBaudRates << 115200;
-    supportedBaudRates << 230400;
-    supportedBaudRates << 460800;
-
-#if defined(Q_OS_LINUX)
-    // Baud rates supported only by Linux
-    supportedBaudRates << 500000;
-    supportedBaudRates << 576000;
-#endif
-
-    supportedBaudRates << 921600;
+    QStringList supportedBaudRates = SerialConfiguration::supportedBaudRates();
 
     // Now actually add all of our supported baud rates to the ui.
-    qSort(supportedBaudRates.begin(), supportedBaudRates.end());
     for (int i = 0; i < supportedBaudRates.size(); ++i) {
-        _ui.baudRate->addItem(QString::number(supportedBaudRates.at(i)), supportedBaudRates.at(i));
+        _ui.baudRate->addItem(supportedBaudRates.at(i), supportedBaudRates.at(i).toInt());
     }
 
     // Connect the individual user interface inputs
-    connect(_ui.portName,           SIGNAL(currentIndexChanged(int)), this,  SLOT(setPortName(int)));
-    connect(_ui.baudRate,           SIGNAL(activated(int)), this,            SLOT(setBaudRate(int)));
-    connect(_ui.flowControlCheckBox,SIGNAL(toggled(bool)), this,             SLOT(enableFlowControl(bool)));
-    connect(_ui.parNone,            SIGNAL(toggled(bool)), this,             SLOT(setParityNone(bool)));
-    connect(_ui.parOdd,             SIGNAL(toggled(bool)), this,             SLOT(setParityOdd(bool)));
-    connect(_ui.parEven,            SIGNAL(toggled(bool)), this,             SLOT(setParityEven(bool)));
-    connect(_ui.dataBitsSpinBox,    SIGNAL(valueChanged(int)), this,         SLOT(setDataBits(int)));
-    connect(_ui.stopBitsSpinBox,    SIGNAL(valueChanged(int)), this,         SLOT(setStopBits(int)));
-    connect(_ui.advCheckBox,        SIGNAL(clicked(bool)), _ui.advGroupBox,  SLOT(setVisible(bool)));
+    connect(_ui.portName,           static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,  &SerialConfigurationWindow::setPortName);
+    connect(_ui.baudRate,           static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+            this,            &SerialConfigurationWindow::setBaudRate);
+    connect(_ui.dataBitsSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,         &SerialConfigurationWindow::setDataBits);
+    connect(_ui.stopBitsSpinBox,    static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,         &SerialConfigurationWindow::setStopBits);
+
+    connect(_ui.flowControlCheckBox,&QCheckBox::toggled, this,             &SerialConfigurationWindow::enableFlowControl);
+    connect(_ui.parNone,            &QRadioButton::toggled, this,             &SerialConfigurationWindow::setParityNone);
+    connect(_ui.parOdd,             &QRadioButton::toggled, this,             &SerialConfigurationWindow::setParityOdd);
+    connect(_ui.parEven,            &QRadioButton::toggled, this,             &SerialConfigurationWindow::setParityEven);
+    connect(_ui.advCheckBox,        &QCheckBox::clicked, _ui.advGroupBox,  &QWidget::setVisible);
 
     _ui.advCheckBox->setCheckable(true);
     _ui.advCheckBox->setChecked(false);
@@ -158,7 +117,7 @@ SerialConfigurationWindow::SerialConfigurationWindow(SerialConfiguration *config
     _ui.stopBitsSpinBox->setValue(_config->stopBits());
     _portCheckTimer = new QTimer(this);
     _portCheckTimer->setInterval(1000);
-    connect(_portCheckTimer, SIGNAL(timeout()), this, SLOT(setupPortList()));
+    connect(_portCheckTimer, &QTimer::timeout, this, &SerialConfigurationWindow::setupPortList);
 
     // Display the widget
     setWindowTitle(tr("Serial Communication Settings"));

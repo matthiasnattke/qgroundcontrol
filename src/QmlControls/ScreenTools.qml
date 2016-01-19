@@ -13,12 +13,15 @@ Item {
     readonly property real defaultFontPixelHeight:  defaultFontPixelSize
     readonly property real defaultFontPixelWidth:   _textMeasure.fontWidth
     readonly property real smallFontPixelSize:      defaultFontPixelSize * ScreenToolsController.smallFontPixelSizeRatio
+    readonly property real smallFontPixelHeight:    smallFontPixelSize
+    readonly property real smallFontPixelWidth:     defaultFontPixelWidth * ScreenToolsController.smallFontPixelSizeRatio
 
     // To proportionally scale fonts
 
     readonly property real  _defaultFontHeight: 16
     readonly property real  fontHRatio:         isTinyScreen ? (_textMeasure.contentHeight / _defaultFontHeight) * 0.75 : (_textMeasure.contentHeight / _defaultFontHeight)
     readonly property real  realFontHeight:     _textMeasure.contentHeight
+    readonly property real  realFontWidth :     _textMeasure.contentWidth
 
     // On OSX ElCapitan with Qt 5.4.0 any font pixel size above 19 shows garbage test. No idea why at this point.
     // Will remove Math.min when problem is figure out.
@@ -29,7 +32,8 @@ Item {
     property bool isiOS:            ScreenToolsController.isiOS
     property bool isMobile:         ScreenToolsController.isMobile
     property bool isDebug:          ScreenToolsController.isDebug
-    property bool isTinyScreen:     (Screen.width / Screen.pixelDensity) < 120 // 120mm
+    property bool isTinyScreen:     (Screen.width  / Screen.pixelDensity) < 120 // 120mm
+    property bool isShortScreen:    ScreenToolsController.isMobile && ((Screen.height / Screen.width) < 0.6) // Nexus 7 for example
 
     function mouseX() {
         return ScreenToolsController.mouseX()
@@ -44,10 +48,5 @@ Item {
         text:   "X"
         property real fontWidth:    contentWidth  * (ScreenToolsController.testHighDPI ? 2 : 1)
         property real fontHeight:   contentHeight * (ScreenToolsController.testHighDPI ? 2 : 1)
-    }
-
-    Connections {
-        target: ScreenToolsController
-        onRepaintRequested: repaintRequested()
     }
 }

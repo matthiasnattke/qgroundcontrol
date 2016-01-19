@@ -34,9 +34,6 @@
 #include "UAS.h"
 #include "MultiVehicleManager.h"
 
-// FIXME: Temporarily disabled until this can be stabilized
-//UT_REGISTER_TEST(MavlinkLogTest)
-
 const char* MavlinkLogTest::_tempLogFileTemplate = "FlightDataXXXXXX"; ///< Template for temporary log file
 const char* MavlinkLogTest::_logFileExtension = "mavlink";             ///< Extension for log files
 const char* MavlinkLogTest::_saveLogFilename = "qgroundcontrol.mavlink.ut";        ///< Filename to save log files to
@@ -54,7 +51,7 @@ void MavlinkLogTest::init(void)
     // Make sure temp directory is clear of mavlink logs
     QDir tmpDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation));
     QStringList logFiles(tmpDir.entryList(QStringList(QString("*.%1").arg(_logFileExtension)), QDir::Files));
-    foreach(QString logFile, logFiles) {
+    foreach(const QString &logFile, logFiles) {
         bool success = tmpDir.remove(logFile);
         Q_UNUSED(success);
         Q_ASSERT(success);
@@ -107,7 +104,7 @@ void MavlinkLogTest::_bootLogDetectionSave_test(void)
     
     // We should get a message box, followed by a getSaveFileName dialog.
     setExpectedMessageBox(QMessageBox::Ok);
-    QDir logSaveDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+    QDir logSaveDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation));
     QString logSaveFile(logSaveDir.filePath(_saveLogFilename));
     setExpectedFileDialog(getSaveFileName, QStringList(logSaveFile));
     
@@ -147,7 +144,7 @@ void MavlinkLogTest::_connectLogWorker(bool arm)
         QTest::qWait(1500); // Wait long enough for heartbeat to come through
         
         // On Disconnect: We should get a getSaveFileName dialog.
-        logSaveDir.setPath(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+        logSaveDir.setPath(QStandardPaths::writableLocation(QStandardPaths::TempLocation));
         QString logSaveFile(logSaveDir.filePath(_saveLogFilename));
         setExpectedFileDialog(getSaveFileName, QStringList(logSaveFile));
     }

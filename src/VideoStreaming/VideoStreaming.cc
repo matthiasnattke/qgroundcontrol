@@ -54,6 +54,18 @@ This file is part of the QGROUNDCONTROL project
     G_END_DECLS
 #endif
 
+#if defined(QGC_GST_STREAMING)
+#if defined(__macos__)
+#ifdef QGC_INSTALL_RELEASE
+static void qgcputenv(const QString& key, const QString& root, const QString& path)
+{
+    QString value = root + path;
+    qputenv(key.toStdString().c_str(), QByteArray(value.toStdString().c_str()));
+}
+#endif
+#endif
+#endif
+
 void initializeVideoStreaming(int &argc, char* argv[])
 {
 #if defined(QGC_GST_STREAMING)
@@ -75,8 +87,7 @@ void initializeVideoStreaming(int &argc, char* argv[])
     GST_PLUGIN_STATIC_REGISTER(x264);
 #endif
 
-#ifdef Q_OS_MAC
-#ifndef __ios__
+#ifdef __macos__
 #ifdef QGC_INSTALL_RELEASE
     QString currentDir = QCoreApplication::applicationDirPath();
     qgcputenv("GST_PLUGIN_SCANNER",           currentDir, "/gst-plugin-scanner");
@@ -87,10 +98,9 @@ void initializeVideoStreaming(int &argc, char* argv[])
     qgcputenv("GST_PLUGIN_PATH_1_0",          currentDir, "/../Frameworks/GStreamer.framework/Versions/Current/lib/gstreamer-1.0");
     qgcputenv("GST_PLUGIN_PATH",              currentDir, "/../Frameworks/GStreamer.framework/Versions/Current/lib/gstreamer-1.0");
 //    QStringList env = QProcessEnvironment::systemEnvironment().keys();
-//    foreach(QString key, env) {
+//    foreach(const QString &key, env) {
 //        qDebug() << key << QProcessEnvironment::systemEnvironment().value(key);
 //    }
-#endif
 #endif
 #endif
 
@@ -104,7 +114,16 @@ void initializeVideoStreaming(int &argc, char* argv[])
 
 void shutdownVideoStreaming()
 {
+    /* From: http://gstreamer.freedesktop.org/data/doc/gstreamer/head/gstreamer/html/gstreamer-Gst.html#gst-deinit
+     *
+     * "It is normally not needed to call this function in a normal application as the resources will automatically
+     * be freed when the program terminates. This function is therefore mostly used by testsuites and other memory
+     * profiling tools."
+     *
+     * It's causing a hang on exit. It hangs while deleting some thread.
+     *
 #if defined(QGC_GST_STREAMING)
-    gst_deinit();
+     gst_deinit();
 #endif
+    */
 }

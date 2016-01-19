@@ -21,7 +21,7 @@ This file is part of the QGROUNDCONTROL project
 
 ======================================================================*/
 
-import QtQuick                  2.4
+import QtQuick                  2.5
 import QtQuick.Controls         1.3
 import QtQuick.Controls.Styles  1.2
 import QtQuick.Dialogs          1.2
@@ -43,13 +43,12 @@ Item {
 
     QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
 
-    property real avaiableHeight: parent.height
+    property real availableHeight: parent.height
 
     readonly property bool isBackgroundDark: _mainIsMap ? (_flightMap ? _flightMap.isSatelliteMap : true) : true
 
     property var _activeVehicle:  multiVehicleManager.activeVehicle
 
-    readonly property var  _defaultVehicleCoordinate:   QtPositioning.coordinate(37.803784, -122.462276)
     readonly property real _defaultRoll:                0
     readonly property real _defaultPitch:               0
     readonly property real _defaultHeading:             0
@@ -69,8 +68,6 @@ Item {
     property real _roll:                _activeVehicle ? (isNaN(_activeVehicle.roll)    ? _defaultRoll    : _activeVehicle.roll)    : _defaultRoll
     property real _pitch:               _activeVehicle ? (isNaN(_activeVehicle.pitch)   ? _defaultPitch   : _activeVehicle.pitch)   : _defaultPitch
     property real _heading:             _activeVehicle ? (isNaN(_activeVehicle.heading) ? _defaultHeading : _activeVehicle.heading) : _defaultHeading
-
-    property var  _vehicleCoordinate:   _activeVehicle ? (_activeVehicle.coordinateValid ? _activeVehicle.coordinate : _defaultVehicleCoordinate) : _defaultVehicleCoordinate
 
     property real _altitudeWGS84:       _activeVehicle ? _activeVehicle.altitudeWGS84 : _defaultAltitudeWGS84
     property real _groundSpeed:         _activeVehicle ? _activeVehicle.groundSpeed   : _defaultGroundSpeed
@@ -114,7 +111,6 @@ Item {
                     _flightMap.zoomLevel = _savedZoomLevel
                 else
                     _savedZoomLevel = _flightMap.zoomLevel
-                _flightMap.updateMapPosition(true /* force */)
             } else {
                 _flightVideo = item
             }
@@ -122,7 +118,7 @@ Item {
     }
 
     //-- PIP Window
-    Rectangle {
+    Item {
         id:                 pip
         visible:            _controller.hasVideo && _isPipVisible
         anchors.margins:    ScreenTools.defaultFontPixelHeight
@@ -130,8 +126,6 @@ Item {
         anchors.bottom:     parent.bottom
         width:              _pipSize
         height:             _pipSize * (9/16)
-        color:              "#000010"
-        border.color:       isBackgroundDark ? Qt.rgba(1,1,1,0.75) : Qt.rgba(0,0,0,0.75)
         Loader {
             id:                 pipLoader
             anchors.fill:       parent
@@ -182,11 +176,11 @@ Item {
         width:                  ScreenTools.defaultFontPixelSize * 2
         radius:                 ScreenTools.defaultFontPixelSize / 3
         visible:                _controller.hasVideo && !_isPipVisible
-        color:                  isBackgroundDark ? Qt.rgba(1,1,1,0.5) : Qt.rgba(0,0,0,0.5)
+        color:                  isBackgroundDark ? Qt.rgba(0,0,0,0.75) : Qt.rgba(0,0,0,0.5)
         Image {
             width:              parent.width  * 0.75
             height:             parent.height * 0.75
-            source:             "/qmlimages/buttonRight.svg"
+            source:             "/res/buttonRight.svg"
             mipmap:             true
             fillMode:           Image.PreserveAspectFit
             anchors.verticalCenter:     parent.verticalCenter
@@ -207,7 +201,57 @@ Item {
         anchors.right:      parent.right
         anchors.left:       parent.left
         anchors.bottom:     parent.bottom
-        height:             avaiableHeight
+        height:             availableHeight
+
+        property bool isBackgroundDark: root.isBackgroundDark
     }
 
+    //-- Virtual Joystick
+    Item {
+        id:                         multiTouchItem
+        width:                      parent.width  - (pip.width / 2)
+        height:                     thumbAreaHeight
+        visible:                    QGroundControl.virtualTabletJoystick
+        anchors.bottom:             pip.top
+        anchors.bottomMargin:       ScreenTools.defaultFontPixelHeight * 2
+        anchors.horizontalCenter:   parent.horizontalCenter
+
+        readonly property real thumbAreaHeight: Math.min(parent.height * 0.25, ScreenTools.defaultFontPixelWidth * 16)
+
+        QGCMapPalette { id: mapPal; lightColors: !isBackgroundDark }
+
+        Timer {
+            interval:   40  // 25Hz, same as real joystick rate
+            running:    QGroundControl.virtualTabletJoystick && _activeVehicle
+            repeat:     true
+            onTriggered: {
+                if (_activeVehicle) {
+                    _activeVehicle.virtualTabletJoystickValue(rightStick.xAxis, rightStick.yAxis, leftStick.xAxis, leftStick.yAxis)
+                }
+            }
+        }
+
+        JoystickThumbPad {
+            id:                     leftStick
+            anchors.leftMargin:     xPositionDelta
+            anchors.bottomMargin:   -yPositionDelta
+            anchors.left:           parent.left
+            anchors.bottom:         parent.bottom
+            width:                  parent.thumbAreaHeight
+            height:                 parent.thumbAreaHeight
+            yAxisThrottle:          true
+            lightColors:            !isBackgroundDark
+        }
+
+        JoystickThumbPad {
+            id:                     rightStick
+            anchors.rightMargin:    -xPositionDelta
+            anchors.bottomMargin:   -yPositionDelta
+            anchors.right:          parent.right
+            anchors.bottom:         parent.bottom
+            width:                  parent.thumbAreaHeight
+            height:                 parent.thumbAreaHeight
+            lightColors:            !isBackgroundDark
+        }
+    }
 }

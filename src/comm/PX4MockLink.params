@@ -176,9 +176,11 @@
 1	50	FW_YR_IMAX	                      0.2	9
 1	50	FW_YR_P	                     0.05	9
 1	50	FW_Y_RMAX	                        0	9
+1	50	GF_ACTION	1	6
 1	50	GF_ALTMODE	0	6
 1	50	GF_COUNT	-1	6
-1	50	GF_ON	1	6
+1	50	GF_MAX_HOR_DIST	-1	6
+1	50	GF_MAX_VER_DIST	-1	6
 1	50	GF_SOURCE	0	6
 1	50	INAV_DELAY_GPS	                      0.2	9
 1	50	INAV_ENABLED	0	6
@@ -248,10 +250,12 @@
 1	50	MC_PITCHRATE_I	                        0	9
 1	50	MC_PITCHRATE_P	                     0.13	9
 1	50	MC_PITCH_P	                        7	9
+1	50	MC_PITCH_TC	0.200	9
 1	50	MC_ROLLRATE_D	                    0.004	9
 1	50	MC_ROLLRATE_I	                        0	9
 1	50	MC_ROLLRATE_P	                     0.13	9
 1	50	MC_ROLL_P	                        7	9
+1	50	MC_ROLL_TC	0.200	9
 1	50	MC_YAWRATE_D	                        0	9
 1	50	MC_YAWRATE_I	                     0.25	9
 1	50	MC_YAWRATE_MAX	                      120	9
@@ -268,6 +272,8 @@
 1	50	MPC_MAN_P_MAX	                       35	9
 1	50	MPC_MAN_R_MAX	                       35	9
 1	50	MPC_MAN_Y_MAX	                      120	9
+1	50	MPC_MANTHR_MAX	0.900	9
+1	50	MPC_MANTHR_MIN	0.080	9
 1	50	MPC_THR_MAX	                        1	9
 1	50	MPC_THR_MIN	                      0.1	9
 1	50	MPC_TILTMAX_AIR	                       45	9

@@ -24,6 +24,10 @@
 #ifndef QGCMESSAGEBOX_H
 #define QGCMESSAGEBOX_H
 
+#ifdef __mobile__
+#error Should not be included in mobile builds
+#endif
+
 #include <QMessageBox>
 
 #include "MainWindow.h"
@@ -116,7 +120,7 @@ private:
 #endif
 #endif
         {
-#ifdef Q_OS_MAC
+#ifdef __macos__
             QString emptyTitle;
             QMessageBox box(icon, emptyTitle, title, buttons, parent);
             box.setDefaultButton(defaultButton);

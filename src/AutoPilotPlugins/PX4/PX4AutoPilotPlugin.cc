@@ -26,10 +26,10 @@
 #include "PX4AirframeLoader.h"
 #include "FlightModesComponentController.h"
 #include "AirframeComponentController.h"
-#include "QGCMessageBox.h"
 #include "UAS.h"
 #include "FirmwarePlugin/PX4/PX4ParameterMetaData.h"  // FIXME: Hack
 #include "FirmwarePlugin/PX4/PX4FirmwarePlugin.h"  // FIXME: Hack
+#include "QGCApplication.h"
 
 /// @file
 ///     @brief This is the AutoPilotPlugin implementatin for the MAV_AUTOPILOT_PX4 type.
@@ -69,6 +69,7 @@ PX4AutoPilotPlugin::PX4AutoPilotPlugin(Vehicle* vehicle, QObject* parent) :
     AutoPilotPlugin(vehicle, parent),
     _airframeComponent(NULL),
     _radioComponent(NULL),
+    _esp8266Component(NULL),
     _flightModesComponent(NULL),
     _sensorsComponent(NULL),
     _safetyComponent(NULL),
@@ -95,34 +96,39 @@ const QVariantList& PX4AutoPilotPlugin::vehicleComponents(void)
         
         if (parametersReady()) {
             _airframeComponent = new AirframeComponent(_vehicle, this);
-            Q_CHECK_PTR(_airframeComponent);
             _airframeComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_airframeComponent));
             
-            _radioComponent = new RadioComponent(_vehicle, this);
-            Q_CHECK_PTR(_radioComponent);
+            _radioComponent = new PX4RadioComponent(_vehicle, this);
             _radioComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_radioComponent));
-            
+
+            //-- Is there an ESP8266 Connected?
+            if(factExists(FactSystem::ParameterProvider, MAV_COMP_ID_UDP_BRIDGE, "SW_VER")) {
+                _esp8266Component = new PX4ESP8266Component(_vehicle, this);
+                _esp8266Component->setupTriggerSignals();
+                _components.append(QVariant::fromValue((VehicleComponent*)_esp8266Component));
+            }
+
             _flightModesComponent = new FlightModesComponent(_vehicle, this);
-            Q_CHECK_PTR(_flightModesComponent);
             _flightModesComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_flightModesComponent));
             
             _sensorsComponent = new SensorsComponent(_vehicle, this);
-            Q_CHECK_PTR(_sensorsComponent);
             _sensorsComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_sensorsComponent));
             
             _powerComponent = new PowerComponent(_vehicle, this);
-            Q_CHECK_PTR(_powerComponent);
             _powerComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_powerComponent));
             
             _safetyComponent = new SafetyComponent(_vehicle, this);
-            Q_CHECK_PTR(_safetyComponent);
             _safetyComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_safetyComponent));
+
+            _tuningComponent = new PX4TuningComponent(_vehicle, this);
+            _tuningComponent->setupTriggerSignals();
+            _components.append(QVariant::fromValue((VehicleComponent*)_tuningComponent));
         } else {
             qWarning() << "Call to vehicleCompenents prior to parametersReady";
         }
@@ -139,8 +145,8 @@ void PX4AutoPilotPlugin::_parametersReadyPreChecks(bool missingParameters)
     // should be used instead.
     if (parameterExists(FactSystem::defaultComponentId, "SENS_GYRO_XOFF")) {
         _incorrectParameterVersion = true;
-        QGCMessageBox::warning("Setup", "This version of GroundControl can only perform vehicle setup on a newer version of firmware. "
-										"Please perform a Firmware Upgrade if you wish to use Vehicle Setup.");
+        qgcApp()->showMessage("This version of GroundControl can only perform vehicle setup on a newer version of firmware. "
+                              "Please perform a Firmware Upgrade if you wish to use Vehicle Setup.");
 	}
 	
     _parametersReady = true;

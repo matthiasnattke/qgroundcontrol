@@ -41,6 +41,18 @@ Item {
 
     property bool _isInstrumentVisible: QGroundControl.loadBoolGlobalSetting(_InstrumentVisibleKey, true)
 
+    QGCMapPalette { id: mapPal; lightColors: !isBackgroundDark }
+
+    function getGadgetWidth() {
+        if(ScreenTools.isMobile) {
+            if(ScreenTools.isTinyScreen)
+                return mainWindow.width * 0.2
+            return mainWindow.width * 0.15
+        }
+        var w = mainWindow.width * 0.15
+        return Math.min(w, 200)
+    }
+
     ExclusiveGroup {
         id: _dropButtonsExclusiveGroup
     }
@@ -61,6 +73,7 @@ Item {
                 visible:                !object.coordinateValid
                 text:                   "No GPS Lock for Vehicle #" + object.id
                 z:                      QGroundControl.zOrderMapItems - 2
+                color:                  mapPal.text
             }
         }
     }
@@ -78,11 +91,12 @@ Item {
 
     //-- Instrument Panel
     QGCInstrumentWidget {
+        id:                     instrumentGadget
         anchors.margins:        ScreenTools.defaultFontPixelHeight
         anchors.right:          parent.right
         anchors.verticalCenter: parent.verticalCenter
-        visible:                _isInstrumentVisible
-        size:                   ScreenTools.isTinyScreen ? mainWindow.width * 0.2 : mainWindow.width * 0.15
+        visible:                _isInstrumentVisible && !QGroundControl.virtualTabletJoystick
+        size:                   getGadgetWidth()
         active:                 _activeVehicle != null
         heading:                _heading
         rollAngle:              _roll
@@ -98,6 +112,55 @@ Item {
         }
     }
 
+    //-- Alternate Instrument Panel
+    Rectangle {
+        visible:            QGroundControl.virtualTabletJoystick
+        anchors.margins:    ScreenTools.defaultFontPixelHeight
+        anchors.right:      parent.right
+        anchors.bottom:     parent.bottom
+        width:              _pipSize
+        height:             _pipSize * (9/16)
+        color:              Qt.rgba(0,0,0,0.75)
+        Column {
+            id:                 instruments
+            width:              parent.width
+            spacing:            ScreenTools.defaultFontPixelSize * 0.33
+            anchors.verticalCenter: parent.verticalCenter
+            QGCLabel {
+                text:           "Altitude (m)"
+                font.pixelSize: ScreenTools.defaultFontPixelSize * 0.75
+                width:          parent.width
+                height:         ScreenTools.defaultFontPixelSize * 0.75
+                color:          "white"
+                horizontalAlignment: TextEdit.AlignHCenter
+            }
+            QGCLabel {
+                text:           _altitudeWGS84 < 10000 ? _altitudeWGS84.toFixed(1) : _altitudeWGS84.toFixed(0)
+                font.pixelSize: ScreenTools.defaultFontPixelSize * 1.5
+                font.weight:    Font.DemiBold
+                width:          parent.width
+                color:          "white"
+                horizontalAlignment: TextEdit.AlignHCenter
+            }
+            QGCLabel {
+                text:           "Ground Speed (km/h)"
+                font.pixelSize: ScreenTools.defaultFontPixelSize * 0.75
+                width:          parent.width
+                height:         ScreenTools.defaultFontPixelSize * 0.75
+                color:          "white"
+                horizontalAlignment: TextEdit.AlignHCenter
+            }
+            QGCLabel {
+                text:           (_groundSpeed * 3.6).toFixed(1)
+                font.pixelSize: ScreenTools.defaultFontPixelSize
+                font.weight:    Font.DemiBold
+                width:          parent.width
+                color:          "white"
+                horizontalAlignment: TextEdit.AlignHCenter
+            }
+        }
+    }
+
     //-- Show (Hidden) Instrument Panel
     Rectangle {
         id:                     openButton
@@ -107,12 +170,12 @@ Item {
         height:                 ScreenTools.defaultFontPixelSize * 2
         width:                  ScreenTools.defaultFontPixelSize * 2
         radius:                 ScreenTools.defaultFontPixelSize / 3
-        visible:                !_isInstrumentVisible
-        color:                  isBackgroundDark ? Qt.rgba(1,1,1,0.5) : Qt.rgba(0,0,0,0.5)
+        visible:                !_isInstrumentVisible && !QGroundControl.virtualTabletJoystick
+        color:                  isBackgroundDark ? Qt.rgba(0,0,0,0.75) : Qt.rgba(0,0,0,0.5)
         Image {
             width:              parent.width  * 0.75
             height:             parent.height * 0.75
-            source:             "/qmlimages/buttonLeft.svg"
+            source:             "/res/buttonLeft.svg"
             mipmap:             true
             fillMode:           Image.PreserveAspectFit
             anchors.verticalCenter:     parent.verticalCenter

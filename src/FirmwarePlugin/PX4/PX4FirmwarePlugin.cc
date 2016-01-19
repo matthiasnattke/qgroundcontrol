@@ -174,11 +174,12 @@ bool PX4FirmwarePlugin::setFlightMode(const QString& flightMode, uint8_t* base_m
 
 int PX4FirmwarePlugin::manualControlReservedButtonCount(void)
 {
-    return 8;   // 8 buttons reserved for rc switch simulation
+    return 0;   // 0 buttons reserved for rc switch simulation
 }
 
-void PX4FirmwarePlugin::adjustMavlinkMessage(mavlink_message_t* message)
+void PX4FirmwarePlugin::adjustMavlinkMessage(Vehicle* vehicle, mavlink_message_t* message)
 {
+    Q_UNUSED(vehicle);
     Q_UNUSED(message);
 
     // PX4 Flight Stack plugin does no message adjustment
@@ -203,7 +204,22 @@ bool PX4FirmwarePlugin::sendHomePositionToVehicle(void)
     return false;
 }
 
-void PX4FirmwarePlugin::addMetaDataToFact(Fact* fact)
+void PX4FirmwarePlugin::addMetaDataToFact(Fact* fact, MAV_TYPE vehicleType)
 {
-    _parameterMetaData.addMetaDataToFact(fact);
+    _parameterMetaData.addMetaDataToFact(fact, vehicleType);
+}
+
+QList<MAV_CMD> PX4FirmwarePlugin::supportedMissionCommands(void)
+{
+    QList<MAV_CMD> list;
+
+    list << MAV_CMD_NAV_WAYPOINT
+         << MAV_CMD_NAV_LOITER_UNLIM << MAV_CMD_NAV_LOITER_TURNS << MAV_CMD_NAV_LOITER_TIME
+         << MAV_CMD_NAV_RETURN_TO_LAUNCH << MAV_CMD_NAV_LAND << MAV_CMD_NAV_TAKEOFF
+         << MAV_CMD_NAV_ROI
+         << MAV_CMD_DO_JUMP
+         << MAV_CMD_CONDITION_DELAY
+         << MAV_CMD_DO_VTOL_TRANSITION
+         << MAV_CMD_DO_DIGICAM_CONTROL;
+    return list;
 }

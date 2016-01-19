@@ -32,8 +32,7 @@ import QGroundControl.Vehicle       1.0
 MapQuickItem {
     id: _item
 
-    property alias  label:          _label.label
-    property alias  isCurrentItem:  _label.isCurrentItem
+    property var missionItem
 
     signal clicked
 
@@ -42,8 +41,9 @@ MapQuickItem {
 
     sourceItem:
         MissionItemIndexLabel {
-            id: _label
-
-            onClicked: _item.clicked()
+            id:             _label
+            isCurrentItem:  missionItem.isCurrentItem
+            label:          missionItem.sequenceNumber == 0 ? "H" : missionItem.sequenceNumber
+            onClicked:      _item.clicked()
         }
 }

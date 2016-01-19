@@ -151,7 +151,7 @@ void QmlObjectListModel::clear(void)
 QObject* QmlObjectListModel::removeAt(int i)
 {
     QObject* removedObject = _objectList[i];
-    
+
     // Look for a dirtyChanged signal on the object
     if (_objectList[i]->metaObject()->indexOfSignal(QMetaObject::normalizedSignature("dirtyChanged(bool)")) != -1) {
         if (!_skipDirtyFirstItem || i != 0) {
@@ -195,11 +195,6 @@ void QmlObjectListModel::append(QObject* object)
 int QmlObjectListModel::count(void) const
 {
     return rowCount();
-}
-
-QObject* QmlObjectListModel::get(int index)
-{
-    return _objectList[index];
 }
 
 void QmlObjectListModel::setDirty(bool dirty)

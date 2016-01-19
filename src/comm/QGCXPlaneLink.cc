@@ -180,17 +180,16 @@ void QGCXPlaneLink::run()
 
     emit statusMessage(tr("Waiting for XPlane.."));
 
-    QObject::connect(socket, SIGNAL(readyRead()), this, SLOT(readBytes()));
+    QObject::connect(socket, &QUdpSocket::readyRead, this, &QGCXPlaneLink::readBytes);
 
-    connect(_vehicle->uas(), SIGNAL(hilControlsChanged(quint64, float, float, float, float, quint8, quint8)), this, SLOT(updateControls(quint64,float,float,float,float,quint8,quint8)), Qt::QueuedConnection);
-    connect(_vehicle->uas(), SIGNAL(hilActuatorsChanged(quint64, float, float, float, float, float, float, float, float)), this, SLOT(updateActuators(quint64,float,float,float,float,float,float,float,float)), Qt::QueuedConnection);
+    connect(_vehicle->uas(), &UAS::hilControlsChanged, this, &QGCXPlaneLink::updateControls, Qt::QueuedConnection);
 
-    connect(this, SIGNAL(hilGroundTruthChanged(quint64,float,float,float,float,float,float,double,double,double,float,float,float,float,float,float,float,float)), _vehicle->uas(), SLOT(sendHilGroundTruth(quint64,float,float,float,float,float,float,double,double,double,float,float,float,float,float,float,float,float)), Qt::QueuedConnection);
-    connect(this, SIGNAL(hilStateChanged(quint64,float,float,float,float,float,float,double,double,double,float,float,float,float,float,float,float,float)), _vehicle->uas(), SLOT(sendHilState(quint64,float,float,float,float,float,float,double,double,double,float,float,float,float,float,float,float,float)), Qt::QueuedConnection);
-    connect(this, SIGNAL(sensorHilGpsChanged(quint64,double,double,double,int,float,float,float,float,float,float,float,int)), _vehicle->uas(), SLOT(sendHilGps(quint64,double,double,double,int,float,float,float,float,float,float,float,int)), Qt::QueuedConnection);
-    connect(this, SIGNAL(sensorHilRawImuChanged(quint64,float,float,float,float,float,float,float,float,float,float,float,float,float,quint32)), _vehicle->uas(), SLOT(sendHilSensors(quint64,float,float,float,float,float,float,float,float,float,float,float,float,float,quint32)), Qt::QueuedConnection);
+    connect(this, &QGCXPlaneLink::hilGroundTruthChanged, _vehicle->uas(), &UAS::sendHilGroundTruth, Qt::QueuedConnection);
+    connect(this, &QGCXPlaneLink::hilStateChanged, _vehicle->uas(), &UAS::sendHilState, Qt::QueuedConnection);
+    connect(this, &QGCXPlaneLink::sensorHilGpsChanged, _vehicle->uas(), &UAS::sendHilGps, Qt::QueuedConnection);
+    connect(this, &QGCXPlaneLink::sensorHilRawImuChanged, _vehicle->uas(), &UAS::sendHilSensors, Qt::QueuedConnection);
 
-        _vehicle->uas()->startHil();
+    _vehicle->uas()->startHil();
 
 #pragma pack(push, 1)
     struct iset_struct
@@ -239,17 +238,15 @@ void QGCXPlaneLink::run()
         QGC::SLEEP::msleep(5);
     }
 
-    disconnect(_vehicle->uas(), SIGNAL(hilControlsChanged(quint64, float, float, float, float, quint8, quint8)), this, SLOT(updateControls(quint64,float,float,float,float,quint8,quint8)));
-    disconnect(_vehicle->uas(), SIGNAL(hilActuatorsChanged(quint64, float, float, float, float, float, float, float, float)), this, SLOT(updateActuators(quint64,float,float,float,float,float,float,float,float)));
+    disconnect(_vehicle->uas(), &UAS::hilControlsChanged, this, &QGCXPlaneLink::updateControls);
 
-    disconnect(this, SIGNAL(hilGroundTruthChanged(quint64,float,float,float,float,float,float,double,double,double,float,float,float,float,float,float,float,float)), _vehicle->uas(), SLOT(sendHilGroundTruth(quint64,float,float,float,float,float,float,double,double,double,float,float,float,float,float,float,float,float)));
-    disconnect(this, SIGNAL(hilStateChanged(quint64,float,float,float,float,float,float,double,double,double,float,float,float,float,float,float,float,float)), _vehicle->uas(), SLOT(sendHilState(quint64,float,float,float,float,float,float,double,double,double,float,float,float,float,float,float,float,float)));
-    disconnect(this, SIGNAL(sensorHilGpsChanged(quint64,double,double,double,int,float,float,float,float,float,float,float,int)), _vehicle->uas(), SLOT(sendHilGps(quint64,double,double,double,int,float,float,float,float,float,float,float,int)));
-    disconnect(this, SIGNAL(sensorHilRawImuChanged(quint64,float,float,float,float,float,float,float,float,float,float,float,float,float,quint32)), _vehicle->uas(), SLOT(sendHilSensors(quint64,float,float,float,float,float,float,float,float,float,float,float,float,float,quint32)));
-
+    disconnect(this, &QGCXPlaneLink::hilGroundTruthChanged, _vehicle->uas(), &UAS::sendHilGroundTruth);
+    disconnect(this, &QGCXPlaneLink::hilStateChanged, _vehicle->uas(), &UAS::sendHilState);
+    disconnect(this, &QGCXPlaneLink::sensorHilGpsChanged, _vehicle->uas(), &UAS::sendHilGps);
+    disconnect(this, &QGCXPlaneLink::sensorHilRawImuChanged, _vehicle->uas(), &UAS::sendHilSensors);
     connectState = false;
 
-    QObject::disconnect(socket, SIGNAL(readyRead()), this, SLOT(readBytes()));
+    disconnect(socket, &QUdpSocket::readyRead, this, &QGCXPlaneLink::readBytes);
 
     socket->close();
     socket->deleteLater();
@@ -350,68 +347,6 @@ void QGCXPlaneLink::setRemoteHost(const QString& newHost)
     }
 
     emit remoteChanged(QString("%1:%2").arg(remoteHost.toString()).arg(remotePort));
-}
-
-void QGCXPlaneLink::updateActuators(quint64 time, float act1, float act2, float act3, float act4, float act5, float act6, float act7, float act8)
-{
-    if (_vehicle->vehicleType() == MAV_TYPE_QUADROTOR)
-    // Only update this for multirotors
-    {
-
-        Q_UNUSED(time);
-        Q_UNUSED(act5);
-        Q_UNUSED(act6);
-        Q_UNUSED(act7);
-        Q_UNUSED(act8);
-
-    #pragma pack(push, 1)
-        struct payload {
-            char b[5];
-            int index;
-            float f[8];
-        } p;
-    #pragma pack(pop)
-
-        p.b[0] = 'D';
-        p.b[1] = 'A';
-        p.b[2] = 'T';
-        p.b[3] = 'A';
-        p.b[4] = '\0';
-
-        p.index = 25;
-        memset(p.f, 0, sizeof(p.f));
-
-        p.f[0] = act1;
-        p.f[1] = act2;
-        p.f[2] = act3;
-        p.f[3] = act4;
-
-        // XXX the system corrects for the scale onboard, do not scale again
-
-//        if (airframeID == AIRFRAME_QUAD_X_MK_10INCH_I2C)
-//        {
-//            p.f[0] = act1 / 255.0f;
-//            p.f[1] = act2 / 255.0f;
-//            p.f[2] = act3 / 255.0f;
-//            p.f[3] = act4 / 255.0f;
-//        }
-//        else if (airframeID == AIRFRAME_QUAD_X_ARDRONE)
-//        {
-//            p.f[0] = act1 / 500.0f;
-//            p.f[1] = act2 / 500.0f;
-//            p.f[2] = act3 / 500.0f;
-//            p.f[3] = act4 / 500.0f;
-//        }
-//        else
-//        {
-//            p.f[0] = (act1 - 1000.0f) / 1000.0f;
-//            p.f[1] = (act2 - 1000.0f) / 1000.0f;
-//            p.f[2] = (act3 - 1000.0f) / 1000.0f;
-//            p.f[3] = (act4 - 1000.0f) / 1000.0f;
-//        }
-        // Throttle
-        writeBytes((const char*)&p, sizeof(p));
-    }
 }
 
 void QGCXPlaneLink::updateControls(quint64 time, float rollAilerons, float pitchElevator, float yawRudder, float throttle, quint8 systemMode, quint8 navMode)
@@ -533,7 +468,7 @@ void QGCXPlaneLink::readBytes()
     bool emitUpdate = false;
     quint16 fields_changed = 0;
 
-    const qint64 maxLength = 1000;
+    const qint64 maxLength = 65536;
     char data[maxLength];
     QHostAddress sender;
     quint16 senderPort;

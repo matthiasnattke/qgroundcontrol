@@ -196,7 +196,7 @@ void UrlFactory::_tryCorrectGoogleVersions()
         _network->setProxy(tProxy);
         QString url = "http://maps.google.com/maps?output=classic";
         qheader.setUrl(QUrl(url));
-#if defined Q_OS_MACX
+#if defined Q_OS_MAC
         QByteArray userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0";
 #elif defined Q_OS_WIN32
         QByteArray userAgent = "Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US; rv:1.9.1.7) Gecko/20091221 Firefox/3.5.7";
@@ -205,9 +205,11 @@ void UrlFactory::_tryCorrectGoogleVersions()
 #endif
         qheader.setRawHeader("User-Agent", userAgent);
         _googleReply = _network->get(qheader);
-        connect(_googleReply, SIGNAL(finished()), this, SLOT(_googleVersionCompleted()));
-        connect(_googleReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(_networkReplyError(QNetworkReply::NetworkError)));
-        connect(_googleReply, SIGNAL(destroyed()), this, SLOT(_replyDestroyed()));
+        connect(_googleReply, &QNetworkReply::finished, this, &UrlFactory::_googleVersionCompleted);
+        connect(_googleReply, &QNetworkReply::destroyed, this, &UrlFactory::_replyDestroyed);
+
+        connect(_googleReply, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error),
+                this, &UrlFactory::_networkReplyError);
         _network->setProxy(proxy);
     }
 }

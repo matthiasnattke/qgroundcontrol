@@ -26,19 +26,24 @@
 
 #include "ParameterEditorController.h"
 #include "AutoPilotPluginManager.h"
+#include "QGCApplication.h"
+
+#ifndef __mobile__
 #include "QGCFileDialog.h"
-#include "QGCMessageBox.h"
 #include "QGCMapRCToParamDialog.h"
 #include "MainWindow.h"
+#endif
 
 /// @Brief Constructs a new ParameterEditorController Widget. This widget is used within the PX4VehicleConfig set of screens.
 ParameterEditorController::ParameterEditorController(void)
 {
-    const QMap<int, QMap<QString, QStringList> >& groupMap = _autopilot->getGroupMap();
-    
-    foreach (int componentId, groupMap.keys()) {
-		_componentIds += QString("%1").arg(componentId);
-	}
+    if (_autopilot) {
+        const QMap<int, QMap<QString, QStringList> >& groupMap = _autopilot->getGroupMap();
+
+        foreach (int componentId, groupMap.keys()) {
+            _componentIds += QString("%1").arg(componentId);
+        }
+    }
 }
 
 ParameterEditorController::~ParameterEditorController()
@@ -64,7 +69,7 @@ QStringList ParameterEditorController::searchParametersForComponent(int componen
 {
     QStringList list;
     
-    foreach(QString paramName, _autopilot->parameterNames(componentId)) {
+    foreach(const QString &paramName, _autopilot->parameterNames(componentId)) {
         if (searchText.isEmpty()) {
             list += paramName;
         } else {
@@ -90,13 +95,17 @@ void ParameterEditorController::clearRCToParam(void)
 
 void ParameterEditorController::saveToFile(void)
 {
-	Q_ASSERT(_autopilot);
-	
+#ifndef __mobile__
+    if (!_autopilot) {
+        qWarning() << "Internal error _autopilot==NULL";
+        return;
+    }
+
     QString msgTitle("Save Parameters");
     
 	QString fileName = QGCFileDialog::getSaveFileName(NULL,
                                                       msgTitle,
-                                                      qgcApp()->savedParameterFilesLocation(),
+                                                      QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation),
                                                       "Parameter Files (*.params)",
                                                       "params",
                                                       true);
@@ -104,7 +113,7 @@ void ParameterEditorController::saveToFile(void)
 		QFile file(fileName);
         
 		if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QGCMessageBox::critical(msgTitle, "Unable to create file");
+            qgcApp()->showMessage("Unable to create file");
 			return;
 		}
         
@@ -112,25 +121,30 @@ void ParameterEditorController::saveToFile(void)
 		_autopilot->writeParametersToStream(stream);
 		file.close();
 	}
+#endif
 }
 
 void ParameterEditorController::loadFromFile(void)
 {
+#ifndef __mobile__
     QString errors;
     
-    Q_ASSERT(_autopilot);
-    
+    if (!_autopilot) {
+        qWarning() << "Internal error _autopilot==NULL";
+        return;
+    }
+
     QString msgTitle("Load Parameters");
     
 	QString fileName = QGCFileDialog::getOpenFileName(NULL,
                                                       msgTitle,
-                                                      qgcApp()->savedParameterFilesLocation(),
+                                                      QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation),
 													  "Parameter Files (*.params);;All Files (*)");
     if (!fileName.isEmpty()) {
         QFile file(fileName);
         
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QGCMessageBox::critical(msgTitle, "Unable to open file");
+            qgcApp()->showMessage("Unable to open file");
             return;
         }
         
@@ -142,6 +156,7 @@ void ParameterEditorController::loadFromFile(void)
             emit showErrorMessage(errors);
         }
     }
+#endif
 }
 
 void ParameterEditorController::refresh(void)
@@ -157,7 +172,11 @@ void ParameterEditorController::resetAllToDefaults(void)
 
 void ParameterEditorController::setRCToParam(const QString& paramName)
 {
+#ifdef __mobile__
+    Q_UNUSED(paramName)
+#else
 	Q_ASSERT(_uas);
     QGCMapRCToParamDialog * d = new QGCMapRCToParamDialog(paramName, _uas, qgcApp()->toolbox()->multiVehicleManager(), MainWindow::instance());
 	d->exec();
+#endif
 }

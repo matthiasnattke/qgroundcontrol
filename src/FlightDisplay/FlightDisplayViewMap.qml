@@ -39,36 +39,21 @@ FlightMap {
     id:             flightMap
     anchors.fill:   parent
     mapName:        _mapName
-    latitude:       root._defaultCoordinate.latitude
-    longitude:      root._defaultCoordinate.longitude
 
-    property var    rootVehicleCoordinate:  _vehicleCoordinate
-    property bool   _followVehicle:         true
+    property bool   _followVehicle:                 true
+    property bool   _activeVehicleCoordinateValid:  multiVehicleManager.activeVehicle ? multiVehicleManager.activeVehicle.coordinateValid : false
+    property var    activeVehicleCoordinate:        multiVehicleManager.activeVehicle ? multiVehicleManager.activeVehicle.coordinate : QtPositioning.coordinate()
 
-    onRootVehicleCoordinateChanged: updateMapPosition(false /* force */)
-
-    function updateMapPosition(force) {
-        if (_followVehicle || force) {
-            flightMap.latitude  = root._vehicleCoordinate.latitude
-            flightMap.longitude = root._vehicleCoordinate.longitude
+    onActiveVehicleCoordinateChanged: {
+        if (_followVehicle && _activeVehicleCoordinateValid && activeVehicleCoordinate.isValid) {
+            _initialMapPositionSet = true
+            flightMap.center  = activeVehicleCoordinate
         }
     }
 
     MissionController {
         id: _missionController
         Component.onCompleted: start(false /* editMode */)
-    }
-
-    // Home position
-    MissionItemIndicator {
-        label:          "H"
-        coordinate:     (_activeVehicle && _activeVehicle.homePositionAvailable) ? _activeVehicle.homePosition : QtPositioning.coordinate(0, 0)
-        visible: {
-            if(!_mainIsMap)
-                return false;
-            return _activeVehicle ? _activeVehicle.homePositionAvailable : false
-        }
-        z:              QGroundControl.zOrderMapItems
     }
 
     // Add trajectory points to the map

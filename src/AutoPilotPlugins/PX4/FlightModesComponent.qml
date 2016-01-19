@@ -35,7 +35,7 @@ import QGroundControl.Controllers   1.0
 import QGroundControl.ScreenTools   1.0
 
 QGCView {
-    id:         rootQGCView
+    id:         qgcView
     viewPanel:  panel
 
     readonly property int monitorThresholdCharWidth: 8  // Character width of Monitor and Threshold labels
@@ -136,10 +136,9 @@ QGCView {
         running:    true
 
         onTriggered: {
+            recalcModePositions()
             if (rcInMode.value == 1) {
-                showDialog(joystickEnabledDialogComponent, title, 50, 0)
-            } else {
-                recalcModePositions()
+                showDialog(joystickEnabledDialogComponent, title, qgcView.showDialogDefaultWidth, 0)
             }
         }
     }
@@ -227,7 +226,7 @@ QGCView {
                         anchors.left:           parent.left
                         anchors.right:          applyButton.left
                         text:                   topHelpText
-                        font.pixelSize:         ScreenTools.mediumFontPixelSize
+                        font.pixelSize:         ScreenTools.defaultFontPixelSize
                         wrapMode:               Text.WordWrap
                     }
 

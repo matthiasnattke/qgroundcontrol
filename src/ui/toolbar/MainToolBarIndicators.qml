@@ -34,32 +34,34 @@ import QGroundControl.ScreenTools   1.0
 Row {
     spacing:  tbSpacing * 2
 
-    function getSatStrength(count) {
-        if (count < 1)
-            return 0
-        if (count < 4)
-            return 20
-        if (count < 6)
-            return 40
-        if (count < 8)
-            return 60
-        if (count < 10)
-            return 80
-        return 100
+    function getSatStrength(hdop) {
+        if (hdop < 3)
+            return 100
+        if (hdop < 6)
+            return 75
+        if (hdop < 11)
+            return 50
+        if (hdop < 21)
+            return 25
+        return 0
     }
 
     function getMessageColor() {
-        if (activeVehicle.messageTypeNone)
-            return colorGrey
-        if (activeVehicle.messageTypeNormal)
-            return colorBlue;
-        if (activeVehicle.messageTypeWarning)
-            return colorOrange;
-        if (activeVehicle.messageTypeError)
-            return colorRed;
-        // Cannot be so make make it obnoxious to show error
-        console.log("Invalid vehicle message type")
-        return "purple";
+        if (activeVehicle) {
+            if (activeVehicle.messageTypeNone)
+                return colorGrey
+            if (activeVehicle.messageTypeNormal)
+                return colorBlue;
+            if (activeVehicle.messageTypeWarning)
+                return colorOrange;
+            if (activeVehicle.messageTypeError)
+                return colorRed;
+            // Cannot be so make make it obnoxious to show error
+            console.log("Invalid vehicle message type")
+            return "purple";
+        }
+        //-- It can only get here when closing (vehicle gone while window active)
+        return "white";
     }
 
     function getBatteryVoltageText() {
@@ -75,44 +77,36 @@ Row {
     }
 
     function getBatteryPercentageText() {
-        if(activeVehicle.batteryPercent > 98.9) {
-            return "100%"
-        }
-        if(activeVehicle.batteryPercent > 0.1) {
-            return activeVehicle.batteryPercent.toFixed(0) + "%"
+        if(activeVehicle) {
+            if(activeVehicle.batteryPercent > 98.9) {
+                return "100%"
+            }
+            if(activeVehicle.batteryPercent > 0.1) {
+                return activeVehicle.batteryPercent.toFixed(0) + "%"
+            }
+            if(activeVehicle.batteryVoltage > 0) {
+                return activeVehicle.batteryVoltage.toFixed(1) + "V"
+            }
         }
         return "N/A"
-    }
-
-    function getBatteryColor() {
-        if(activeVehicle.batteryPercent > 75) {
-            return colorGreen
-        }
-        if(activeVehicle.batteryPercent > 50) {
-            return colorOrange
-        }
-        if(activeVehicle.batteryPercent > 0.1) {
-            return colorRed
-        }
-        return colorGrey
     }
 
     //-------------------------------------------------------------------------
     //-- Message Indicator
     Item {
         id:         messages
-        width:      cellHeight
-        height:     cellHeight
-        visible:    activeVehicle.messageCount
+        width:      mainWindow.tbCellHeight
+        height:     mainWindow.tbCellHeight
+        visible:    activeVehicle ? activeVehicle.messageCount : false
         anchors.verticalCenter: parent.verticalCenter
 
         Item {
             id:                 criticalMessage
             anchors.fill:       parent
-            visible:            activeVehicle.messageCount > 0 && isMessageImportant
+            visible:            activeVehicle ? (activeVehicle.messageCount > 0 && isMessageImportant) : false
             Image {
                 source:         "/qmlimages/Yield.svg"
-                height:         cellHeight * 0.75
+                height:         mainWindow.tbCellHeight * 0.75
                 fillMode:       Image.PreserveAspectFit
                 mipmap:         true
                 smooth:         true
@@ -142,7 +136,7 @@ Row {
             Image {
                 id:             messageIcon
                 source:         "/qmlimages/Megaphone.svg"
-                height:         cellHeight * 0.5
+                height:         mainWindow.tbCellHeight * 0.5
                 fillMode:       Image.PreserveAspectFit
                 mipmap:         true
                 smooth:         true
@@ -160,8 +154,7 @@ Row {
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                var p = mapToItem(toolBar, mouseX, mouseY);
-                _controller.onEnterMessageArea(p.x, p.y);
+                mainWindow.showMessageArea()
             }
         }
     }
@@ -171,7 +164,7 @@ Row {
     Item {
         id:     satelitte
         width:  gpsRow.width * 1.1
-        height: cellHeight
+        height: mainWindow.tbCellHeight
         Row {
             id:     gpsRow
             height: parent.height
@@ -181,25 +174,32 @@ Row {
                 fillMode:       Image.PreserveAspectFit
                 mipmap:         true
                 smooth:         true
-                width:          cellHeight * 0.65
-                height:         cellHeight * 0.5
-                opacity:        activeVehicle.satelliteCount < 1 ? 0.5 : 1
+                width:          mainWindow.tbCellHeight * 0.65
+                height:         mainWindow.tbCellHeight * 0.5
+                opacity:        (activeVehicle && activeVehicle.satelliteCount >= 0) ? 1 : 0.5
                 anchors.verticalCenter: parent.verticalCenter
             }
             SignalStrength {
-                size:           cellHeight * 0.5
-                percent:        getSatStrength(activeVehicle.satelliteCount)
+                size:           mainWindow.tbCellHeight * 0.5
+                percent:        activeVehicle ? getSatStrength(activeVehicle.satRawHDOP) : ""
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
         QGCLabel {
-            text:           activeVehicle.satelliteCount
+            text:           (activeVehicle && activeVehicle.satelliteCount >= 0) ? activeVehicle.satelliteCount : ""
+            visible:        (activeVehicle && activeVehicle.satelliteCount >= 0)
             font.pixelSize: tbFontSmall
             color:          colorWhite
-            opacity:        activeVehicle.satelliteCount < 1 ? 0.5 : 1
             anchors.top:    parent.top
             anchors.leftMargin: gpsIcon.width
             anchors.left:   parent.left
+        }
+        MouseArea {
+            anchors.fill:   parent
+            onClicked: {
+                var centerX = mapToItem(toolBar, x, y).x + (width / 2)
+                mainWindow.showPopUp(gpsInfo, centerX)
+            }
         }
     }
 
@@ -208,7 +208,7 @@ Row {
     Item {
         id:     rcRssi
         width:  rssiRow.width * 1.1
-        height: cellHeight
+        height: mainWindow.tbCellHeight
         Row {
             id:     rssiRow
             height: parent.height
@@ -217,15 +217,55 @@ Row {
                 fillMode:       Image.PreserveAspectFit
                 mipmap:         true
                 smooth:         true
-                width:          cellHeight * 0.65
-                height:         cellHeight * 0.5
-                opacity:        _controller.remoteRSSI < 1 ? 0.5 : 1
+                width:          mainWindow.tbCellHeight * 0.65
+                height:         mainWindow.tbCellHeight * 0.5
+                opacity:        activeVehicle ? (activeVehicle.rcRSSI < 1 ? 0.5 : 1) : 0.5
                 anchors.verticalCenter: parent.verticalCenter
             }
             SignalStrength {
-                size:           cellHeight * 0.5
-                percent:        _controller.remoteRSSI
+                size:           mainWindow.tbCellHeight * 0.5
+                percent:        activeVehicle ? activeVehicle.rcRSSI : 0
                 anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+        MouseArea {
+            anchors.fill:   parent
+            onClicked: {
+                var centerX = mapToItem(toolBar, x, y).x + (width / 2)
+                mainWindow.showPopUp(rcRSSIInfo, centerX)
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    //-- Telemetry RSSI
+    Item {
+        id:         telemRssi
+        width:      telemIcon.width
+        height:     mainWindow.tbCellHeight
+        visible:    _controller.telemetryLRSSI < 0
+        Image {
+            id:             telemIcon
+            source:         "/qmlimages/TelemRSSI.svg"
+            fillMode:       Image.PreserveAspectFit
+            mipmap:         true
+            smooth:         true
+            height:         parent.height * 0.5
+            width:          height * 1.5
+            visible:        false
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        ColorOverlay {
+            id:             telemOverlay
+            anchors.fill:   telemIcon
+            source:         telemIcon
+            color:          getRSSIColor(_controller.telemetryLRSSI)
+        }
+        MouseArea {
+            anchors.fill:   parent
+            onClicked: {
+                var centerX = mapToItem(toolBar, x, y).x + (width / 2)
+                mainWindow.showPopUp(telemRSSIInfo, centerX)
             }
         }
     }
@@ -235,48 +275,32 @@ Row {
     Item {
         id: batteryStatus
         width:  battRow.width * 1.1
-        height: cellHeight
-        opacity: (activeVehicle.batteryVoltage > 0) ? 1 : 0.5
+        height: mainWindow.tbCellHeight
+        opacity: activeVehicle ? ((activeVehicle.batteryVoltage > 0) ? 1 : 0.5) : 0.5
         Row {
             id:         battRow
-            height:     cellHeight
-            spacing:    tbSpacing
+            height:     mainWindow.tbCellHeight
             anchors.horizontalCenter: parent.horizontalCenter
-            Column {
-                spacing:            tbSpacing * 0.5
+            Image {
+                source:         "/qmlimages/Battery.svg"
+                fillMode:       Image.PreserveAspectFit
+                mipmap:         true
+                smooth:         true
+                height:         mainWindow.tbCellHeight * 0.65
                 anchors.verticalCenter: parent.verticalCenter
-                Image {
-                    id:             batIcon
-                    source:         "/qmlimages/Battery.svg"
-                    fillMode:       Image.PreserveAspectFit
-                    mipmap:         true
-                    smooth:         true
-                    height:         batPercent.height * 0.85
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-                QGCLabel {
-                    text:           (activeVehicle.batteryConsumed > 0) ? activeVehicle.batteryConsumed.toFixed(0) + 'mAh' : 'N/A';
-                    font.pixelSize: tbFontSmall
-                    color:          getBatteryColor()
-                    visible:        QGroundControl.isAdvancedMode
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
             }
-            Column {
+            QGCLabel {
+                text:           getBatteryPercentageText()
+                font.pixelSize: tbFontLarge
+                color:          getBatteryColor()
                 anchors.verticalCenter: parent.verticalCenter
-                QGCLabel {
-                    id:             batPercent
-                    text:           getBatteryPercentageText()
-                    font.pixelSize: tbFontLarge
-                    color:          getBatteryColor()
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-                QGCLabel {
-                    text:           getBatteryVoltageText()
-                    font.pixelSize: tbFontNormal
-                    color:          getBatteryColor()
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
+            }
+        }
+        MouseArea {
+            anchors.fill:   parent
+            onClicked: {
+                var centerX = mapToItem(toolBar, x, y).x + (width / 2)
+                mainWindow.showPopUp(batteryInfo, centerX)
             }
         }
     }
@@ -284,10 +308,10 @@ Row {
     //-------------------------------------------------------------------------
     //-- Vehicle Selector
     QGCButton {
-        width:      ScreenTools.defaultFontPixelSize * 12
-        height:     cellHeight * 0.75
-        text:       "Vehicle " + activeVehicle.id
-        visible:    vehicleMenuItems.length > 0
+        id:                     vehicleSelectorButton
+        width:                  ScreenTools.defaultFontPixelSize * 8
+        text:                   "Vehicle " + (activeVehicle ? activeVehicle.id : "None")
+        visible:                QGroundControl.multiVehicleManager.vehicles.count > 1
         anchors.verticalCenter: parent.verticalCenter
 
         menu: vehicleMenu
@@ -301,7 +325,7 @@ Row {
 
             MenuItem {
                 checkable:      true
-                checked:        vehicle.active
+                checked:        vehicle ? vehicle.active : false
                 onTriggered:    multiVehicleManager.activeVehicle = vehicle
 
                 property int vehicleId: Number(text.split(" ")[1])
@@ -331,7 +355,7 @@ Row {
 
         Connections {
             target:         multiVehicleManager.vehicles
-            onCountChanged: parent.updateVehicleMenu
+            onCountChanged: vehicleSelectorButton.updateVehicleMenu
         }
     }
 
@@ -339,8 +363,9 @@ Row {
     //-- Mode Selector
 
     Item {
+        id:     flightModeSelector
         width:  selectorRow.width * 1.1
-        height: cellHeight
+        height: mainWindow.tbCellHeight
         anchors.verticalCenter: parent.verticalCenter
         Row {
             id:                 selectorRow
@@ -348,8 +373,8 @@ Row {
             anchors.verticalCenter:   parent.verticalCenter
             anchors.horizontalCenter: parent.horizontalCenter
             Image {
-                width:          cellHeight * 0.65
-                height:         cellHeight * 0.65
+                width:          mainWindow.tbCellHeight * 0.65
+                height:         mainWindow.tbCellHeight * 0.65
                 fillMode:       Image.PreserveAspectFit
                 mipmap:         true
                 smooth:         true
@@ -357,7 +382,7 @@ Row {
                 anchors.verticalCenter: parent.verticalCenter
             }
             QGCLabel {
-                text:           activeVehicle.flightMode
+                text:           activeVehicle ? activeVehicle.flightMode : "N/A"
                 font.pixelSize: tbFontLarge
                 color:          colorWhite
                 anchors.verticalCenter: parent.verticalCenter
@@ -372,9 +397,11 @@ Row {
             id: flightModeMenuItemComponent
 
             MenuItem {
-                checkable:      true
-                checked:        activeVehicle.flightMode === text
-                onTriggered:    activeVehicle.flightMode = text
+                onTriggered: {
+                    if(activeVehicle) {
+                        activeVehicle.flightMode = text
+                    }
+                }
             }
         }
 
@@ -400,11 +427,11 @@ Row {
 
         Connections {
             target:                 multiVehicleManager
-            onActiveVehicleChanged: parent.updateFlightModesMenu
+            onActiveVehicleChanged: flightModeSelector.updateFlightModesMenu
         }
 
         MouseArea {
-            visible: activeVehicle.flightModeSetAvailable
+            visible: activeVehicle ? activeVehicle.flightModeSetAvailable : false
             anchors.fill:   parent
             onClicked: {
                 flightModesMenu.popup()
@@ -417,23 +444,23 @@ Row {
 
     Item {
         width:  armCol.width * 1.1
-        height: cellHeight
+        height: mainWindow.tbCellHeight
         anchors.verticalCenter: parent.verticalCenter
         Row {
             id:                 armCol
             spacing:            tbSpacing * 0.5
             anchors.verticalCenter: parent.verticalCenter
             Image {
-                width:          cellHeight * 0.5
-                height:         cellHeight * 0.5
+                width:          mainWindow.tbCellHeight * 0.5
+                height:         mainWindow.tbCellHeight * 0.5
                 fillMode:       Image.PreserveAspectFit
                 mipmap:         true
                 smooth:         true
-                source:         activeVehicle.armed ? "/qmlimages/Disarmed.svg" : "/qmlimages/Armed.svg"
+                source:         activeVehicle ? (activeVehicle.armed ? "/qmlimages/Disarmed.svg" : "/qmlimages/Armed.svg") : "/qmlimages/Disarmed.svg"
                 anchors.verticalCenter: parent.verticalCenter
             }
             QGCLabel {
-                text:           activeVehicle.armed ? "Armed" : "Disarmed"
+                text:           activeVehicle ? (activeVehicle.armed ? "Armed" : "Disarmed") : ""
                 font.pixelSize: tbFontLarge
                 color:          colorWhite
                 anchors.verticalCenter: parent.verticalCenter
@@ -450,8 +477,8 @@ Row {
             visible:    false
             icon:       StandardIcon.Warning
             standardButtons: StandardButton.Yes | StandardButton.No
-            title:      activeVehicle.armed ? "Disarming Vehicle" : "Arming Vehicle"
-            text:       activeVehicle.armed ? "Do you want to disarm? This will cut power to all motors." : "Do you want to arm? This will enable all motors."
+            title:      activeVehicle ? (activeVehicle.armed ? "Disarming Vehicle" : "Arming Vehicle") : ""
+            text:       activeVehicle ? (activeVehicle.armed ? "Do you want to disarm? This will cut power to all motors." : "Do you want to arm? This will enable all motors.") : ""
             onYes: {
                 activeVehicle.armed = !activeVehicle.armed
                 armDialog.visible = false
@@ -476,7 +503,7 @@ Row {
     Rectangle {
         id: rssiRC
         width:  getProportionalDimmension(55)
-        height: cellHeight
+        height: mainWindow.tbCellHeight
         visible: _controller.remoteRSSI <= 100
         anchors.verticalCenter: parent.verticalCenter
         color:  getRSSIColor(_controller.remoteRSSI);
@@ -484,7 +511,7 @@ Row {
         border.width: 0
         Image {
             source: "qrc:/res/AntennaRC";
-            width: cellHeight * 0.7
+            width: mainWindow.tbCellHeight * 0.7
             fillMode: Image.PreserveAspectFit
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
@@ -507,7 +534,7 @@ Row {
     Rectangle {
         id: rssiTelemetry
         width:  getProportionalDimmension(80)
-        height: cellHeight
+        height: mainWindow.tbCellHeight
         visible: (_controller.telemetryRRSSI > 0) && (_controller.telemetryLRSSI > 0)
         anchors.verticalCenter: parent.verticalCenter
         color:  getRSSIColor(Math.min(_controller.telemetryRRSSI,_controller.telemetryLRSSI));
@@ -515,7 +542,7 @@ Row {
         border.width: 0
         Image {
             source: "qrc:/res/AntennaT";
-            width: cellHeight * 0.7
+            width: mainWindow.tbCellHeight * 0.7
             fillMode: Image.PreserveAspectFit
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
@@ -536,7 +563,7 @@ Row {
                     color: colorWhite
                 }
                 QGCLabel {
-                    text: _controller.telemetryRRSSI + 'dB'
+                    text: _controller.telemetryRRSSI + 'dBm'
                     width: getProportionalDimmension(30)
                     horizontalAlignment: Text.AlignRight
                     font.pixelSize: ScreenTools.smallFontPixelSize
@@ -553,7 +580,7 @@ Row {
                     color: colorWhite
                 }
                 QGCLabel {
-                    text: _controller.telemetryLRSSI + 'dB'
+                    text: _controller.telemetryLRSSI + 'dBm'
                     width: getProportionalDimmension(30)
                     horizontalAlignment: Text.AlignRight
                     font.pixelSize: ScreenTools.smallFontPixelSize
@@ -568,3 +595,5 @@ Row {
 */
 
 } // Row
+
+

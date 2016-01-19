@@ -26,8 +26,8 @@
 
 #include "SensorsComponentController.h"
 #include "QGCMAVLink.h"
-#include "QGCMessageBox.h"
 #include "UAS.h"
+#include "QGCApplication.h"
 
 #include <QVariant>
 #include <QQmlProperty>
@@ -181,7 +181,7 @@ void SensorsComponentController::_stopCalibration(SensorsComponentController::St
         default:
             // Assume failed
             _hideAllCalAreas();
-            QGCMessageBox::warning("Calibration", "Calibration failed. Calibration log will be displayed.");
+            qgcApp()->showMessage("Calibration failed. Calibration log will be displayed.");
             break;
     }
     
@@ -387,6 +387,7 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
         } else if (side == "up") {
             _orientationCalUpsideDownSideInProgress = false;
             _orientationCalUpsideDownSideDone = true;
+            _orientationCalUpsideDownSideRotate = false;
         } else if (side == "left") {
             _orientationCalLeftSideInProgress = false;
             _orientationCalLeftSideDone = true;
@@ -394,6 +395,7 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
         } else if (side == "right") {
             _orientationCalRightSideInProgress = false;
             _orientationCalRightSideDone = true;
+            _orientationCalRightSideRotate = false;
         } else if (side == "front") {
             _orientationCalNoseDownSideInProgress = false;
             _orientationCalNoseDownSideDone = true;
@@ -401,6 +403,7 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
         } else if (side == "back") {
             _orientationCalTailDownSideInProgress = false;
             _orientationCalTailDownSideDone = true;
+            _orientationCalTailDownSideRotate = false;
         }
         
         _orientationCalAreaHelpText->setProperty("text", "Place you vehicle into one of the orientations shown below and hold it still");
@@ -434,7 +437,7 @@ void SensorsComponentController::_refreshParams(void)
     
     // We ask for a refresh on these first so that the rotation combo show up as fast as possible
     fastRefreshList << "CAL_MAG0_ID" << "CAL_MAG1_ID" << "CAL_MAG2_ID" << "CAL_MAG0_ROT" << "CAL_MAG1_ROT" << "CAL_MAG2_ROT";
-    foreach (QString paramName, fastRefreshList) {
+    foreach (const QString &paramName, fastRefreshList) {
         _autopilot->refreshParameter(FactSystem::defaultComponentId, paramName);
     }
     
@@ -450,6 +453,10 @@ bool SensorsComponentController::fixedWing(void)
         case MAV_TYPE_VTOL_DUOROTOR:
         case MAV_TYPE_VTOL_QUADROTOR:
         case MAV_TYPE_VTOL_TILTROTOR:
+        case MAV_TYPE_VTOL_RESERVED2:
+        case MAV_TYPE_VTOL_RESERVED3:
+        case MAV_TYPE_VTOL_RESERVED4:
+        case MAV_TYPE_VTOL_RESERVED5:
             return true;
         default:
             return false;

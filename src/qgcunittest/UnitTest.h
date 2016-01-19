@@ -38,13 +38,14 @@
 #include "QGCMAVLink.h"
 #include "LinkInterface.h"
 
-#define UT_REGISTER_TEST(className) static UnitTestWrapper<className> t(#className);
+#define UT_REGISTER_TEST(className) static UnitTestWrapper<className> className(#className);
 
 class QGCMessageBox;
 class QGCFileDialog;
 class LinkManager;
 class MockLink;
 class MainWindow;
+class Vehicle;
 
 class UnitTest : public QObject
 {
@@ -115,6 +116,7 @@ protected:
     LinkManager*    _linkManager;
     MockLink*       _mockLink;
     MainWindow*     _mainWindow;
+    Vehicle*        _vehicle;
 
     bool _expectMissedFileDialog;   // true: expect a missed file dialog, used for internal testing
     bool _expectMissedMessageBox;   // true: expect a missed message box, used for internal testing

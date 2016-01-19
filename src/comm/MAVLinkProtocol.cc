@@ -57,11 +57,9 @@ MAVLinkProtocol::MAVLinkProtocol(QGCApplication* app)
 #ifndef __mobile__
     , _logSuspendError(false)
     , _logSuspendReplay(false)
-    , _logWasArmed(false)
+    , _logPromptForSave(false)
     , _tempLogFile(QString("%2.%3").arg(_tempLogFileTemplate).arg(_logFileExtension))
 #endif
-    , _heartbeatRate(MAVLINK_HEARTBEAT_DEFAULT_RATE)
-    , _heartbeatsEnabled(true)
     , _linkMgr(NULL)
     , _multiVehicleManager(NULL)
 {
@@ -101,12 +99,12 @@ void MAVLinkProtocol::setToolbox(QGCToolbox *toolbox)
        }
    }
 
-   // Start heartbeat timer, emitting a heartbeat at the configured rate
-   connect(&_heartbeatTimer, &QTimer::timeout, this, &MAVLinkProtocol::sendHeartbeat);
-   _heartbeatTimer.start(1000/_heartbeatRate);
-
    connect(this, &MAVLinkProtocol::protocolStatusMessage, _app, &QGCApplication::criticalMessageBoxOnMainThread);
+#ifndef __mobile__
    connect(this, &MAVLinkProtocol::saveTempFlightDataLog, _app, &QGCApplication::saveTempFlightDataLogOnMainThread);
+#endif
+
+   connect(_multiVehicleManager->vehicles(), &QmlObjectListModel::countChanged, this, &MAVLinkProtocol::_vehicleCountChanged);
 
    emit versionCheckChanged(m_enable_version_check);
 }
@@ -116,7 +114,6 @@ void MAVLinkProtocol::loadSettings()
     // Load defaults from settings
     QSettings settings;
     settings.beginGroup("QGC_MAVLINK_PROTOCOL");
-    enableHeartbeats(settings.value("HEARTBEATS_ENABLED", _heartbeatsEnabled).toBool());
     enableVersionCheck(settings.value("VERSION_CHECK_ENABLED", m_enable_version_check).toBool());
     enableMultiplexing(settings.value("MULTIPLEXING_ENABLED", m_multiplexingEnabled).toBool());
 
@@ -146,7 +143,6 @@ void MAVLinkProtocol::storeSettings()
     // Store settings
     QSettings settings;
     settings.beginGroup("QGC_MAVLINK_PROTOCOL");
-    settings.setValue("HEARTBEATS_ENABLED", _heartbeatsEnabled);
     settings.setValue("VERSION_CHECK_ENABLED", m_enable_version_check);
     settings.setValue("MULTIPLEXING_ENABLED", m_multiplexingEnabled);
     settings.setValue("GCS_SYSTEM_ID", systemId);
@@ -169,64 +165,6 @@ void MAVLinkProtocol::resetMetadataForLink(const LinkInterface *link)
     currLossCounter[channel] = 0;
 }
 
-void MAVLinkProtocol::linkConnected(void)
-{
-    LinkInterface* link = qobject_cast<LinkInterface*>(QObject::sender());
-    Q_ASSERT(link);
-    
-    _linkStatusChanged(link, true);
-}
-
-void MAVLinkProtocol::linkDisconnected(void)
-{
-    LinkInterface* link = qobject_cast<LinkInterface*>(QObject::sender());
-    Q_ASSERT(link);
-    
-    _linkStatusChanged(link, false);
-}
-
-void MAVLinkProtocol::_linkStatusChanged(LinkInterface* link, bool connected)
-{
-    qCDebug(MAVLinkProtocolLog) << "_linkStatusChanged" << QString("%1").arg((long)link, 0, 16) << connected;
-    Q_ASSERT(link);
-    
-    if (connected) {
-        foreach (SharedLinkInterface sharedLink, _connectedLinks) {
-            Q_ASSERT(sharedLink.data() != link);
-        }
-        
-        // Use the same shared pointer as LinkManager
-        _connectedLinks.append(_linkMgr->sharedPointerForLink(link));
-        
-        // Send command to start MAVLink
-        // XXX hacky but safe
-        // Start NSH
-        const char init[] = {0x0d, 0x0d, 0x0d, 0x0d};
-        link->writeBytes(init, sizeof(init));
-        const char* cmd = "sh /etc/init.d/rc.usb\n";
-        link->writeBytes(cmd, strlen(cmd));
-        link->writeBytes(init, 4);
-    } else {
-        bool found = false;
-        for (int i=0; i<_connectedLinks.count(); i++) {
-            if (_connectedLinks[i].data() == link) {
-                found = true;
-                _connectedLinks.removeAt(i);
-                break;
-            }
-        }
-        Q_UNUSED(found);
-        Q_ASSERT(found);
-        
-#ifndef __mobile__
-        if (_connectedLinks.count() == 0) {
-            // Last link is gone, close out logging
-            _stopLogging();
-        }
-#endif
-    }
-}
-
 /**
  * This method parses all incoming bytes and constructs a MAVLink packet.
  * It can handle multiple links in parallel, as each link has it's own buffer/
@@ -239,7 +177,7 @@ void MAVLinkProtocol::receiveBytes(LinkInterface* link, QByteArray b)
     // Since receiveBytes signals cross threads we can end up with signals in the queue
     // that come through after the link is disconnected. For these we just drop the data
     // since the link is closed.
-    if (!_linkMgr->containsLink(link)) {
+    if (!_linkMgr->links()->contains(link)) {
         return;
     }
     
@@ -303,7 +241,7 @@ void MAVLinkProtocol::receiveBytes(LinkInterface* link, QByteArray b)
                 {
                     mavlink_message_t msg;
                     mavlink_msg_ping_pack(getSystemId(), getComponentId(), &msg, ping.time_usec, ping.seq, message.sysid, message.compid);
-                    sendMessage(msg);
+                    _sendMessage(msg);
                 }
             }
 
@@ -312,8 +250,25 @@ void MAVLinkProtocol::receiveBytes(LinkInterface* link, QByteArray b)
                 // process telemetry status message
                 mavlink_radio_status_t rstatus;
                 mavlink_msg_radio_status_decode(&message, &rstatus);
+                int rssi = rstatus.rssi,
+                    remrssi = rstatus.remrssi;
+                // 3DR Si1k radio needs rssi fields to be converted to dBm
+                if (message.sysid == '3' && message.compid == 'D') {
+                    /* Per the Si1K datasheet figure 23.25 and SI AN474 code
+                     * samples the relationship between the RSSI register
+                     * and received power is as follows:
+                     *
+                     *                       10
+                     * inputPower = rssi * ------ 127
+                     *                       19
+                     *
+                     * Additionally limit to the only realistic range [-120,0] dBm
+                     */
+                    rssi    = qMin(qMax(qRound(static_cast<qreal>(rssi)    / 1.9 - 127.0), - 120), 0);
+                    remrssi = qMin(qMax(qRound(static_cast<qreal>(remrssi) / 1.9 - 127.0), - 120), 0);
+                }
 
-                emit radioStatusChanged(link, rstatus.rxerrors, rstatus.fixed, rstatus.rssi, rstatus.remrssi,
+                emit radioStatusChanged(link, rstatus.rxerrors, rstatus.fixed, rssi, remrssi,
                     rstatus.txbuf, rstatus.noise, rstatus.remnoise);
             }
 
@@ -346,11 +301,11 @@ void MAVLinkProtocol::receiveBytes(LinkInterface* link, QByteArray b)
                 }
                 
                 // Check for the vehicle arming going by. This is used to trigger log save.
-                if (!_logWasArmed && message.msgid == MAVLINK_MSG_ID_HEARTBEAT) {
+                if (!_logPromptForSave && message.msgid == MAVLINK_MSG_ID_HEARTBEAT) {
                     mavlink_heartbeat_t state;
                     mavlink_msg_heartbeat_decode(&message, &state);
                     if (state.base_mode & MAV_MODE_FLAG_DECODE_POSITION_SAFETY) {
-                        _logWasArmed = true;
+                        _logPromptForSave = true;
                     }
                 }
             }
@@ -362,12 +317,9 @@ void MAVLinkProtocol::receiveBytes(LinkInterface* link, QByteArray b)
                 _startLogging();
 #endif
 
-                // Notify the vehicle manager of the heartbeat. This will create/update vehicles as needed.
                 mavlink_heartbeat_t heartbeat;
                 mavlink_msg_heartbeat_decode(&message, &heartbeat);
-                if (!_multiVehicleManager->notifyHeartbeatInfo(link, message.sysid, heartbeat)) {
-                    continue;
-                }
+                emit vehicleHeartbeatInfo(link, message.sysid, heartbeat.mavlink_version, heartbeat.autopilot, heartbeat.type);
             }
 
             // Increase receive counter
@@ -420,15 +372,13 @@ void MAVLinkProtocol::receiveBytes(LinkInterface* link, QByteArray b)
             // Multiplex message if enabled
             if (m_multiplexingEnabled)
             {
-                // Get all links connected to this unit
-                QList<LinkInterface*> links = _linkMgr->getLinks();
-
                 // Emit message on all links that are currently connected
-                foreach (LinkInterface* currLink, links)
-                {
+                for (int i=0; i<_linkMgr->links()->count(); i++) {
+                    LinkInterface* currLink = _linkMgr->links()->value<LinkInterface*>(i);
+
                     // Only forward this message to the other links,
                     // not the link the message was received on
-                    if (currLink != link) sendMessage(currLink, message, message.sysid, message.compid);
+                    if (currLink && currLink != link) _sendMessage(currLink, message, message.sysid, message.compid);
                 }
             }
         }
@@ -463,17 +413,11 @@ int MAVLinkProtocol::getComponentId()
 /**
  * @param message message to send
  */
-void MAVLinkProtocol::sendMessage(mavlink_message_t message)
+void MAVLinkProtocol::_sendMessage(mavlink_message_t message)
 {
-    // Get all links connected to this unit
-    QList<LinkInterface*> links = _linkMgr->getLinks();
-
-    // Emit message on all links that are currently connected
-    QList<LinkInterface*>::iterator i;
-    for (i = links.begin(); i != links.end(); ++i)
-    {
-        sendMessage(*i, message);
-//        qDebug() << __FILE__ << __LINE__ << "SENT MESSAGE OVER" << ((LinkInterface*)*i)->getName() << "LIST SIZE:" << links.size();
+    for (int i=0; i<_linkMgr->links()->count(); i++) {
+        LinkInterface* link = _linkMgr->links()->value<LinkInterface*>(i);
+        _sendMessage(link, message);
     }
 }
 
@@ -481,7 +425,7 @@ void MAVLinkProtocol::sendMessage(mavlink_message_t message)
  * @param link the link to send the message over
  * @param message message to send
  */
-void MAVLinkProtocol::sendMessage(LinkInterface* link, mavlink_message_t message)
+void MAVLinkProtocol::_sendMessage(LinkInterface* link, mavlink_message_t message)
 {
     // Create buffer
     static uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
@@ -504,7 +448,7 @@ void MAVLinkProtocol::sendMessage(LinkInterface* link, mavlink_message_t message
  * @param systemid id of the system the message is originating from
  * @param componentid id of the component the message is originating from
  */
-void MAVLinkProtocol::sendMessage(LinkInterface* link, mavlink_message_t message, quint8 systemid, quint8 componentid)
+void MAVLinkProtocol::_sendMessage(LinkInterface* link, mavlink_message_t message, quint8 systemid, quint8 componentid)
 {
     // Create buffer
     static uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
@@ -519,37 +463,6 @@ void MAVLinkProtocol::sendMessage(LinkInterface* link, mavlink_message_t message
         // Send the portion of the buffer now occupied by the message
         link->writeBytes((const char*)buffer, len);
     }
-}
-
-/**
- * The heartbeat is sent out of order and does not reset the
- * periodic heartbeat emission. It will be just sent in addition.
- * @return mavlink_message_t heartbeat message sent on serial link
- */
-void MAVLinkProtocol::sendHeartbeat()
-{
-    if (_heartbeatsEnabled)
-    {
-        mavlink_message_t beat;
-        mavlink_msg_heartbeat_pack(getSystemId(), getComponentId(),&beat, MAV_TYPE_GCS, MAV_AUTOPILOT_INVALID, MAV_MODE_MANUAL_ARMED, 0, MAV_STATE_ACTIVE);
-        sendMessage(beat);
-    }
-    if (m_authEnabled)
-    {
-        mavlink_message_t msg;
-        mavlink_auth_key_t auth;
-        memset(&auth, 0, sizeof(auth));
-        memcpy(auth.key, m_authKey.toStdString().c_str(), qMin(m_authKey.length(), MAVLINK_MSG_AUTH_KEY_FIELD_KEY_LEN));
-        mavlink_msg_auth_key_encode(getSystemId(), getComponentId(), &msg, &auth);
-        sendMessage(msg);
-    }
-}
-
-/** @param enabled true to enable heartbeats emission at _heartbeatRate, false to disable */
-void MAVLinkProtocol::enableHeartbeats(bool enabled)
-{
-    _heartbeatsEnabled = enabled;
-    emit heartbeatChanged(enabled);
 }
 
 void MAVLinkProtocol::enableMultiplexing(bool enabled)
@@ -617,21 +530,16 @@ void MAVLinkProtocol::enableVersionCheck(bool enabled)
     emit versionCheckChanged(enabled);
 }
 
-/**
- * The default rate is 1 Hertz.
- *
- * @param rate heartbeat rate in hertz (times per second)
- */
-void MAVLinkProtocol::setHeartbeatRate(int rate)
+void MAVLinkProtocol::_vehicleCountChanged(int count)
 {
-    _heartbeatRate = rate;
-    _heartbeatTimer.setInterval(1000/_heartbeatRate);
-}
-
-/** @return heartbeat rate in Hertz */
-int MAVLinkProtocol::getHeartbeatRate()
-{
-    return _heartbeatRate;
+#ifndef __mobile__
+    if (count == 0) {
+        // Last vehicle is gone, close out logging
+        _stopLogging();
+    }
+#else
+    Q_UNUSED(count);
+#endif
 }
 
 #ifndef __mobile__
@@ -665,7 +573,11 @@ void MAVLinkProtocol::_startLogging(void)
                 return;
             }
 
-            qDebug() << "Temp log" << _tempLogFile.fileName();
+            if (_app->promptFlightDataSaveNotArmed()) {
+                _logPromptForSave = true;
+            }
+
+            qDebug() << "Temp log" << _tempLogFile.fileName() << _logPromptForSave;
 
             _logSuspendError = false;
         }
@@ -676,13 +588,13 @@ void MAVLinkProtocol::_stopLogging(void)
 {
     if (_closeLogFile()) {
         // If the signals are not connected it means we are running a unit test. In that case just delete log files
-        if (_logWasArmed && _app->promptFlightDataSave()) {
+        if (_logPromptForSave && _app->promptFlightDataSave()) {
             emit saveTempFlightDataLog(_tempLogFile.fileName());
         } else {
             QFile::remove(_tempLogFile.fileName());
         }
     }
-    _logWasArmed = false;
+    _logPromptForSave = false;
 }
 
 /// @brief Checks the temp directory for log files which may have been left there.

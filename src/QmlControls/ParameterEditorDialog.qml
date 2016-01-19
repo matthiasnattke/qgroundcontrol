@@ -24,33 +24,40 @@
 /// @file
 ///     @author Don Gagne <don@thegagnes.com>
 
-import QtQuick 2.3
+import QtQuick          2.5
 import QtQuick.Controls 1.3
-import QtQuick.Controls.Styles 1.2
-import QtQuick.Dialogs 1.2
 
-import QGroundControl.Controls 1.0
-import QGroundControl.Palette 1.0
-import QGroundControl.Controllers 1.0
-import QGroundControl.FactSystem 1.0
-import QGroundControl.FactControls 1.0
+import QGroundControl.Controls      1.0
+import QGroundControl.Palette       1.0
+import QGroundControl.Controllers   1.0
+import QGroundControl.FactSystem    1.0
+import QGroundControl.FactControls  1.0
+import QGroundControl.ScreenTools   1.0
 
 QGCViewDialog {
+    id: root
+
     property Fact   fact
+    property bool   showRCToParam:  false
     property bool   validate:       false
     property string validateValue
 
     ParameterEditorController { id: controller; factPanel: parent }
 
     function accept() {
-        var errorString = fact.validate(valueField.text, forceSave.checked)
-        if (errorString == "") {
-            fact.value = valueField.text
-            fact.valueChanged(fact.value)
+        if (factCombo.visible) {
+            fact.enumIndex = factCombo.currentIndex
             hideDialog()
         } else {
-            validationError.text = errorString
-            forceSave.visible = true
+            var errorString = fact.validate(valueField.text, forceSave.checked)
+            if (errorString == "") {
+                fact.value = valueField.text
+                fact.valueChanged(fact.value)
+                hideDialog()
+            } else {
+                validationError.text = errorString
+                forceSave.visible = true
+            }
         }
     }
 
@@ -59,7 +66,7 @@ QGCViewDialog {
             validationError.text = fact.validate(validateValue, false /* convertOnly */)
             forceSave.visible = true
         }
-        valueField.forceActiveFocus();
+        //valueField.forceActiveFocus()
     }
 
     Column {
@@ -81,17 +88,28 @@ QGCViewDialog {
         }
 
         QGCTextField {
-            id:     valueField
-            text:   validate ? validateValue : fact.valueString
+            id:         valueField
+            text:       validate ? validateValue : fact.valueString
+            visible:    fact.enumStrings.length == 0 || validate
+            //focus:  true
 
             // At this point all Facts are numeric
             inputMethodHints:   Qt.ImhFormattedNumbersOnly
+        }
 
-            onAccepted: accept()
+        QGCComboBox {
+            id:             factCombo
+            width:          valueField.width
+            visible:        _showCombo
+            model:          fact.enumStrings
 
-            Keys.onReleased: {
-                if (event.key == Qt.Key_Escape) {
-                    reject()
+            property bool _showCombo: fact.enumStrings.length != 0 && !validate
+
+            Component.onCompleted: {
+                // We can't bind directly to fact.enumIndex since that would add an unknown value
+                // if there are no enum strings.
+                if (_showCombo) {
+                    currentIndex = fact.enumIndex
                 }
             }
         }
@@ -110,7 +128,7 @@ QGCViewDialog {
             visible: !fact.minIsDefaultForType
 
             QGCLabel { text: "Minimum value:" }
-            QGCLabel { text: fact.min }
+            QGCLabel { text: fact.minString }
         }
 
         Row {
@@ -118,14 +136,14 @@ QGCViewDialog {
             visible: !fact.maxIsDefaultForType
 
             QGCLabel { text: "Maximum value:" }
-            QGCLabel { text: fact.max }
+            QGCLabel { text: fact.maxString }
         }
 
         Row {
             spacing: defaultTextWidth
 
             QGCLabel { text: "Default value:" }
-            QGCLabel { text: fact.defaultValueAvailable ? fact.defaultValue : "none" }
+            QGCLabel { text: fact.defaultValueAvailable ? fact.defaultValueString : "none" }
         }
 
         QGCLabel {
@@ -170,7 +188,7 @@ QGCViewDialog {
         anchors.right:  parent.right
         anchors.bottom: parent.bottom
         text:           "Set RC to Param..."
-        visible:        !validate
+        visible:        !validate && showRCToParam
         onClicked:      controller.setRCToParam(fact.name)
     }
 } // QGCViewDialog

@@ -47,6 +47,10 @@ QGCView {
     property Fact battLowVolt:      controller.getParameterFact(-1, "BAT_V_EMPTY")
     property Fact battVoltLoadDrop: controller.getParameterFact(-1, "BAT_V_LOAD_DROP")
 
+    readonly property string highlightPrefix:   "<font color=\"" + qgcPal.warningText + "\">"
+    readonly property string highlightSuffix:   "</font>"
+
+
     function getBatteryImage()
     {
         switch(battNumCells.value) {
@@ -94,7 +98,7 @@ QGCView {
         onBatteryConnected:     showMessage("ESC Calibration", "Performing calibration. This will take a few seconds..", 0)
         onCalibrationFailed:    showMessage("ESC Calibration failed", errorMessage, StandardButton.Ok)
         onCalibrationSuccess:   showMessage("ESC Calibration", "Calibration complete. You can disconnect your battery now if you like.", StandardButton.Ok)
-        onConnectBattery:       showMessage("ESC Calibration", "<font color=\"yellow\">WARNING: Props must be removed from vehicle prior to performing ESC calibration.</font> Connect the battery now and calibration will begin.", 0)
+        onConnectBattery:       showMessage("ESC Calibration", highlightPrefix + "WARNING: Props must be removed from vehicle prior to performing ESC calibration." + highlightSuffix + " Connect the battery now and calibration will begin.", 0)
         onDisconnectBattery:    showMessage("ESC Calibration failed", "You must disconnect the battery prior to performing ESC Calibration. Disconnect your battery and try again.", StandardButton.Ok)
     }
 
@@ -104,20 +108,21 @@ QGCView {
         id:             panel
         anchors.fill:   parent
 
-        Flickable {
+        QGCFlickable {
             anchors.fill:       parent
-            flickableDirection: Flickable.VerticalFlick
+            clip:               true
             contentHeight:      innerColumn.height
+            contentWidth:       panel.width
+            flickableDirection: Flickable.VerticalFlick
 
             Column {
                 id:             innerColumn
-                anchors.left:   parent.left
-                anchors.right:  parent.right
-                spacing:        ScreenTools.defaultFontPixelHeight
+                width:          panel.width
+                spacing:        ScreenTools.defaultFontPixelHeight * 0.5
 
                 QGCLabel {
                     text: "Battery"
-                    font.pixelSize: ScreenTools.mediumFontPixelSize
+                    font.weight: Font.DemiBold
                 }
 
                 Rectangle {
@@ -207,20 +212,30 @@ QGCView {
                         anchors.left:           batteryImage.right
                         anchors.verticalCenter: voltageCol.verticalCenter
                         spacing:                ScreenTools.defaultFontPixelHeight
-
-                        QGCLabel {
-                            text: "Battery Max: " + (battNumCells.value * battHighVolt.value).toFixed(1) + ' V'
+                        Row {
+                            QGCLabel {
+                                width:  ScreenTools.defaultFontPixelWidth * 12
+                                text:   "Battery Max:"
+                            }
+                            QGCLabel {
+                                text:   (battNumCells.value * battHighVolt.value).toFixed(1) + ' V'
+                            }
                         }
-
-                        QGCLabel {
-                            text: "Battery Min: " + (battNumCells.value * battLowVolt.value).toFixed(1) + ' V'
+                        Row {
+                            QGCLabel {
+                                width:  ScreenTools.defaultFontPixelWidth * 12
+                                text:   "Battery Min:"
+                            }
+                            QGCLabel {
+                                text:   (battNumCells.value * battLowVolt.value).toFixed(1) + ' V'
+                            }
                         }
                     }
                 } // Rectangle - Battery settings
 
                 QGCLabel {
-                    text:           "ESC Calibration"
-                    font.pixelSize: ScreenTools.mediumFontPixelSize
+                    text:           "ESC PWM Minimum and Maximum Calibration"
+                    font.weight:    Font.DemiBold
                 }
 
                 Rectangle {
@@ -237,7 +252,7 @@ QGCView {
 
                         QGCLabel {
                             color:  palette.warningText
-                            text:   "<font color=\"yellow\">WARNING: Propellers must be removed from vehicle prior to performing ESC calibration.</font>"
+                            text:   "WARNING: Propellers must be removed from vehicle prior to performing ESC calibration."
                         }
 
                         QGCLabel {
@@ -246,20 +261,59 @@ QGCView {
 
                         QGCButton {
                             text:       "Calibrate"
+                            width:      ScreenTools.defaultFontPixelWidth * 20
                             onClicked:  controller.calibrateEsc()
                         }
                     }
                 }
 
+                QGCCheckBox {
+                    id:     showUAVCAN
+                    text:   "Show UAVCAN Settings"
+                }
+
                 QGCLabel {
-                    text:           "UAVCAN ESC Configuration"
-                    font.pixelSize: ScreenTools.mediumFontPixelSize
+                    text:           "UAVCAN Bus Configuration"
+                    font.weight:    Font.DemiBold
+                    visible:        showUAVCAN.checked
                 }
 
                 Rectangle {
-                    width:  parent.width
-                    height: uavCanEscCalColumn.height + ScreenTools.defaultFontPixelHeight
-                    color:  palette.windowShade
+                    width:      parent.width
+                    height:     uavCanConfigColumn.height + ScreenTools.defaultFontPixelHeight
+                    color:      palette.windowShade
+                    visible:    showUAVCAN.checked
+
+                    Column {
+                        id:                 uavCanConfigColumn
+                        anchors.margins:    ScreenTools.defaultFontPixelHeight / 2
+                        anchors.left:       parent.left
+                        anchors.top:        parent.top
+                        spacing:            ScreenTools.defaultFontPixelWidth
+
+                        FactCheckBox {
+                            id:                 uavcanEnabledCheckBox
+                            width:              ScreenTools.defaultFontPixelWidth * 20
+                            fact:               controller.getParameterFact(-1, "UAVCAN_ENABLE")
+                            checkedValue:       3
+                            uncheckedValue:     0
+                            text:               "Enable UAVCAN as the default MAIN output bus (requires autopilot restart)"
+                        }
+                    }
+                }
+
+                QGCLabel {
+                    text:           "UAVCAN Motor Index and Direction Assignment"
+                    font.weight:    Font.DemiBold
+                    visible:        showUAVCAN.checked
+                }
+
+                Rectangle {
+                    width:      parent.width
+                    height:     uavCanEscCalColumn.height + ScreenTools.defaultFontPixelHeight
+                    color:      palette.windowShade
+                    visible:    showUAVCAN.checked
+                    enabled:    uavcanEnabledCheckBox.checked
 
                     Column {
                         id:                 uavCanEscCalColumn
@@ -270,21 +324,27 @@ QGCView {
 
                         QGCLabel {
                             color:  palette.warningText
-                            text:   "<font color=\"yellow\">WARNING: Propellers must be removed from vehicle prior to performing UAVCAN ESC configuration.</font>"
+                            text:   "WARNING: Propellers must be removed from vehicle prior to performing UAVCAN ESC configuration."
                         }
 
                         QGCLabel {
-                            text: "You must use USB connection for this operation."
+                            text: "ESC parameters will only be accessible in the editor after assignment."
+                        }
+
+                        QGCLabel {
+                            text: "Start the process, then turn each motor into its turn direction, in the order of their motor indices."
                         }
 
                         QGCButton {
-                            text:       "Start Configuration"
+                            text:       "Start Assignment"
+                            width:      ScreenTools.defaultFontPixelWidth * 20
                             onClicked:  controller.busConfigureActuators()
                         }
 
                         QGCButton {
-                            text:       "End Configuration"
-                            onClicked:  controller.StopBusConfigureActuators()
+                            text:       "Stop Assignment"
+                            width:      ScreenTools.defaultFontPixelWidth * 20
+                            onClicked:  controller.stopBusConfigureActuators()
                         }
                     }
                 }
@@ -296,7 +356,7 @@ QGCView {
 
                 QGCLabel {
                     text:           "Advanced Power Settings"
-                    font.pixelSize: ScreenTools.mediumFontPixelSize
+                    font.weight:    Font.DemiBold
                     visible:        showAdvanced.checked
                 }
 
@@ -336,7 +396,7 @@ QGCView {
                             wrapMode:   Text.WordWrap
                             text:       "Batteries show less voltage at high throttle. Enter the difference in Volts between idle throttle and full " +
                                             "throttle, divided by the number of battery cells. Leave at the default if unsure. " +
-                                            "<font color=\"yellow\">If this value is set too high, the battery might be deep discharged and damaged.</font>"
+                                            highlightPrefix + "If this value is set too high, the battery might be deep discharged and damaged." + highlightSuffix
                         }
 
                         Row {
@@ -353,6 +413,6 @@ QGCView {
                     }
                 } // Rectangle - Advanced power settings
             } // Column
-        } // Flickable
+        } // QGCFlickable
     } // QGCViewPanel
 } // QGCView

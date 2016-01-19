@@ -7,29 +7,25 @@ WindowsBuild {
 
 #
 # [REQUIRED] Add support for the MAVLink communications protocol.
-# Some logic is involved here in selecting the proper dialect for
-# the selected autopilot system.
+# Mavlink dialect is hardwired to arudpilotmega for now. The reason being
+# the current codebase supports both PX4 and APM flight stack. PX4 flight stack
+# only usese common mavlink specifications, wherease APM flight stack uses custom
+# mavlink specifications which add to common. So by using the adupilotmega dialect
+# QGC can support both in the same codebase.
 #
-# If the user config file exists, it will be included. If this file
-# specifies the MAVLINK_CONF variable with a MAVLink dialect, support
-# for it will be compiled in to QGC. It will also create a
-# QGC_USE_{AUTOPILOT_NAME}_MESSAGES macro for use within the actual code.
-#
+# Once the mavlink helper routines include support for multiple dialects within
+# a single compiled codebase this hardwiring of dialect can go away. But until then
+# this "workaround" is needed.
+
 MAVLINKPATH_REL = libs/mavlink/include/mavlink/v1.0
 MAVLINKPATH = $$BASEDIR/$$MAVLINKPATH_REL
+MAVLINK_CONF = ardupilotmega
 DEFINES += MAVLINK_NO_DATA
 
 # First we select the dialect, checking for valid user selection
 # Users can override all other settings by specifying MAVLINK_CONF as an argument to qmake
 !isEmpty(MAVLINK_CONF) {
-    message($$sprintf("Using MAVLink dialect '%1' specified at the command line.", $$MAVLINK_CONF))
-}
-# Otherwise they can specify MAVLINK_CONF within user_config.pri
-else:exists(user_config.pri):infile(user_config.pri, MAVLINK_CONF) {
-    MAVLINK_CONF = $$fromfile(user_config.pri, MAVLINK_CONF)
-    !isEmpty(MAVLINK_CONF) {
-        message($$sprintf("Using MAVLink dialect '%1' specified in user_config.pri", $$MAVLINK_CONF))
-    }
+    message($$sprintf("Using MAVLink dialect '%1'.", $$MAVLINK_CONF))
 }
 
 # Then we add the proper include paths dependent on the dialect.
@@ -48,7 +44,6 @@ exists($$MAVLINKPATH/common) {
             error(Only a single mavlink dialect can be specified in MAVLINK_CONF)
         }
     } else {
-        warning("No MAVLink dialect specified, only common messages supported.")
         INCLUDEPATH += $$MAVLINKPATH/common
     }
 } else {
@@ -260,7 +255,7 @@ contains (DEFINES, DISABLE_SPEECH) {
     }
 }
 # Mac support is built into OS 10.6+.
-else:MacBuild {
+else:MacBuild|iOSBuild {
     message("Including support for speech output")
     DEFINES += QGC_SPEECH_ENABLED
 }

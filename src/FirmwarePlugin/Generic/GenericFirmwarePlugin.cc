@@ -90,8 +90,9 @@ int GenericFirmwarePlugin::manualControlReservedButtonCount(void)
     return -1;
 }
 
-void GenericFirmwarePlugin::adjustMavlinkMessage(mavlink_message_t* message)
+void GenericFirmwarePlugin::adjustMavlinkMessage(Vehicle* vehicle, mavlink_message_t* message)
 {
+    Q_UNUSED(vehicle);
     Q_UNUSED(message);
     
     // Generic plugin does no message adjustment
@@ -112,9 +113,17 @@ bool GenericFirmwarePlugin::sendHomePositionToVehicle(void)
     return false;
 }
 
-void GenericFirmwarePlugin::addMetaDataToFact(Fact* fact)
+void GenericFirmwarePlugin::addMetaDataToFact(Fact* fact, MAV_TYPE vehicleType)
 {
+    Q_UNUSED(vehicleType)
+
     // Add default meta data
     FactMetaData* metaData = new FactMetaData(fact->type(), fact);
     fact->setMetaData(metaData);
+}
+
+QList<MAV_CMD> GenericFirmwarePlugin::supportedMissionCommands(void)
+{
+    // Generic supports all commands
+    return QList<MAV_CMD>();
 }

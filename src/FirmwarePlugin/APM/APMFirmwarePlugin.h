@@ -86,11 +86,12 @@ public:
     virtual QString flightMode(uint8_t base_mode, uint32_t custom_mode);
     virtual bool setFlightMode(const QString& flightMode, uint8_t* base_mode, uint32_t* custom_mode);
     virtual int manualControlReservedButtonCount(void);
-    virtual void adjustMavlinkMessage(mavlink_message_t* message);
+    virtual void adjustMavlinkMessage(Vehicle* vehicle, mavlink_message_t* message);
     virtual void initializeVehicle(Vehicle* vehicle);
     virtual bool sendHomePositionToVehicle(void);
-    virtual void addMetaDataToFact(Fact* fact);
+    virtual void addMetaDataToFact(Fact* fact, MAV_TYPE vehicleType);
     virtual QString getDefaultComponentIdParam(void) const { return QString("SYSID_SW_TYPE"); }
+    virtual QList<MAV_CMD> supportedMissionCommands(void);
 
 protected:
     /// All access to singleton is through stack specific implementation
@@ -99,7 +100,10 @@ protected:
     
 private:
     void _adjustSeverity(mavlink_message_t* message) const;
+    void _adjustCalibrationMessageSeverity(mavlink_message_t* message) const;
     static bool _isTextSeverityAdjustmentNeeded(const APMFirmwareVersion& firmwareVersion);
+    void _setInfoSeverity(mavlink_message_t* message) const;
+    QString _getMessageText(mavlink_message_t* message) const;
 
     APMFirmwareVersion      _firmwareVersion;
     bool                    _textSeverityAdjustmentNeeded;

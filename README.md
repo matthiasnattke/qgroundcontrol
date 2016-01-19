@@ -22,20 +22,20 @@ Source code for QGroundControl is kept on GitHub: https://github.com/mavlink/qgr
 ```
 git clone --recursive https://github.com/mavlink/qgroundcontrol.git
 ```
-Each time you pull new source to your repository you should run `git submodule update` to get the latest submodules as well.
+Each time you pull new source to your repository you should run `git submodule update` to get the latest submodules as well. Since QGroundControl uses submodules, using the zip file for source download will not work. You must use git.
 
 ### Supported Builds
 QGroundControl builds are supported for OSX, Linux, Windows and Android. QGroundControl uses [Qt](http://www.qt.io) as it's cross-platform support library and uses [QtCreator](http://doc.qt.io/qtcreator/index.html) as it's default build environment.
-* OSX: 64 bit, clang compiler
+* OSX: OSX 10.7 or higher, 64 bit, clang compiler
 * Ubuntu: 64 bit, gcc compiler
-* Windows: 32 bit, [Visual Studio 2013 compiler](http://www.visualstudio.com/downloads/download-visual-studio-vs#d-express-windows-desktop)
+* Windows: Vista or higher, 32 bit, [Visual Studio 2013 compiler](http://www.visualstudio.com/downloads/download-visual-studio-vs#d-express-windows-desktop)
 * Android: Jelly Bean (4.1) and higher
 * Qt version: 5.5.1 (or higher)
 
 #### Install QT
-
+You need to install Qt like this instead of using packages from say a Linux distribution because QGroundControl needs access to private Qt headers.
 * Download the [Qt installer](http://www.qt.io/download-open-source)
-    * Ubuntu: Set the downloaded file to executable using:`chmod +x`
+    * Ubuntu: Set the downloaded file to executable using:`chmod +x`. Install to default location for use with ./qgroundcontrol-start.sh. If you install Qt to a non-default location you will need to modify qgroundcontrol-start.sh in order to run downloaded builds.
     * Windows: Default installer not quite correct, use [this](http://download.qt.io/official_releases/qt/5.5/5.5.1/qt-opensource-windows-x86-msvc2013-5.5.1.exe) instead
 
 

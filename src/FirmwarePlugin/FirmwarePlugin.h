@@ -79,7 +79,7 @@ public:
     ///     @param[out] custom_mode Custom mode for SET_MODE mavlink message
     virtual bool setFlightMode(const QString& flightMode, uint8_t* base_mode, uint32_t* custom_mode) = 0;
     
-    /// FIXME: This isn't quite correct being here. All code for Joystick support is currently firmware specific
+    /// FIXME: This isn't quite correct being here. All code for Joystick suvehicleTypepport is currently firmware specific
     /// not just this. I'm going to try to change that. If not, this will need to be removed.
     /// Returns the number of buttons which are reserved for firmware use in the MANUAL_CONTROL mavlink
     /// message. For example PX4 Flight Stack reserves the first 8 buttons to simulate rc switches.
@@ -90,8 +90,9 @@ public:
     /// Called before any mavlink message is processed by Vehicle such taht the firmwre plugin
     /// can adjust any message characteristics. This is handy to adjust or differences in mavlink
     /// spec implementations such that the base code can remain mavlink generic.
+    ///     @param vehicle Vehicle message came from
     ///     @param message[in,out] Mavlink message to adjust if needed.
-    virtual void adjustMavlinkMessage(mavlink_message_t* message) = 0;
+    virtual void adjustMavlinkMessage(Vehicle* vehicle, mavlink_message_t* message) = 0;
     
     /// Called when Vehicle is first created to send any necessary mavlink messages to the firmware.
     virtual void initializeVehicle(Vehicle* vehicle) = 0;
@@ -108,7 +109,10 @@ public:
     virtual QString getDefaultComponentIdParam(void) const = 0;
 
     /// Adds the parameter meta data to the Fact
-    virtual void addMetaDataToFact(Fact* fact) = 0;
+    virtual void addMetaDataToFact(Fact* fact, MAV_TYPE vehicleType) = 0;
+
+    /// List of supported mission commands. Empty list for all commands supported.
+    virtual QList<MAV_CMD> supportedMissionCommands(void) = 0;
 };
 
 #endif

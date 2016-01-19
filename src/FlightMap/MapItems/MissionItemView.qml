@@ -39,11 +39,10 @@ MapItemView {
 
     delegate: MissionItemIndicator {
         id:             itemIndicator
-        label:          object.homePosition ? "H" : object.sequenceNumber
-        isCurrentItem:  object.isCurrentItem
         coordinate:     object.coordinate
         visible:        object.specifiesCoordinate && (!object.homePosition || object.homePositionValid)
         z:              QGroundControl.zOrderMapItems
+        missionItem:    object
 
         onClicked: setCurrentItem(object.sequenceNumber)
 

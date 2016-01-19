@@ -1,24 +1,24 @@
 /*=====================================================================
- 
+
  QGroundControl Open Source Ground Control Station
- 
+
  (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
+
  This file is part of the QGROUNDCONTROL project
- 
+
  QGROUNDCONTROL is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  QGROUNDCONTROL is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU General Public License
  along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
+
  ======================================================================*/
 
 #ifndef QGCToolbox_h
@@ -26,18 +26,20 @@
 
 #include <QObject>
 
-class QGCApplication;
-class LinkManager;
-class MAVLinkProtocol;
-class MultiVehicleManager;
-class JoystickManager;
-class UASMessageHandler;
-class HomePositionManager;
-class FlightMapSettings;
-class GAudioOutput;
-class FirmwarePluginManager;
 class AutoPilotPluginManager;
 class FactSystem;
+class FirmwarePluginManager;
+class FlightMapSettings;
+class GAudioOutput;
+class HomePositionManager;
+class JoystickManager;
+class LinkManager;
+class MAVLinkProtocol;
+class MissionCommands;
+class MultiVehicleManager;
+class QGCApplication;
+class QGCImageProvider;
+class UASMessageHandler;
 
 /// This is used to manage all of our top level services/tools
 class QGCToolbox {
@@ -46,29 +48,33 @@ public:
     QGCToolbox(QGCApplication* app);
     ~QGCToolbox();
 
-    LinkManager*            linkManager(void)               { return _linkManager; }
-    MAVLinkProtocol*        mavlinkProtocol(void)           { return _mavlinkProtocol; }
-    MultiVehicleManager*    multiVehicleManager(void)       { return _multiVehicleManager; }
-    JoystickManager*        joystickManager(void)           { return _joystickManager; }
-    UASMessageHandler*      uasMessageHandler(void)         { return _uasMessageHandler; }
-    HomePositionManager*    homePositionManager(void)       { return _homePositionManager; }
-    FlightMapSettings*      flightMapSettings(void)         { return _flightMapSettings; }
-    GAudioOutput*           audioOutput(void)               { return _audioOutput; }
-    FirmwarePluginManager*  firmwarePluginManager(void)     { return _firmwarePluginManager; }
-    AutoPilotPluginManager* autopilotPluginManager(void)    { return _autopilotPluginManager; }
+    AutoPilotPluginManager*     autopilotPluginManager(void)    { return _autopilotPluginManager; }
+    FirmwarePluginManager*      firmwarePluginManager(void)     { return _firmwarePluginManager; }
+    FlightMapSettings*          flightMapSettings(void)         { return _flightMapSettings; }
+    GAudioOutput*               audioOutput(void)               { return _audioOutput; }
+    HomePositionManager*        homePositionManager(void)       { return _homePositionManager; }
+    JoystickManager*            joystickManager(void)           { return _joystickManager; }
+    LinkManager*                linkManager(void)               { return _linkManager; }
+    MAVLinkProtocol*            mavlinkProtocol(void)           { return _mavlinkProtocol; }
+    MissionCommands*            missionCommands(void)           { return _missionCommands; }
+    MultiVehicleManager*        multiVehicleManager(void)       { return _multiVehicleManager; }
+    QGCImageProvider*           imageProvider()                 { return _imageProvider; }
+    UASMessageHandler*          uasMessageHandler(void)         { return _uasMessageHandler; }
 
 private:
-    FirmwarePluginManager*  _firmwarePluginManager;
-    AutoPilotPluginManager* _autopilotPluginManager;
-    LinkManager*            _linkManager;
-    MultiVehicleManager*    _multiVehicleManager;
-    MAVLinkProtocol*        _mavlinkProtocol;
-    FlightMapSettings*      _flightMapSettings;
-    HomePositionManager*    _homePositionManager;
-    JoystickManager*        _joystickManager;
-    GAudioOutput*           _audioOutput;
-    UASMessageHandler*      _uasMessageHandler;
-    FactSystem*             _factSystem;
+    GAudioOutput*               _audioOutput;
+    AutoPilotPluginManager*     _autopilotPluginManager;
+    FactSystem*                 _factSystem;
+    FirmwarePluginManager*      _firmwarePluginManager;
+    FlightMapSettings*          _flightMapSettings;
+    HomePositionManager*        _homePositionManager;
+    QGCImageProvider*           _imageProvider;
+    JoystickManager*            _joystickManager;
+    LinkManager*                _linkManager;
+    MAVLinkProtocol*            _mavlinkProtocol;
+    MissionCommands*            _missionCommands;
+    MultiVehicleManager*        _multiVehicleManager;
+    UASMessageHandler*          _uasMessageHandler;
 };
 
 /// This is the base class for all tools
