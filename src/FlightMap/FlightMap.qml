@@ -51,9 +51,10 @@ Map {
     readonly property real maxZoomLevel:    20
 
     zoomLevel:                  18
-    center:                     QGroundControl.defaultMapPosition
+    center:                     QGroundControl.lastKnownHomePosition
     gesture.flickDeceleration:  3000
-    gesture.activeGestures:     MapGestureArea.ZoomGesture | MapGestureArea.PanGesture | MapGestureArea.FlickGesture
+    // This no longer exists in Qt 5.6. The options below also happen the be the default anyway.
+    //gesture.activeGestures:     MapGestureArea.ZoomGesture | MapGestureArea.PanGesture | MapGestureArea.FlickGesture
 
     plugin: Plugin { name: "QGroundControl" }
 
@@ -68,7 +69,7 @@ Map {
         onGcsPositionChanged: {
             if (!_initialMapPositionSet) {
                 _initialMapPositionSet = true
-                flightMap.center = mainWindow.gcsPosition
+                center = mainWindow.gcsPosition
             }
         }
     }

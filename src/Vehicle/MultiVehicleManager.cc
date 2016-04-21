@@ -29,6 +29,13 @@
 #include "MAVLinkProtocol.h"
 #include "UAS.h"
 #include "QGCApplication.h"
+#include "FollowMe.h"
+
+#ifdef __mobile__
+#include "MobileScreenMgr.h"
+#endif
+
+#include <QQmlEngine>
 
 QGC_LOGGING_CATEGORY(MultiVehicleManagerLog, "MultiVehicleManagerLog")
 
@@ -39,6 +46,7 @@ MultiVehicleManager::MultiVehicleManager(QGCApplication* app)
     , _activeVehicleAvailable(false)
     , _parameterReadyVehicleAvailable(false)
     , _activeVehicle(NULL)
+    , _disconnectedVehicle(NULL)
     , _firmwarePluginManager(NULL)
     , _autopilotPluginManager(NULL)
     , _joystickManager(NULL)
@@ -55,6 +63,8 @@ MultiVehicleManager::MultiVehicleManager(QGCApplication* app)
     if (_gcsHeartbeatEnabled) {
         _gcsHeartbeatTimer.start();
     }
+
+    _disconnectedVehicle = new Vehicle(this);
 }
 
 void MultiVehicleManager::setToolbox(QGCToolbox *toolbox)
@@ -69,34 +79,57 @@ void MultiVehicleManager::setToolbox(QGCToolbox *toolbox)
    QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
    qmlRegisterUncreatableType<MultiVehicleManager>("QGroundControl.MultiVehicleManager", 1, 0, "MultiVehicleManager", "Reference only");
 
-   connect(_toolbox->linkManager(), &LinkManager::linkActive, this, &MultiVehicleManager::_linkActive);
+   connect(_mavlinkProtocol, &MAVLinkProtocol::vehicleHeartbeatInfo, this, &MultiVehicleManager::_vehicleHeartbeatInfo);
 }
 
-void MultiVehicleManager::_linkActive(LinkInterface* link, int vehicleId, int vehicleFirmwareType, int vehicleType)
+void MultiVehicleManager::_vehicleHeartbeatInfo(LinkInterface* link, int vehicleId, int vehicleMavlinkVersion, int vehicleFirmwareType, int vehicleType)
 {
-    if (!getVehicleById(vehicleId)) {
-        qCDebug(MultiVehicleManagerLog) << "Adding new vehicle linkName:vehicleId:vehicleFirmwareType:vehicleType"
-                                        << link->getName()
-                                        << vehicleId
-                                        << vehicleFirmwareType
-                                        << vehicleType;
-
-        Vehicle* vehicle = new Vehicle(link, vehicleId, (MAV_AUTOPILOT)vehicleFirmwareType, (MAV_TYPE)vehicleType, _firmwarePluginManager, _autopilotPluginManager, _joystickManager);
-
-        if (!vehicle) {
-            qWarning() << "New Vehicle allocation failed";
-            return;
-        }
-
-        connect(vehicle, &Vehicle::allLinksInactive, this, &MultiVehicleManager::_deleteVehiclePhase1);
-        connect(vehicle->autopilotPlugin(), &AutoPilotPlugin::parametersReadyChanged, this, &MultiVehicleManager::_autopilotParametersReadyChanged);
-
-        _vehicles.append(vehicle);
-
-        emit vehicleAdded(vehicle);
-
-        setActiveVehicle(vehicle);
+    if (_ignoreVehicleIds.contains(vehicleId) || getVehicleById(vehicleId)) {
+        return;
     }
+
+    qCDebug(MultiVehicleManagerLog()) << "Adding new vehicle link:vehicleId:vehicleMavlinkVersion:vehicleFirmwareType:vehicleType "
+                                      << link->getName()
+                                      << vehicleId
+                                      << vehicleMavlinkVersion
+                                      << vehicleFirmwareType
+                                      << vehicleType;
+
+    if (vehicleId == _mavlinkProtocol->getSystemId()) {
+        _app->showMessage(QString("Warning: A vehicle is using the same system id as QGroundControl: %1").arg(vehicleId));
+    }
+
+    QSettings settings;
+    bool mavlinkVersionCheck = settings.value("VERSION_CHECK_ENABLED", true).toBool();
+    if (mavlinkVersionCheck && vehicleMavlinkVersion != MAVLINK_VERSION) {
+        _ignoreVehicleIds += vehicleId;
+        _app->showMessage(QString("The MAVLink protocol version on vehicle #%1 and QGroundControl differ! "
+                                  "It is unsafe to use different MAVLink versions. "
+                                  "QGroundControl therefore refuses to connect to vehicle #%1, which sends MAVLink version %2 (QGroundControl uses version %3).").arg(vehicleId).arg(vehicleMavlinkVersion).arg(MAVLINK_VERSION));
+        return;
+    }
+
+    Vehicle* vehicle = new Vehicle(link, vehicleId, (MAV_AUTOPILOT)vehicleFirmwareType, (MAV_TYPE)vehicleType, _firmwarePluginManager, _autopilotPluginManager, _joystickManager);
+    connect(vehicle, &Vehicle::allLinksInactive, this, &MultiVehicleManager::_deleteVehiclePhase1);
+    connect(vehicle->autopilotPlugin(), &AutoPilotPlugin::parametersReadyChanged, this, &MultiVehicleManager::_autopilotParametersReadyChanged);
+
+    _vehicles.append(vehicle);
+
+    emit vehicleAdded(vehicle);
+
+    setActiveVehicle(vehicle);
+
+    // Mark link as active
+    link->setActive(true);
+
+#ifdef __mobile__
+    if(_vehicles.count() == 1) {
+        //-- Once a vehicle is connected, keep screen from going off
+        qCDebug(MultiVehicleManagerLog) << "QAndroidJniObject::keepScreenOn";
+        MobileScreenMgr::setKeepScreenOn(true);
+    }
+#endif
+
 }
 
 /// This slot is connected to the Vehicle::allLinksDestroyed signal such that the Vehicle is deleted
@@ -129,6 +162,14 @@ void MultiVehicleManager::_deleteVehiclePhase1(Vehicle* vehicle)
     emit activeVehicleAvailableChanged(false);
     emit parameterReadyVehicleAvailableChanged(false);
     emit vehicleRemoved(vehicle);
+
+#ifdef __mobile__
+    if(_vehicles.count() == 0) {
+        //-- Once no vehicles are connected, we no longer need to keep screen from going off
+        qCDebug(MultiVehicleManagerLog) << "QAndroidJniObject::restoreScreenOn";
+        MobileScreenMgr::setKeepScreenOn(false);
+    }
+#endif
 
     // We must let the above signals flow through the system as well as get back to the main loop event queue
     // before we can actually delete the Vehicle. The reason is that Qml may be holding on the references to it.
@@ -284,4 +325,19 @@ void MultiVehicleManager::_sendGCSHeartbeat(void)
                                    MAV_STATE_ACTIVE);       // MAV_STATE
         vehicle->sendMessage(message);
     }
+}
+
+bool MultiVehicleManager::linkInUse(LinkInterface* link, Vehicle* skipVehicle)
+{
+    for (int i=0; i< _vehicles.count(); i++) {
+        Vehicle* vehicle = qobject_cast<Vehicle*>(_vehicles[i]);
+
+        if (vehicle != skipVehicle) {
+            if (vehicle->containsLink(link)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }

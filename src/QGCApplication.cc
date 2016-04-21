@@ -36,6 +36,7 @@
 #include <QPainter>
 #include <QStyleFactory>
 #include <QAction>
+#include <QStringListModel>
 
 #ifdef QGC_ENABLE_BLUETOOTH
 #include <QBluetoothLocalDevice>
@@ -61,7 +62,8 @@
 #include "ViewWidgetController.h"
 #include "ParameterEditorController.h"
 #include "CustomCommandWidgetController.h"
-#include "FlightModesComponentController.h"
+#include "PX4AdvancedFlightModesController.h"
+#include "PX4SimpleFlightModesController.h"
 #include "APMFlightModesComponentController.h"
 #include "AirframeComponentController.h"
 #include "SensorsComponentController.h"
@@ -70,11 +72,12 @@
 #include "RadioComponentController.h"
 #include "ESP8266ComponentController.h"
 #include "ScreenToolsController.h"
+#include "QGCMobileFileDialogController.h"
+#include "RCChannelMonitorController.h"
 #include "AutoPilotPlugin.h"
 #include "VehicleComponent.h"
 #include "FirmwarePluginManager.h"
 #include "MultiVehicleManager.h"
-#include "Generic/GenericFirmwarePlugin.h"
 #include "APM/ArduCopterFirmwarePlugin.h"
 #include "APM/ArduPlaneFirmwarePlugin.h"
 #include "APM/ArduRoverFirmwarePlugin.h"
@@ -97,6 +100,9 @@
 #include "VideoSurface.h"
 #include "VideoReceiver.h"
 #include "LogDownloadController.h"
+#include "PX4AirframeLoader.h"
+#include "ValuesWidgetController.h"
+#include "AppMessages.h"
 
 #ifndef __ios__
     #include "SerialLink.h"
@@ -123,13 +129,18 @@
 
 QGCApplication* QGCApplication::_app = NULL;
 
+const char* QGCApplication::parameterFileExtension =    "params";
+const char* QGCApplication::missionFileExtension =      "mission";
+const char* QGCApplication::telemetryFileExtension =     "tlog";
+
 const char* QGCApplication::_deleteAllSettingsKey           = "DeleteAllSettingsNextBoot";
 const char* QGCApplication::_settingsVersionKey             = "SettingsVersion";
 const char* QGCApplication::_promptFlightDataSave           = "PromptFLightDataSave";
 const char* QGCApplication::_promptFlightDataSaveNotArmed   = "PromptFLightDataSaveNotArmed";
 const char* QGCApplication::_styleKey                       = "StyleIsDark";
-const char* QGCApplication::_defaultMapPositionLatKey       = "DefaultMapPositionLat";
-const char* QGCApplication::_defaultMapPositionLonKey       = "DefaultMapPositionLon";
+const char* QGCApplication::_lastKnownHomePositionLatKey    = "LastKnownHomePositionLat";
+const char* QGCApplication::_lastKnownHomePositionLonKey    = "LastKnownHomePositionLon";
+const char* QGCApplication::_lastKnownHomePositionAltKey    = "LastKnownHomePositionAlt";
 
 const char* QGCApplication::_darkStyleFile          = ":/res/styles/style-dark.css";
 const char* QGCApplication::_lightStyleFile         = ":/res/styles/style-light.css";
@@ -149,7 +160,7 @@ static QObject* mavlinkQmlSingletonFactory(QQmlEngine*, QJSEngine*)
 
 static QObject* qgroundcontrolQmlGlobalSingletonFactory(QQmlEngine*, QJSEngine*)
 {
-    // We create this object as a QGCTool even though it isn't int he toolbox
+    // We create this object as a QGCTool even though it isn't in the toolbox
     QGroundControlQmlGlobal* qmlGlobal = new QGroundControlQmlGlobal(qgcApp());
     qmlGlobal->setToolbox(qgcApp()->toolbox());
 
@@ -185,7 +196,7 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
 #endif
     , _toolbox(NULL)
     , _bluetoothAvailable(false)
-    , _defaultMapPosition(37.803784, -122.462276)
+    , _lastKnownHomePosition(37.803784, -122.462276, 0.0)
 {
     Q_ASSERT(_app == NULL);
     _app = this;
@@ -337,7 +348,7 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
     setOrganizationName(QGC_ORG_NAME);
     setOrganizationDomain(QGC_ORG_DOMAIN);
 
-    QString versionString(GIT_VERSION);
+    QString versionString(GIT_TAG);
     // stable versions are on tags (v1.2.3)
     // development versions are full git describe versions (v1.2.3-18-g879e8b3)
     if (versionString.length() > 8) {
@@ -365,12 +376,19 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
 
     if (fClearSettingsOptions) {
         // User requested settings to be cleared on command line
+
         settings.clear();
         settings.setValue(_settingsVersionKey, QGC_SETTINGS_VERSION);
+
+        // Clear parameter cache
+        QDir paramDir(ParameterLoader::parameterCacheDir());
+        paramDir.removeRecursively();
+        paramDir.mkpath(paramDir.absolutePath());
     }
 
-    _defaultMapPosition.setLatitude(settings.value(_defaultMapPositionLatKey, 37.803784).toDouble());
-    _defaultMapPosition.setLongitude(settings.value(_defaultMapPositionLonKey, -122.462276).toDouble());
+    _lastKnownHomePosition.setLatitude(settings.value(_lastKnownHomePositionLatKey, 37.803784).toDouble());
+    _lastKnownHomePosition.setLongitude(settings.value(_lastKnownHomePositionLonKey, -122.462276).toDouble());
+    _lastKnownHomePosition.setAltitude(settings.value(_lastKnownHomePositionAltKey, 0.0).toDouble());
 
     // Initialize Bluetooth
 #ifdef QGC_ENABLE_BLUETOOTH
@@ -425,7 +443,8 @@ void QGCApplication::_initCommon(void)
 
     qmlRegisterType<ParameterEditorController>          ("QGroundControl.Controllers", 1, 0, "ParameterEditorController");
     qmlRegisterType<APMFlightModesComponentController>  ("QGroundControl.Controllers", 1, 0, "APMFlightModesComponentController");
-    qmlRegisterType<FlightModesComponentController>     ("QGroundControl.Controllers", 1, 0, "FlightModesComponentController");
+    qmlRegisterType<PX4AdvancedFlightModesController>   ("QGroundControl.Controllers", 1, 0, "PX4AdvancedFlightModesController");
+    qmlRegisterType<PX4SimpleFlightModesController>     ("QGroundControl.Controllers", 1, 0, "PX4SimpleFlightModesController");
     qmlRegisterType<APMAirframeComponentController>     ("QGroundControl.Controllers", 1, 0, "APMAirframeComponentController");
     qmlRegisterType<AirframeComponentController>        ("QGroundControl.Controllers", 1, 0, "AirframeComponentController");
     qmlRegisterType<APMSensorsComponentController>      ("QGroundControl.Controllers", 1, 0, "APMSensorsComponentController");
@@ -437,6 +456,9 @@ void QGCApplication::_initCommon(void)
     qmlRegisterType<MainToolBarController>              ("QGroundControl.Controllers", 1, 0, "MainToolBarController");
     qmlRegisterType<MissionController>                  ("QGroundControl.Controllers", 1, 0, "MissionController");
     qmlRegisterType<FlightDisplayViewController>        ("QGroundControl.Controllers", 1, 0, "FlightDisplayViewController");
+    qmlRegisterType<ValuesWidgetController>             ("QGroundControl.Controllers", 1, 0, "ValuesWidgetController");
+    qmlRegisterType<QGCMobileFileDialogController>      ("QGroundControl.Controllers", 1, 0, "QGCMobileFileDialogController");
+    qmlRegisterType<RCChannelMonitorController>         ("QGroundControl.Controllers", 1, 0, "RCChannelMonitorController");
 
 #ifndef __mobile__
     qmlRegisterType<ViewWidgetController>           ("QGroundControl.Controllers", 1, 0, "ViewWidgetController");
@@ -450,6 +472,36 @@ void QGCApplication::_initCommon(void)
     qmlRegisterSingletonType<QGroundControlQmlGlobal>   ("QGroundControl",                          1, 0, "QGroundControl",         qgroundcontrolQmlGlobalSingletonFactory);
     qmlRegisterSingletonType<ScreenToolsController>     ("QGroundControl.ScreenToolsController",    1, 0, "ScreenToolsController",  screenToolsControllerSingletonFactory);
     qmlRegisterSingletonType<MavlinkQmlSingleton>       ("QGroundControl.Mavlink",                  1, 0, "Mavlink",                mavlinkQmlSingletonFactory);
+}
+
+bool QGCApplication::_initForNormalAppBoot(void)
+{
+    QSettings settings;
+
+    _styleIsDark = settings.value(_styleKey, _styleIsDark).toBool();
+    _loadCurrentStyle();
+
+    // Exit main application when last window is closed
+    connect(this, &QGCApplication::lastWindowClosed, this, QGCApplication::quit);
+
+#ifdef __mobile__
+    _qmlAppEngine = new QQmlApplicationEngine(this);
+    _qmlAppEngine->addImportPath("qrc:/qml");
+    _qmlAppEngine->rootContext()->setContextProperty("joystickManager", toolbox()->joystickManager());
+    _qmlAppEngine->rootContext()->setContextProperty("debugMessageModel", AppMessages::getModel());
+    _qmlAppEngine->load(QUrl(QStringLiteral("qrc:/qml/MainWindowNative.qml")));
+#else
+    // Start the user interface
+    MainWindow* mainWindow = MainWindow::_create();
+    Q_CHECK_PTR(mainWindow);
+
+    // Now that main window is up check for lost log files
+    connect(this, &QGCApplication::checkForLostLogFiles, toolbox()->mavlinkProtocol(), &MAVLinkProtocol::checkForLostLogFiles);
+    emit checkForLostLogFiles();
+#endif
+
+    // Load known link configurations
+    toolbox()->linkManager()->loadLinkConfigurationList();
 
     // Show user an upgrade message if the settings version has been bumped up
     bool settingsUpgraded = false;
@@ -472,36 +524,6 @@ void QGCApplication::_initCommon(void)
     }
 
     settings.sync();
-}
-
-bool QGCApplication::_initForNormalAppBoot(void)
-{
-    QSettings settings;
-
-    _styleIsDark = settings.value(_styleKey, _styleIsDark).toBool();
-    _loadCurrentStyle();
-
-    // Exit main application when last window is closed
-    connect(this, &QGCApplication::lastWindowClosed, this, QGCApplication::quit);
-
-#ifdef __mobile__
-    _qmlAppEngine = new QQmlApplicationEngine(this);
-    _qmlAppEngine->addImportPath("qrc:/qml");
-    _qmlAppEngine->rootContext()->setContextProperty("multiVehicleManager", toolbox()->multiVehicleManager());
-    _qmlAppEngine->rootContext()->setContextProperty("joystickManager", toolbox()->joystickManager());
-    _qmlAppEngine->load(QUrl(QStringLiteral("qrc:/qml/MainWindowNative.qml")));
-#else
-    // Start the user interface
-    MainWindow* mainWindow = MainWindow::_create();
-    Q_CHECK_PTR(mainWindow);
-
-    // Now that main window is up check for lost log files
-    connect(this, &QGCApplication::checkForLostLogFiles, toolbox()->mavlinkProtocol(), &MAVLinkProtocol::checkForLostLogFiles);
-    emit checkForLostLogFiles();
-#endif
-
-    // Load known link configurations
-    toolbox()->linkManager()->loadLinkConfigurationList();
 
     return true;
 }
@@ -639,13 +661,12 @@ void QGCApplication::_loadCurrentStyle(void)
     }
 
     if (success && !_styleIsDark) {
-        qDebug() << "LOADING LIGHT";
         // Load the slave light stylesheet.
         QFile styleSheet(_lightStyleFile);
         if (styleSheet.open(QIODevice::ReadOnly | QIODevice::Text)) {
             styles += styleSheet.readAll();
         } else {
-            qDebug() << "Unable to load slave light sheet:";
+            qWarning() << "Unable to load slave light sheet:";
             success = false;
         }
     }
@@ -706,6 +727,11 @@ QObject* QGCApplication::_rootQmlObject(void)
 
 void QGCApplication::showMessage(const QString& message)
 {
+    // Special case hack for ArduPilot prearm messages. These show up in the center of the map, so no need for popup.
+    if (message.contains("PreArm:")) {
+        return;
+    }
+
     QObject* rootQmlObject = _rootQmlObject();
 
     if (rootQmlObject) {
@@ -767,11 +793,12 @@ void QGCApplication::_showSetupVehicleComponent(VehicleComponent* vehicleCompone
     QMetaObject::invokeMethod(_rootQmlObject(), "showSetupVehicleComponent", Q_RETURN_ARG(QVariant, varReturn), Q_ARG(QVariant, varComponent));
 }
 
-void QGCApplication::setDefaultMapPosition(QGeoCoordinate& defaultMapPosition)
+void QGCApplication::setLastKnownHomePosition(QGeoCoordinate& lastKnownHomePosition)
 {
     QSettings settings;
 
-    settings.setValue(_defaultMapPositionLatKey, defaultMapPosition.latitude());
-    settings.setValue(_defaultMapPositionLonKey, defaultMapPosition.longitude());
-    _defaultMapPosition = defaultMapPosition;
+    settings.setValue(_lastKnownHomePositionLatKey, lastKnownHomePosition.latitude());
+    settings.setValue(_lastKnownHomePositionLonKey, lastKnownHomePosition.longitude());
+    settings.setValue(_lastKnownHomePositionAltKey, lastKnownHomePosition.altitude());
+    _lastKnownHomePosition = lastKnownHomePosition;
 }

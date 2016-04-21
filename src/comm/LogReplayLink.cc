@@ -102,7 +102,7 @@ LogReplayLink::~LogReplayLink(void)
 bool LogReplayLink::_connect(void)
 {
     // Disallow replay when any links are connected
-    if (qgcApp()->toolbox()->linkManager()->anyActiveLinks()) {
+    if (qgcApp()->toolbox()->multiVehicleManager()->activeVehicle()) {
         emit communicationError(_errorTitle, "You must close all connections prior to replaying a log.");
         return false;
     }
@@ -150,16 +150,10 @@ void LogReplayLink::_replayError(const QString& errorMsg)
     emit communicationError(_errorTitle, errorMsg);
 }
 
-void LogReplayLink::readBytes(void)
-{
-    // FIXME: This is a bad virtual from LinkInterface?
-}
-
 /// Since this is log replay, we just drops writes on the floor
-void LogReplayLink::writeBytes(const char* bytes, qint64 cBytes)
+void LogReplayLink::_writeBytes(const QByteArray bytes)
 {
     Q_UNUSED(bytes);
-    Q_UNUSED(cBytes);
 }
 
 /// Parses a BigEndian quint64 timestamp

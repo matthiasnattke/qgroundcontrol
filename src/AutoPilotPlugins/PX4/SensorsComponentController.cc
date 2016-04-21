@@ -74,7 +74,11 @@ SensorsComponentController::SensorsComponentController(void) :
     _unknownFirmwareVersion(false),
     _waitingForCancel(false)
 {
+}
 
+bool SensorsComponentController::usingUDPLink(void)
+{
+    return _vehicle->priorityLink()->getLinkConfiguration()->type() == LinkConfiguration::TypeUdp;
 }
 
 /// Appends the specified text to the status log area in the ui
@@ -411,6 +415,11 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
         emit orientationCalSidesInProgressChanged();
         emit orientationCalSidesDoneChanged();
         emit orientationCalSidesRotateChanged();
+        return;
+    }
+
+    if (text.endsWith("side already completed")) {
+        _orientationCalAreaHelpText->setProperty("text", "Orientation already completed, place you vehicle into one of the incomplete orientations shown below and hold it still");
         return;
     }
     

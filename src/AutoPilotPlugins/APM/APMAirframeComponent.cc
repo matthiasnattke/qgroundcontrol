@@ -28,7 +28,7 @@
 #include "ArduCopterFirmwarePlugin.h"
 
 APMAirframeComponent::APMAirframeComponent(Vehicle* vehicle, AutoPilotPlugin* autopilot, QObject* parent)
-    : APMComponent(vehicle, autopilot, parent)
+    : VehicleComponent(vehicle, autopilot, parent)
     , _requiresFrameSetup(false)
     , _name("Airframe")
 {
@@ -49,7 +49,7 @@ QString APMAirframeComponent::name(void) const
 QString APMAirframeComponent::description(void) const
 {
     return tr("The Airframe Component is used to select the airframe which matches your vehicle. "
-              "This will in turn set up the various tuning values for flight paramters.");
+              "This will in turn set up the various tuning values for flight parameters.");
 }
 
 QString APMAirframeComponent::iconResource(void) const

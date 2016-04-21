@@ -48,10 +48,18 @@ APMFlightModesComponentController::APMFlightModesComponentController(void)
 /// Connected to Vehicle::rcChannelsChanged signal
 void APMFlightModesComponentController::_rcChannelsChanged(int channelCount, int pwmValues[Vehicle::cMaxRcChannels])
 {
-    Q_UNUSED(channelCount);
+    int flightModeChannel = 4;
+
+    if (parameterExists(FactSystem::defaultComponentId, QStringLiteral("FLTMODE_CH"))) {
+        flightModeChannel = getParameterFact(FactSystem::defaultComponentId, QStringLiteral("FLTMODE_CH"))->rawValue().toInt() - 1;
+    }
+
+    if (flightModeChannel >= channelCount) {
+        return;
+    }
 
     _activeFlightMode = 0;
-    int channelValue = pwmValues[4];
+    int channelValue = pwmValues[flightModeChannel];
     if (channelValue != -1) {
         bool found = false;
         int rgThreshold[] = { 1230, 1360, 1490, 1620, 1749 };

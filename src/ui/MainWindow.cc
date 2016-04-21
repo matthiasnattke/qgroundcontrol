@@ -66,6 +66,7 @@ This file is part of the QGROUNDCONTROL project
 #include "UASInfoWidget.h"
 #include "HILDockWidget.h"
 #include "LogDownload.h"
+#include "AppMessages.h"
 #endif
 
 #ifndef __ios__
@@ -164,6 +165,7 @@ MainWindow::MainWindow()
 
     QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
     _mainQmlWidgetHolder->setContextPropertyObject("controller", this);
+    _mainQmlWidgetHolder->setContextPropertyObject("debugMessageModel", AppMessages::getModel());
     _mainQmlWidgetHolder->setSource(QUrl::fromUserInput("qrc:qml/MainWindowHybrid.qml"));
 
     // Image provider
@@ -245,19 +247,6 @@ MainWindow::MainWindow()
 
     connect(_ui.actionStatusBar,  &QAction::triggered, this, &MainWindow::showStatusBarCallback);
 
-    // Set OS dependent keyboard shortcuts for the main window, non OS dependent shortcuts are set in MainWindow.ui
-#ifdef __macos__
-    _ui.actionSetup->setShortcut(QApplication::translate("MainWindow", "Meta+1", 0));
-    _ui.actionPlan->setShortcut(QApplication::translate("MainWindow", "Meta+2", 0));
-    _ui.actionFlight->setShortcut(QApplication::translate("MainWindow", "Meta+3", 0));
-#else
-    _ui.actionSetup->setShortcut(QApplication::translate("MainWindow", "Ctrl+1", 0));
-    _ui.actionPlan->setShortcut(QApplication::translate("MainWindow", "Ctrl+2", 0));
-    _ui.actionFlight->setShortcut(QApplication::translate("MainWindow", "Ctrl+3", 0));
-#endif
-
-    _ui.actionFlight->setChecked(true);
-
     connect(&windowNameUpdateTimer, &QTimer::timeout, this, &MainWindow::configureWindowName);
     windowNameUpdateTimer.start(15000);
     emit initStatusChanged(tr("Done"), Qt::AlignLeft | Qt::AlignBottom, QColor(62, 93, 141));
@@ -289,10 +278,19 @@ MainWindow::MainWindow()
 #ifndef __mobile__
     _loadVisibleWidgetsSettings();
 #endif
+    //-- Enable message handler display of messages in main window
+    UASMessageHandler* msgHandler = qgcApp()->toolbox()->uasMessageHandler();
+    if(msgHandler) {
+        msgHandler->showErrorsInToolbar();
+    }
 }
 
 MainWindow::~MainWindow()
 {
+    // This needs to happen before we get into the QWidget dtor
+    // otherwise  the QML engine reads freed data and tries to
+    // destroy MainWindow a second time.
+    delete _mainQmlWidgetHolder;
     _instance = NULL;
 }
 
@@ -319,7 +317,7 @@ void MainWindow::_buildCommonWidgets(void)
         const char* pDockWidgetName = rgDockWidgetNames[i];
 
         // Add to menu
-        QAction* action = new QAction(tr(pDockWidgetName), NULL);
+        QAction* action = new QAction(tr(pDockWidgetName), this);
         action->setCheckable(true);
         action->setData(i);
         connect(action, &QAction::triggered, this, &MainWindow::_showDockWidgetAction);
@@ -425,16 +423,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
 
     // Should not be any active connections
-    if (qgcApp()->toolbox()->linkManager()->anyActiveLinks()) {
+    if (qgcApp()->toolbox()->multiVehicleManager()->activeVehicle()) {
         qWarning() << "All links should be disconnected by now";
     }
 
     _storeCurrentViewState();
     storeSettings();
-
-    //-- TODO: This effectively causes the QGCApplication destructor to not being able
-    //   to access the pointer it is trying to delete.
-    _instance = NULL;
 
     emit mainWindowClosed();
 }
@@ -503,25 +497,8 @@ void MainWindow::connectCommonActions()
     // Application Settings
     connect(_ui.actionSettings, &QAction::triggered, this, &MainWindow::showSettings);
 
-    // Views actions
-    connect(_ui.actionFlight,   &QAction::triggered,    qgcApp(),   &QGCApplication::showFlyView);
-    connect(_ui.actionPlan,     &QAction::triggered,    qgcApp(),   &QGCApplication::showPlanView);
-    connect(_ui.actionSetup,    &QAction::triggered,    qgcApp(),   &QGCApplication::showSetupView);
-    connect(_ui.actionFlight,   &QAction::triggered,    this,       &MainWindow::handleActiveViewActionState);
-    connect(_ui.actionPlan,     &QAction::triggered,    this,       &MainWindow::handleActiveViewActionState);
-    connect(_ui.actionSetup,    &QAction::triggered,    this,       &MainWindow::handleActiveViewActionState);
-
     // Connect internal actions
     connect(qgcApp()->toolbox()->multiVehicleManager(), &MultiVehicleManager::vehicleAdded, this, &MainWindow::_vehicleAdded);
-}
-
-void MainWindow::handleActiveViewActionState(bool triggered)
-{
-    Q_UNUSED(triggered);
-    QAction *triggeredAction = qobject_cast<QAction*>(sender());
-    _ui.actionFlight->setChecked(triggeredAction == _ui.actionFlight);
-    _ui.actionPlan->setChecked(triggeredAction == _ui.actionPlan);
-    _ui.actionSetup->setChecked(triggeredAction == _ui.actionSetup);
 }
 
 void MainWindow::_openUrl(const QString& url, const QString& errorMessage)

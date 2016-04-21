@@ -58,9 +58,10 @@ public:
     Q_PROPERTY(QStringList      baudRates       READ baudRates                              CONSTANT)
     Q_PROPERTY(int              baudIndex       READ baudIndex      WRITE setBaudIndex      NOTIFY baudIndexChanged)
     Q_PROPERTY(bool             busy            READ busy                                   NOTIFY busyChanged)
+    Q_PROPERTY(Vehicle*         vehicle         READ vehicle        CONSTANT)
 
     Q_INVOKABLE void restoreDefaults();
-    Q_INVOKABLE void reboot();
+    Q_INVOKABLE void reboot         ();
 
     int             componentID     () { return MAV_COMP_ID_UDP_BRIDGE; }
     QString         version         ();
@@ -70,6 +71,7 @@ public:
     QStringList     baudRates       () { return _baudRates; }
     int             baudIndex       ();
     bool            busy            () { return _waitType != WAIT_FOR_NOTHING; }
+    Vehicle*        vehicle         () { return _vehicle; }
 
     void        setWifiSSID         (QString id);
     void        setWifiPassword     (QString pwd);
@@ -84,7 +86,7 @@ signals:
 
 private slots:
     void        _processTimeout     ();
-    void        _commandAck         (UASInterface* uas, uint8_t compID, uint16_t command, uint8_t result);
+    void        _commandAck         (uint8_t compID, uint16_t command, uint8_t result);
     void        _ssidChanged        (QVariant value);
     void        _passwordChanged    (QVariant value);
     void        _baudChanged        (QVariant value);

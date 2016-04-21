@@ -16,7 +16,8 @@ FactPanel {
     FactPanelController { id: controller; factPanel: panel }
 
     ESP8266ComponentController {
-        id: esp8266
+        id:         esp8266
+        factPanel:  panel
     }
 
     property Fact debugEnabled:     controller.getParameterFact(esp8266.componentID, "DEBUG_ENABLED")
@@ -29,24 +30,24 @@ FactPanel {
         anchors.fill:       parent
         anchors.margins:    8
         VehicleSummaryRow {
-            labelText: "Firmware Version:"
+            labelText: qsTr("Firmware Version:")
             valueText: esp8266.version
         }
         VehicleSummaryRow {
-            labelText: "WiFi Channel:"
-            valueText: wifiChannel.valueString
+            labelText: qsTr("WiFi Channel:")
+            valueText: wifiChannel ? wifiChannel.valueString : ""
         }
         VehicleSummaryRow {
-            labelText: "WiFi SSID:"
+            labelText: qsTr("WiFi SSID:")
             valueText: esp8266.wifiSSID
         }
         VehicleSummaryRow {
-            labelText: "WiFi Password:"
+            labelText: qsTr("WiFi Password:")
             valueText: esp8266.wifiPassword
         }
         VehicleSummaryRow {
-            labelText: "UART Baud Rate:"
-            valueText: uartBaud.valueString
+            labelText: qsTr("UART Baud Rate:")
+            valueText: uartBaud ? uartBaud.valueString : ""
         }
     }
 }

@@ -535,7 +535,7 @@ void QGCDataPlot2D::loadCsvLog(QString file, QString xAxisName, QString yAxisFil
                 {
                     bool okx = true;
                     x = text.toDouble(&okx);
-                    if (okx && !isnan(x) && !isinf(x))
+                    if (okx && !qIsNaN(x) && !qIsInf(x))
                     {
                         headerfound = true;
                     }
@@ -561,7 +561,7 @@ void QGCDataPlot2D::loadCsvLog(QString file, QString xAxisName, QString yAxisFil
                         y = text.toDouble(&oky);
                         // Only INF is really an issue for the plot
                         // NaN is fine
-                        if (oky && !isnan(y) && !isinf(y) && text.length() > 0 && text != " " && text != "\n" && text != "\r" && text != "\t")
+                        if (oky && !qIsNaN(y) && !qIsInf(y) && text.length() > 0 && text != " " && text != "\n" && text != "\r" && text != "\t")
                         {
                             // Only append definitely valid values
                             xValues.value(curveName)->append(x);
@@ -644,8 +644,8 @@ bool QGCDataPlot2D::calculateRegression(QString xName, QString yName, QString me
             function = tr("Regression method %1 not found").arg(method);
         }
 
-        delete x;
-        delete y;
+        delete[] x;
+        delete[] y;
     } else {
         // xName == yName
         function = tr("Please select different X and Y dimensions, not %1 = %2").arg(xName, yName);

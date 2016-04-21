@@ -42,18 +42,17 @@ Item {
     readonly property string _planViewSource:   "MissionEditor.qml"
     readonly property string _setupViewSource:  "SetupView.qml"
 
-    QGCPalette { id: __qgcPal; colorGroupEnabled: true }
+    QGCPalette { id: qgcPal; colorGroupEnabled: true }
 
     property real   tbHeight:           ScreenTools.isMobile ? (ScreenTools.isTinyScreen ? (mainWindow.width * 0.0666) : (mainWindow.width * 0.05)) : ScreenTools.defaultFontPixelSize * 4
     property int    tbCellHeight:       tbHeight * 0.75
     property real   tbSpacing:          ScreenTools.isMobile ? width * 0.00824 : 9.54
     property real   tbButtonWidth:      tbCellHeight * 1.35
-    property real   availableHeight:    height - tbHeight
     property real   menuButtonWidth:    (tbButtonWidth * 2) + (tbSpacing * 4) + 1
     property var    gcsPosition:        QtPositioning.coordinate()  // Starts as invalid coordinate
     property var    currentPopUp:       null
     property real   currentCenterX:     0
-    property var    activeVehicle:      multiVehicleManager.activeVehicle
+    property var    activeVehicle:      QGroundControl.multiVehicleManager.activeVehicle
     property string formatedMessage:    activeVehicle ? activeVehicle.formatedMessage : ""
 
     function showFlyView() {
@@ -125,8 +124,8 @@ Item {
 
     MessageDialog {
         id:                 unsavedMissionCloseDialog
-        title:              "QGroundControl close"
-        text:               "You have a mission edit in progress which has not been saved/sent. If you close you will lose changes. Are you sure you want to close?"
+        title:              qsTr("QGroundControl close")
+        text:               qsTr("You have a mission edit in progress which has not been saved/sent. If you close you will lose changes. Are you sure you want to close?")
         standardButtons:    StandardButton.Yes | StandardButton.No
         modality:           Qt.ApplicationModal
         visible:            false
@@ -144,8 +143,8 @@ Item {
 
     MessageDialog {
         id:                 activeConnectionsCloseDialog
-        title:              "QGroundControl close"
-        text:               "There are still active connections to vehicles. Do you want to disconnect these before closing?"
+        title:              qsTr("QGroundControl close")
+        text:               qsTr("There are still active connections to vehicles. Do you want to disconnect these before closing?")
         standardButtons:    StandardButton.Yes | StandardButton.Cancel
         modality:           Qt.ApplicationModal
         visible:            false
@@ -205,7 +204,7 @@ Item {
     }
 
     function showLeftMenu() {
-        if(!leftPanel.visible && !leftPanel.item.animateShowDialog.running) {
+        if(!leftPanel.visible) {
             leftPanel.visible = true
             leftPanel.item.animateShowDialog.start()
         } else if(leftPanel.visible && !leftPanel.item.animateShowDialog.running) {
@@ -232,14 +231,14 @@ Item {
         if(currentPopUp) {
             currentPopUp.close()
         }
-        if(multiVehicleManager.activeVehicleAvailable) {
+        if(QGroundControl.multiVehicleManager.activeVehicleAvailable) {
             messageText.text = activeVehicle.formatedMessages
             //-- Hack to scroll to last message
             for (var i = 0; i < activeVehicle.messageCount; i++)
                 messageFlick.flick(0,-5000)
             activeVehicle.resetMessages()
         } else {
-            messageText.text = "No Messages"
+            messageText.text = qsTr("No Messages")
         }
         currentPopUp = messageArea
         messageArea.visible = true
@@ -261,6 +260,8 @@ Item {
         anchors.fill:       parent
         visible:            false
         z:                  QGroundControl.zOrderTopMost + 100
+        active:             visible
+        source:             "MainWindowLeftPanel.qml"
     }
 
     //-- Main UI
@@ -276,31 +277,35 @@ Item {
         isBackgroundDark:   flightView.isBackgroundDark
         z:                  QGroundControl.zOrderTopMost
 
-        Component.onCompleted: {
-            leftPanel.source = "MainWindowLeftPanel.qml"
-        }
-
         onShowSetupView:    mainWindow.showSetupView()
         onShowPlanView:     mainWindow.showPlanView()
         onShowFlyView:      mainWindow.showFlyView()
     }
 
     FlightDisplayView {
-        id:                 flightView
-        anchors.fill:       parent
-        availableHeight:    mainWindow.availableHeight
-        visible:            true
+        id:             flightView
+        anchors.left:   parent.left
+        anchors.right:  parent.right
+        anchors.top:    toolBar.bottom
+        anchors.bottom: parent.bottom
+        visible:        true
     }
 
     Loader {
         id:                 planViewLoader
-        anchors.fill:       parent
+        anchors.left:   parent.left
+        anchors.right:  parent.right
+        anchors.top:    toolBar.bottom
+        anchors.bottom: parent.bottom
         visible:            false
     }
 
     Loader {
         id:                 setupViewLoader
-        anchors.fill:       parent
+        anchors.left:   parent.left
+        anchors.right:  parent.right
+        anchors.top:    toolBar.bottom
+        anchors.bottom: parent.bottom
         visible:            false
     }
 
@@ -383,7 +388,7 @@ Item {
     //-------------------------------------------------------------------------
     //-- Critical Message Area
     Rectangle {
-        id:                 criticalMmessageArea
+        id: criticalMmessageArea
 
         function close() {
             //-- Are there messages in the waiting queue?
@@ -403,7 +408,7 @@ Item {
 
         width:              mainWindow.width  * 0.55
         height:             ScreenTools.defaultFontPixelHeight * ScreenTools.fontHRatio * 6
-        color:              Qt.rgba(0,0,0,0.8)
+        color:              qgcPal.window
         visible:            false
         radius:             ScreenTools.defaultFontPixelHeight * 0.5
         anchors.horizontalCenter:   parent.horizontalCenter
@@ -427,6 +432,7 @@ Item {
             boundsBehavior:     Flickable.StopAtBounds
             pixelAligned:       true
             clip:               true
+
             TextEdit {
                 id:             criticalMessageText
                 width:          criticalMmessageArea.width - criticalClose.width - (ScreenTools.defaultFontPixelHeight * 2)
@@ -435,12 +441,12 @@ Item {
                 textFormat:     TextEdit.RichText
                 font.weight:    Font.DemiBold
                 wrapMode:       TextEdit.WordWrap
-                color:          "#fdfd3b"
+                color:          qgcPal.warningText
             }
         }
 
         //-- Dismiss Critical Message
-        Image {
+        QGCColoredImage {
             id:                 criticalClose
             anchors.margins:    ScreenTools.defaultFontPixelHeight
             anchors.top:        parent.top
@@ -449,8 +455,8 @@ Item {
             height:             ScreenTools.defaultFontPixelHeight * 1.5
             source:             "/res/XDelete.svg"
             fillMode:           Image.PreserveAspectFit
-            mipmap:             true
-            smooth:             true
+            color:              qgcPal.warningText
+
             MouseArea {
                 anchors.fill:   parent
                 onClicked: {
@@ -460,7 +466,7 @@ Item {
         }
 
         //-- More text below indicator
-        Image {
+        QGCColoredImage {
             anchors.margins:    ScreenTools.defaultFontPixelHeight
             anchors.bottom:     parent.bottom
             anchors.right:      parent.right
@@ -468,9 +474,9 @@ Item {
             height:             ScreenTools.defaultFontPixelHeight * 1.5
             source:             "/res/ArrowDown.svg"
             fillMode:           Image.PreserveAspectFit
-            mipmap:             true
-            smooth:             true
             visible:            criticalMessageText.lineCount > 5
+            color:              qgcPal.warningText
+
             MouseArea {
                 anchors.fill:   parent
                 onClicked: {

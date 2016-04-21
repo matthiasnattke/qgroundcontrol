@@ -25,6 +25,7 @@ import QtQuick                  2.2
 import QtQuick.Controls         1.2
 import QtQuick.Controls.Styles  1.2
 
+import QGroundControl                       1.0
 import QGroundControl.FactSystem            1.0
 import QGroundControl.Controls              1.0
 import QGroundControl.ScreenTools           1.0
@@ -93,9 +94,9 @@ Rectangle {
                 color:			setupComplete ? qgcPal.text : qgcPal.warningText
                 font.weight:    Font.DemiBold
                 text:           setupComplete ?
-                    "Below you will find a summary of the settings for your vehicle. To the left are the setup menus for each component." :
-                    "WARNING: Your vehicle requires setup prior to flight. Please resolve the items marked in red using the menu on the left."
-                property bool setupComplete: multiVehicleManager.activeVehicle.autopilot.setupComplete
+                    qsTr("Below you will find a summary of the settings for your vehicle. To the left are the setup menus for each component.") :
+                    qsTr("WARNING: Your vehicle requires setup prior to flight. Please resolve the items marked in red using the menu on the left.")
+                property bool setupComplete: QGroundControl.multiVehicleManager.activeVehicle ? QGroundControl.multiVehicleManager.activeVehicle.autopilot.setupComplete : false
             }
 
             Flow {
@@ -104,7 +105,7 @@ Rectangle {
                 spacing:    _summaryBoxSpace
 
                 Repeater {
-                    model: multiVehicleManager.activeVehicle.autopilot.vehicleComponents
+                    model: QGroundControl.multiVehicleManager.activeVehicle ? QGroundControl.multiVehicleManager.activeVehicle.autopilot.vehicleComponents : undefined
 
                     // Outer summary item rectangle
                     Rectangle {

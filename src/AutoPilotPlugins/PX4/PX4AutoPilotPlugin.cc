@@ -24,7 +24,7 @@
 #include "PX4AutoPilotPlugin.h"
 #include "AutoPilotPluginManager.h"
 #include "PX4AirframeLoader.h"
-#include "FlightModesComponentController.h"
+#include "PX4AdvancedFlightModesController.h"
 #include "AirframeComponentController.h"
 #include "UAS.h"
 #include "FirmwarePlugin/PX4/PX4ParameterMetaData.h"  // FIXME: Hack
@@ -43,6 +43,8 @@ enum PX4_CUSTOM_MAIN_MODE {
     PX4_CUSTOM_MAIN_MODE_ACRO,
     PX4_CUSTOM_MAIN_MODE_OFFBOARD,
     PX4_CUSTOM_MAIN_MODE_STABILIZED,
+    PX4_CUSTOM_MAIN_MODE_RATTITUDE
+    
 };
 
 enum PX4_CUSTOM_SUB_MODE_AUTO {
@@ -52,7 +54,8 @@ enum PX4_CUSTOM_SUB_MODE_AUTO {
     PX4_CUSTOM_SUB_MODE_AUTO_MISSION,
     PX4_CUSTOM_SUB_MODE_AUTO_RTL,
     PX4_CUSTOM_SUB_MODE_AUTO_LAND,
-    PX4_CUSTOM_SUB_MODE_AUTO_RTGS
+    PX4_CUSTOM_SUB_MODE_AUTO_RTGS,
+    PX4_CUSTOM_SUB_MODE_AUTO_FOLLOW_ME
 };
 
 union px4_custom_mode {
@@ -81,7 +84,7 @@ PX4AutoPilotPlugin::PX4AutoPilotPlugin(Vehicle* vehicle, QObject* parent) :
     _airframeFacts = new PX4AirframeLoader(this, _vehicle->uas(), this);
     Q_CHECK_PTR(_airframeFacts);
     
-    PX4AirframeLoader::loadAirframeFactMetaData();
+    PX4AirframeLoader::loadAirframeMetaData();
 }
 
 PX4AutoPilotPlugin::~PX4AutoPilotPlugin()
@@ -103,13 +106,6 @@ const QVariantList& PX4AutoPilotPlugin::vehicleComponents(void)
             _radioComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_radioComponent));
 
-            //-- Is there an ESP8266 Connected?
-            if(factExists(FactSystem::ParameterProvider, MAV_COMP_ID_UDP_BRIDGE, "SW_VER")) {
-                _esp8266Component = new PX4ESP8266Component(_vehicle, this);
-                _esp8266Component->setupTriggerSignals();
-                _components.append(QVariant::fromValue((VehicleComponent*)_esp8266Component));
-            }
-
             _flightModesComponent = new FlightModesComponent(_vehicle, this);
             _flightModesComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_flightModesComponent));
@@ -129,6 +125,13 @@ const QVariantList& PX4AutoPilotPlugin::vehicleComponents(void)
             _tuningComponent = new PX4TuningComponent(_vehicle, this);
             _tuningComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_tuningComponent));
+
+            //-- Is there an ESP8266 Connected?
+            if(factExists(FactSystem::ParameterProvider, MAV_COMP_ID_UDP_BRIDGE, "SW_VER")) {
+                _esp8266Component = new ESP8266Component(_vehicle, this);
+                _esp8266Component->setupTriggerSignals();
+                _components.append(QVariant::fromValue((VehicleComponent*)_esp8266Component));
+            }
         } else {
             qWarning() << "Call to vehicleCompenents prior to parametersReady";
         }

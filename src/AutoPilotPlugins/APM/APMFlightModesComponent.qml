@@ -39,6 +39,9 @@ QGCView {
     property bool   _channel7OptionsAvailable:  controller.parameterExists(-1, "CH7_OPT")   // Not available in all firmware types
     property bool   _channel9OptionsAvailable:  controller.parameterExists(-1, "CH9_OPT")   // Not available in all firmware types
     property int    _channelOptionCount:         _channel7OptionsAvailable ? (_channel9OptionsAvailable ? 6 : 2) : 0
+    property Fact   _nullFact
+    property bool   _fltmodeChExists:           controller.parameterExists(-1, "FLTMODE_CH")
+    property Fact   _fltmodeCh:                 _fltmodeChExists ? controller.getParameterFact(-1, "FLTMODE_CH") : _nullFact
 
     QGCPalette { id: qgcPal; colorGroupEnabled: panel.enabled }
 
@@ -59,7 +62,7 @@ QGCView {
 
             QGCLabel {
                 id:             flightModeLabel
-                text:           "Channel 5 Flight Mode Settings"
+                text:           qsTr("Flight Mode Settings") + (_fltmodeChExists ? "" : qsTr(" (Channel 5)"))
                 font.weight:    Font.DemiBold
             }
 
@@ -75,9 +78,30 @@ QGCView {
                     id:                 flightModeColumn
                     anchors.margins:    ScreenTools.defaultFontPixelWidth
                     anchors.left:       parent.left
-                    //  anchors.right:      parent.right
                     anchors.top:        parent.top
                     spacing:            ScreenTools.defaultFontPixelHeight
+
+                    Row {
+                        spacing:    _margins
+                        visible:    _fltmodeChExists
+
+                        QGCLabel {
+                            id:                 modeChannelLabel
+                            anchors.baseline:   modeChannelCombo.baseline
+                            text:               qsTr("Flight mode channel:")
+                        }
+
+                        QGCComboBox {
+                            id:             modeChannelCombo
+                            width:          ScreenTools.defaultFontPixelWidth * 15
+                            model:          [ qsTr("Not assigned"), qsTr("Channel 1"), qsTr("Channel 2"),
+                                              qsTr("Channel 3"),    qsTr("Channel 4"), qsTr("Channel 5"),
+                                              qsTr("Channel 6"),    qsTr("Channel 7"), qsTr("Channel 8") ]
+
+                            currentIndex:   _fltmodeCh.value
+                            onActivated:    _fltmodeCh.value = index
+                        }
+                    }
 
                     Repeater {
                         model:  6
@@ -91,7 +115,7 @@ QGCView {
 
                             QGCLabel {
                                 anchors.baseline:   modeCombo.baseline
-                                text:               "Flight Mode " + index + ":"
+                                text:               qsTr("Flight Mode ") + index + ":"
                                 color:              controller.activeFlightMode == index ? "yellow" : qgcPal.text
                             }
 
@@ -116,7 +140,7 @@ QGCView {
                 anchors.leftMargin: _margins
                 anchors.top:        parent.top
                 anchors.left:       flightModeSettings.right
-                text:               "Channel Options"
+                text:               qsTr("Channel Options")
                 font.weight:        Font.DemiBold
                 visible:            _channelOptionCount != 0
             }
@@ -149,7 +173,7 @@ QGCView {
 
                             QGCLabel {
                                 anchors.baseline:   optCombo.baseline
-                                text:               "Channel option " + index + ":"
+                                text:               qsTr("Channel option %1 :").arg(index)
                                 color:              controller.channelOptionEnabled[modelData] ? "yellow" : qgcPal.text
                             }
 

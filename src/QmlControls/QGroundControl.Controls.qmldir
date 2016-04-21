@@ -1,5 +1,6 @@
 Module QGroundControl.Controls
 
+AppMessages             1.0 AppMessages.qml
 ClickableColor          1.0 ClickableColor.qml
 DropButton              1.0 DropButton.qml
 ExclusiveGroupItem      1.0 ExclusiveGroupItem.qml
@@ -14,13 +15,16 @@ MissionItemStatus       1.0 MissionItemStatus.qml
 ModeSwitchDisplay       1.0 ModeSwitchDisplay.qml
 ParameterEditor         1.0 ParameterEditor.qml
 ParameterEditorDialog   1.0 ParameterEditorDialog.qml
+RCChannelMonitor        1.0 RCChannelMonitor.qml
 QGCButton               1.0 QGCButton.qml
 QGCCheckBox             1.0 QGCCheckBox.qml
 QGCColoredImage         1.0 QGCColoredImage.qml
 QGCComboBox             1.0 QGCComboBox.qml
 QGCFlickable            1.0 QGCFlickable.qml
 QGCLabel                1.0 QGCLabel.qml
+QGCMobileFileDialog     1.0 QGCMobileFileDialog.qml
 QGCMovableItem          1.0 QGCMovableItem.qml
+QGCPipable              1.0 QGCPipable.qml
 QGCRadioButton          1.0 QGCRadioButton.qml
 QGCTextField            1.0 QGCTextField.qml
 QGCToolBarButton        1.0 QGCToolBarButton.qml
@@ -30,7 +34,9 @@ QGCViewMessage          1.0 QGCViewMessage.qml
 QGCViewPanel            1.0 QGCViewPanel.qml
 RoundButton             1.0 RoundButton.qml
 SignalStrength          1.0 SignalStrength.qml
+SliderSwitch            1.0 SliderSwitch.qml
 SubMenuButton           1.0 SubMenuButton.qml
 VehicleRotationCal      1.0 VehicleRotationCal.qml
 VehicleSummaryRow       1.0 VehicleSummaryRow.qml
 ViewWidget              1.0 ViewWidget.qml
+OfflineMapButton        1.0 OfflineMapButton.qml

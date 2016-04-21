@@ -46,6 +46,8 @@ enum PX4_CUSTOM_MAIN_MODE {
     PX4_CUSTOM_MAIN_MODE_AUTO,
     PX4_CUSTOM_MAIN_MODE_ACRO,
     PX4_CUSTOM_MAIN_MODE_OFFBOARD,
+    PX4_CUSTOM_MAIN_MODE_STABILIZED,
+    PX4_CUSTOM_MAIN_MODE_RATTITUDE
 };
 
 enum PX4_CUSTOM_SUB_MODE_AUTO {
@@ -113,17 +115,11 @@ MockLink::MockLink(MockConfiguration* config)
     moveToThread(this);
 
     _loadParams();
-    QObject::connect(this, &MockLink::_incomingBytes, this, &MockLink::_handleIncomingBytes);
 }
 
 MockLink::~MockLink(void)
 {
     _disconnect();
-}
-
-void MockLink::readBytes(void)
-{
-    // FIXME: This is a bad virtual from LinkInterface?
 }
 
 bool MockLink::_connect(void)
@@ -174,6 +170,7 @@ void MockLink::_run1HzTasks(void)
 {
     if (_mavlinkStarted && _connected) {
         _sendHeartBeat();
+        _sendVibration();
         if (_sendHomePositionDelayCount > 0) {
             // We delay home position a bit to be more realistic
             _sendHomePositionDelayCount--;
@@ -288,6 +285,24 @@ void MockLink::_sendHeartBeat(void)
     respondWithMavlinkMessage(msg);
 }
 
+void MockLink::_sendVibration(void)
+{
+    mavlink_message_t   msg;
+
+    mavlink_msg_vibration_pack(_vehicleSystemId,
+                               _vehicleComponentId,
+                               &msg,
+                               0,       // time_usec
+                               50.5,    // vibration_x,
+                               10.5,    // vibration_y,
+                               60.0,    // vibration_z,
+                               1,       // clipping_0
+                               2,       // clipping_0
+                               3);      // clipping_0
+
+    respondWithMavlinkMessage(msg);
+}
+
 void MockLink::respondWithMavlinkMessage(const mavlink_message_t& msg)
 {
     uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
@@ -298,16 +313,7 @@ void MockLink::respondWithMavlinkMessage(const mavlink_message_t& msg)
 }
 
 /// @brief Called when QGC wants to write bytes to the MAV
-void MockLink::writeBytes(const char* bytes, qint64 cBytes)
-{
-    // Package up the data so we can signal it over to the right thread
-    QByteArray byteArray(bytes, cBytes);
-
-    emit _incomingBytes(byteArray);
-}
-
-/// @brief Handles bytes from QGC on the thread
-void MockLink::_handleIncomingBytes(const QByteArray bytes)
+void MockLink::_writeBytes(const QByteArray bytes)
 {
     if (_inNSH) {
         _handleIncomingNSHBytes(bytes.constData(), bytes.count());
@@ -780,16 +786,32 @@ void MockLink::_handleFTP(const mavlink_message_t& msg)
 void MockLink::_handleCommandLong(const mavlink_message_t& msg)
 {
     mavlink_command_long_t request;
+    uint8_t commandResult = MAV_RESULT_UNSUPPORTED;
 
     mavlink_msg_command_long_decode(&msg, &request);
 
-    if (request.command == MAV_CMD_COMPONENT_ARM_DISARM) {
+    switch (request.command) {
+    case MAV_CMD_COMPONENT_ARM_DISARM:
         if (request.param1 == 0.0f) {
             _mavBaseMode &= ~MAV_MODE_FLAG_SAFETY_ARMED;
         } else {
             _mavBaseMode |= MAV_MODE_FLAG_SAFETY_ARMED;
         }
+        commandResult = MAV_RESULT_ACCEPTED;
+        break;
+    case MAV_CMD_PREFLIGHT_CALIBRATION:
+    case MAV_CMD_PREFLIGHT_STORAGE:
+        commandResult = MAV_RESULT_ACCEPTED;
+        break;
     }
+
+    mavlink_message_t commandAck;
+    mavlink_msg_command_ack_pack(_vehicleSystemId,
+                                 _vehicleComponentId,
+                                 &commandAck,
+                                 request.command,
+                                 commandResult);
+    respondWithMavlinkMessage(commandAck);
 }
 
 void MockLink::setMissionItemFailureMode(MockLinkMissionItemHandler::FailureMode_t failureMode)
@@ -799,29 +821,24 @@ void MockLink::setMissionItemFailureMode(MockLinkMissionItemHandler::FailureMode
 
 void MockLink::_sendHomePosition(void)
 {
-    // APM stack does not yet support HOME_POSITION
+    mavlink_message_t msg;
 
-    if (_firmwareType != MAV_AUTOPILOT_ARDUPILOTMEGA) {
+    float bogus[4];
+    bogus[0] = 0.0f;
+    bogus[1] = 0.0f;
+    bogus[2] = 0.0f;
+    bogus[3] = 0.0f;
 
-        mavlink_message_t msg;
-
-        float bogus[4];
-        bogus[0] = 0.0f;
-        bogus[1] = 0.0f;
-        bogus[2] = 0.0f;
-        bogus[3] = 0.0f;
-
-        mavlink_msg_home_position_pack(_vehicleSystemId,
-                                       _vehicleComponentId,
-                                       &msg,
-                                       (int32_t)(_vehicleLatitude * 1E7),
-                                       (int32_t)(_vehicleLongitude * 1E7),
-                                       (int32_t)(_vehicleAltitude * 1000),
-                                       0.0f, 0.0f, 0.0f,
-                                       &bogus[0],
-                                       0.0f, 0.0f, 0.0f);
-        respondWithMavlinkMessage(msg);
-    }
+    mavlink_msg_home_position_pack(_vehicleSystemId,
+                                   _vehicleComponentId,
+                                   &msg,
+                                   (int32_t)(_vehicleLatitude * 1E7),
+                                   (int32_t)(_vehicleLongitude * 1E7),
+                                   (int32_t)(_vehicleAltitude * 1000),
+                                   0.0f, 0.0f, 0.0f,
+                                   &bogus[0],
+            0.0f, 0.0f, 0.0f);
+    respondWithMavlinkMessage(msg);
 }
 
 void MockLink::_sendGpsRawInt(void)

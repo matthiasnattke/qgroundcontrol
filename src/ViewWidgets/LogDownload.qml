@@ -36,10 +36,6 @@ QGCView {
 
     property real _margins: ScreenTools.defaultFontPixelHeight
 
-    function numberWithCommas(x) {
-        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",").replace(/,,/g, ",");
-    }
-
     LogDownloadController {
         id:         controller
         factPanel:  panel
@@ -71,7 +67,7 @@ QGCView {
             selectionMode:      SelectionMode.MultiSelection
 
             TableViewColumn {
-                title: "Id"
+                title: qsTr("Id")
                 width: ScreenTools.defaultFontPixelWidth * 6
                 horizontalAlignment: Text.AlignHCenter
                 delegate : Text  {
@@ -84,7 +80,7 @@ QGCView {
             }
 
             TableViewColumn {
-                title: "Date"
+                title: qsTr("Date")
                 width: ScreenTools.defaultFontPixelWidth * 34
                 horizontalAlignment: Text.AlignHCenter
                 delegate : Text  {
@@ -95,7 +91,7 @@ QGCView {
                             if(controller.model.get(styleData.row).received) {
                                 var d = controller.model.get(styleData.row).time
                                 if(d.getUTCFullYear() < 2010)
-                                    return "Date Unknown"
+                                    return qsTr("Date Unknown")
                                 else
                                     return d.toLocaleString()
                             }
@@ -106,20 +102,20 @@ QGCView {
             }
 
             TableViewColumn {
-                title: "Size"
+                title: qsTr("Size")
                 width: ScreenTools.defaultFontPixelWidth * 18
                 horizontalAlignment: Text.AlignHCenter
                 delegate : Text  {
                     horizontalAlignment: Text.AlignRight
                     text: {
                         var o = controller.model.get(styleData.row)
-                        return o ? numberWithCommas(o.size) : ""
+                        return o ? o.sizeStr : ""
                     }
                 }
             }
 
             TableViewColumn {
-                title: "Status"
+                title: qsTr("Status")
                 width: ScreenTools.defaultFontPixelWidth * 22
                 horizontalAlignment: Text.AlignHCenter
                 delegate : Text  {
@@ -139,7 +135,7 @@ QGCView {
             anchors.top:        parent.top
             anchors.right:      parent.right
             enabled:            !controller.requestingList && !controller.downloadingLogs
-            text:               "Refresh"
+            text:               qsTr("Refresh")
             onClicked: {
                 controller.refresh()
             }
@@ -151,7 +147,7 @@ QGCView {
             anchors.top:        refreshButton.bottom
             anchors.right:      parent.right
             enabled:            !controller.requestingList && !controller.downloadingLogs && tableView.selection.count > 0
-            text:               "Download"
+            text:               qsTr("Download")
             onClicked: {
                 //-- Clear selection
                 for(var i = 0; i < controller.model.count; i++) {
@@ -174,7 +170,7 @@ QGCView {
             anchors.top:        downloadButton.bottom
             anchors.right:      parent.right
             enabled:            !controller.requestingList && !controller.downloadingLogs && controller.model.count > 0
-            text:               "Erase All"
+            text:               qsTr("Erase All")
             onClicked: {
                 eraseAllDialog.visible = true
             }
@@ -183,8 +179,8 @@ QGCView {
                 visible:    false
                 icon:       StandardIcon.Warning
                 standardButtons: StandardButton.Yes | StandardButton.No
-                title:      "Delete All Log Files"
-                text:       "All log files will be erased permanently. Is this really what you want?"
+                title:      qsTr("Delete All Log Files")
+                text:       qsTr("All log files will be erased permanently. Is this really what you want?")
                 onYes: {
                     controller.eraseAll()
                     eraseAllDialog.visible = false
@@ -200,7 +196,7 @@ QGCView {
             anchors.margins:    _margins
             anchors.top:        eraseAllButton.bottom
             anchors.right:      parent.right
-            text:               "Cancel"
+            text:               qsTr("Cancel")
             enabled:            controller.requestingList || controller.downloadingLogs
             onClicked: {
                 controller.cancel()

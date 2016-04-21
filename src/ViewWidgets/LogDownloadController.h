@@ -27,6 +27,8 @@
 #include <QObject>
 #include <QTimer>
 #include <QAbstractListModel>
+#include <QLocale>
+#include <QElapsedTimer>
 
 #include <memory>
 
@@ -38,7 +40,7 @@ class  MultiVehicleManager;
 class  UASInterface;
 class  Vehicle;
 class  QGCLogEntry;
-class  LogDownloadData;
+struct LogDownloadData;
 
 Q_DECLARE_LOGGING_CATEGORY(LogDownloadLog)
 
@@ -80,6 +82,7 @@ class QGCLogEntry : public QObject {
     Q_PROPERTY(uint         id          READ id                             CONSTANT)
     Q_PROPERTY(QDateTime    time        READ time                           NOTIFY timeChanged)
     Q_PROPERTY(uint         size        READ size                           NOTIFY sizeChanged)
+    Q_PROPERTY(QString      sizeStr     READ sizeStr                        NOTIFY sizeChanged)
     Q_PROPERTY(bool         received    READ received                       NOTIFY receivedChanged)
     Q_PROPERTY(bool         selected    READ selected   WRITE setSelected   NOTIFY selectedChanged)
     Q_PROPERTY(QString      status      READ status                         NOTIFY statusChanged)
@@ -89,6 +92,7 @@ public:
 
     uint        id          () const { return _logID; }
     uint        size        () const { return _logSize; }
+    QString     sizeStr     () const;
     QDateTime   time        () const { return _logTimeUTC; }
     bool        received    () const { return _received; }
     bool        selected    () const { return _selected; }
@@ -116,19 +120,6 @@ private:
     bool        _received;
     bool        _selected;
     QString     _status;
-};
-
-//-----------------------------------------------------------------------------
-class LogDownloadData {
-public:
-    LogDownloadData(QGCLogEntry* entry);
-    QList<uint>     offsets;
-    QFile           file;
-    QString         filename;
-    uint            ID;
-    QTimer          processDataTimer;
-    QGCLogEntry*    entry;
-    uint            written;
 };
 
 //-----------------------------------------------------------------------------
@@ -167,7 +158,8 @@ private slots:
 private:
 
     bool _entriesComplete   ();
-    bool _logComplete       ();
+    bool _chunkComplete     () const;
+    bool _logComplete       () const;
     void _findMissingEntries();
     void _receivedAllEntries();
     void _receivedAllData   ();

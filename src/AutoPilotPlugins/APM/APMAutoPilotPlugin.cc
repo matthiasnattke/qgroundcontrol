@@ -27,7 +27,7 @@
 #include "FirmwarePlugin/APM/APMParameterMetaData.h"  // FIXME: Hack
 #include "FirmwarePlugin/APM/APMFirmwarePlugin.h"  // FIXME: Hack
 #include "FirmwarePlugin/APM/ArduCopterFirmwarePlugin.h"
-#include "APMComponent.h"
+#include "VehicleComponent.h"
 #include "APMAirframeComponent.h"
 #include "APMAirframeComponentAirframes.h"
 #include "APMAirframeComponentController.h"
@@ -40,6 +40,7 @@
 #include "APMSensorsComponent.h"
 #include "APMPowerComponent.h"
 #include "APMCameraComponent.h"
+#include "ESP8266Component.h"
 
 /// This is the AutoPilotPlugin implementatin for the MAV_AUTOPILOT_ARDUPILOT type.
 APMAutoPilotPlugin::APMAutoPilotPlugin(Vehicle* vehicle, QObject* parent)
@@ -54,6 +55,7 @@ APMAutoPilotPlugin::APMAutoPilotPlugin(Vehicle* vehicle, QObject* parent)
     , _sensorsComponent(NULL)
     , _tuningComponent(NULL)
     , _airframeFacts(new APMAirframeLoader(this, vehicle->uas(), this))
+    , _esp8266Component(NULL)
 {
     APMAirframeLoader::loadAirframeFactMetaData();
 }
@@ -73,25 +75,21 @@ const QVariantList& APMAutoPilotPlugin::vehicleComponents(void)
             _airframeComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_airframeComponent));
 
-            _cameraComponent = new APMCameraComponent(_vehicle, this);
-            _cameraComponent->setupTriggerSignals();
-            _components.append(QVariant::fromValue((VehicleComponent*)_cameraComponent));
+            _radioComponent = new APMRadioComponent(_vehicle, this);
+            _radioComponent->setupTriggerSignals();
+            _components.append(QVariant::fromValue((VehicleComponent*)_radioComponent));
 
             _flightModesComponent = new APMFlightModesComponent(_vehicle, this);
             _flightModesComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_flightModesComponent));
 
-            _powerComponent = new APMPowerComponent(_vehicle, this);
-            _powerComponent->setupTriggerSignals();
-            _components.append(QVariant::fromValue((VehicleComponent*)_powerComponent));
-
-            _radioComponent = new APMRadioComponent(_vehicle, this);
-            _radioComponent->setupTriggerSignals();
-            _components.append(QVariant::fromValue((VehicleComponent*)_radioComponent));
-
             _sensorsComponent = new APMSensorsComponent(_vehicle, this);
             _sensorsComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_sensorsComponent));
+
+            _powerComponent = new APMPowerComponent(_vehicle, this);
+            _powerComponent->setupTriggerSignals();
+            _components.append(QVariant::fromValue((VehicleComponent*)_powerComponent));
 
             _safetyComponent = new APMSafetyComponent(_vehicle, this);
             _safetyComponent->setupTriggerSignals();
@@ -100,6 +98,17 @@ const QVariantList& APMAutoPilotPlugin::vehicleComponents(void)
             _tuningComponent = new APMTuningComponent(_vehicle, this);
             _tuningComponent->setupTriggerSignals();
             _components.append(QVariant::fromValue((VehicleComponent*)_tuningComponent));
+
+            _cameraComponent = new APMCameraComponent(_vehicle, this);
+            _cameraComponent->setupTriggerSignals();
+            _components.append(QVariant::fromValue((VehicleComponent*)_cameraComponent));
+
+            //-- Is there an ESP8266 Connected?
+            if(factExists(FactSystem::ParameterProvider, MAV_COMP_ID_UDP_BRIDGE, "SW_VER")) {
+                _esp8266Component = new ESP8266Component(_vehicle, this);
+                _esp8266Component->setupTriggerSignals();
+                _components.append(QVariant::fromValue((VehicleComponent*)_esp8266Component));
+            }
         } else {
             qWarning() << "Call to vehicleCompenents prior to parametersReady";
         }

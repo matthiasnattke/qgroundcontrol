@@ -30,7 +30,7 @@
 #include <QMutex>
 #include <QTimer>
 
-#include "QmlObjectListModel.h"
+#include "MissionItem.h"
 #include "QGCMAVLink.h"
 #include "QGCLoggingCategory.h"
 #include "LinkInterface.h"
@@ -48,26 +48,21 @@ public:
     MissionManager(Vehicle* vehicle);
     ~MissionManager();
     
-    Q_PROPERTY(bool                 inProgress      READ inProgress     NOTIFY inProgressChanged)
-    Q_PROPERTY(QmlObjectListModel*  missionItems    READ missionItems   CONSTANT)
-    
-    // Property accessors
-    
     bool inProgress(void);
-    QmlObjectListModel* missionItems(void) { return &_missionItems; }
-    
-    // C++ methods
+    const QList<MissionItem*>& missionItems(void) { return _missionItems; }
+    int currentItem(void) { return _currentMissionItem; }
     
     void requestMissionItems(void);
     
     /// Writes the specified set of mission items to the vehicle
-    ///     @oaram missionItems Items to send to vehicle
-    void writeMissionItems(const QmlObjectListModel& missionItems);
+    ///     @param missionItems Items to send to vehicle
+    void writeMissionItems(const QList<MissionItem*>& missionItems);
     
-    /// Returns a copy of the current set of mission items. Caller is responsible for
-    /// freeing returned object.
-    QmlObjectListModel* copyMissionItems(void);
-    
+    /// Writes the specified set mission items to the vehicle as an ArduPilot guided mode mission item.
+    ///     @param gotoCoord Coordinate to move to
+    ///     @param altChangeOnly true: only altitude change, false: lat/lon/alt change
+    void writeArduPilotGuidedMissionItem(const QGeoCoordinate& gotoCoord, bool altChangeOnly);
+
     /// Error codes returned in error signal
     typedef enum {
         InternalError,
@@ -88,6 +83,7 @@ signals:
     void newMissionItemsAvailable(void);
     void inProgressChanged(bool inProgress);
     void error(int errorCode, const QString& errorMsg);
+    void currentItemChanged(int currentItem);
     
 private slots:
     void _mavlinkMessageReceived(const mavlink_message_t& message);
@@ -99,6 +95,7 @@ private:
         AckMissionCount,    ///< MISSION_COUNT message expected
         AckMissionItem,     ///< MISSION_ITEM expected
         AckMissionRequest,  ///< MISSION_REQUEST is expected, or MISSION_ACK to end sequence
+        AckGuidedItem,      ///< MISSION_ACK expected in reponse to ArduPilot guided mode single item send
     } AckType_t;
     
     void _startAckTimeout(AckType_t ack);
@@ -108,6 +105,7 @@ private:
     void _handleMissionItem(const mavlink_message_t& message);
     void _handleMissionRequest(const mavlink_message_t& message);
     void _handleMissionAck(const mavlink_message_t& message);
+    void _handleMissionCurrent(const mavlink_message_t& message);
     void _requestNextMissionItem(void);
     void _clearMissionItems(void);
     void _sendError(ErrorCode_t errorCode, const QString& errorMsg);
@@ -130,7 +128,8 @@ private:
     
     QMutex _dataMutex;
     
-    QmlObjectListModel  _missionItems;
+    QList<MissionItem*> _missionItems;
+    int                 _currentMissionItem;
 };
 
 #endif

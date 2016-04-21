@@ -46,7 +46,7 @@ TCPLink::TCPLink(TCPConfiguration *config)
     // We're doing it wrong - because the Qt folks got the API wrong:
     // http://blog.qt.digia.com/blog/2010/06/17/youre-doing-it-wrong/
     moveToThread(this);
-    qDebug() << "TCP Created " << _config->name();
+    //qDebug() << "TCP Created " << _config->name();
 }
 
 TCPLink::~TCPLink()
@@ -65,11 +65,11 @@ void TCPLink::run()
 }
 
 #ifdef TCPLINK_READWRITE_DEBUG
-void TCPLink::_writeDebugBytes(const char *data, qint16 size)
+void TCPLink::_writeDebugBytes(const QByteArray data)
 {
     QString bytes;
     QString ascii;
-    for (int i=0; i<size; i++)
+    for (int i=0, size = data.size(); i<size; i++)
     {
         unsigned char v = data[i];
         bytes.append(QString().sprintf("%02x ", v));
@@ -88,13 +88,16 @@ void TCPLink::_writeDebugBytes(const char *data, qint16 size)
 }
 #endif
 
-void TCPLink::writeBytes(const char* data, qint64 size)
+void TCPLink::_writeBytes(const QByteArray data)
 {
 #ifdef TCPLINK_READWRITE_DEBUG
-    _writeDebugBytes(data, size);
+    _writeDebugBytes(data);
 #endif
-    _socket->write(data, size);
-    _logOutputDataRate(size, QDateTime::currentMSecsSinceEpoch());
+    if (!_socket)
+        return;
+
+    _socket->write(data);
+    _logOutputDataRate(data.size(), QDateTime::currentMSecsSinceEpoch());
 }
 
 /**

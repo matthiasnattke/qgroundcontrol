@@ -35,6 +35,7 @@
 
 class FirmwarePluginManager;
 class AutoPilotPluginManager;
+class FollowMe;
 class JoystickManager;
 class QGCApplication;
 class MAVLinkProtocol;
@@ -57,6 +58,9 @@ public:
     Q_PROPERTY(QmlObjectListModel*  vehicles                        READ vehicles                                                       CONSTANT)
     Q_PROPERTY(bool                 gcsHeartBeatEnabled             READ gcsHeartbeatEnabled            WRITE setGcsHeartbeatEnabled    NOTIFY gcsHeartBeatEnabledChanged)
 
+    /// A disconnected vehicle is used to access FactGroup information for the Vehicle object when no active vehicle is available
+    Q_PROPERTY(Vehicle*             disconnectedVehicle             MEMBER _disconnectedVehicle                                         CONSTANT)
+
     // Methods
 
     Q_INVOKABLE Vehicle* getVehicleById(int vehicleId);
@@ -77,6 +81,12 @@ public:
     bool gcsHeartbeatEnabled(void) const { return _gcsHeartbeatEnabled; }
     void setGcsHeartbeatEnabled(bool gcsHeartBeatEnabled);
 
+    /// Determines if the link is in use by a Vehicle
+    ///     @param link Link to test against
+    ///     @param skipVehicle Don't consider this Vehicle as part of the test
+    /// @return true: link is in use by one or more Vehicles
+    bool linkInUse(LinkInterface* link, Vehicle* skipVehicle);
+
     // Override from QGCTool
     virtual void setToolbox(QGCToolbox *toolbox);
 
@@ -95,8 +105,8 @@ private slots:
     void _deleteVehiclePhase2(void);
     void _setActiveVehiclePhase2(void);
     void _autopilotParametersReadyChanged(bool parametersReady);
-    void _linkActive(LinkInterface* link, int vehicleId, int vehicleFirmwareType, int vehicleType);
     void _sendGCSHeartbeat(void);
+    void _vehicleHeartbeatInfo(LinkInterface* link, int vehicleId, int vehicleMavlinkVersion, int vehicleFirmwareType, int vehicleType);
 
 private:
     bool _vehicleExists(int vehicleId);
@@ -104,6 +114,7 @@ private:
     bool        _activeVehicleAvailable;            ///< true: An active vehicle is available
     bool        _parameterReadyVehicleAvailable;    ///< true: An active vehicle with ready parameters is available
     Vehicle*    _activeVehicle;                     ///< Currently active vehicle from a ui perspective
+    Vehicle*    _disconnectedVehicle;               ///< Disconnected vechicle for FactGroup access
 
     QList<Vehicle*> _vehiclesBeingDeleted;          ///< List of Vehicles being deleted in queued phases
     Vehicle*        _vehicleBeingSetActive;         ///< Vehicle being set active in queued phases

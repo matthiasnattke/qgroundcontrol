@@ -229,7 +229,7 @@ void QGCXPlaneLink::run()
     strncpy(ip.str_port_them, localPortStr.toLatin1(), qMin((int)sizeof(ip.str_port_them), 6));
     ip.use_ip = 1;
 
-    writeBytes((const char*)&ip, sizeof(ip));
+    writeBytesSafe((const char*)&ip, sizeof(ip));
 
     _should_exit = false;
 
@@ -395,10 +395,10 @@ void QGCXPlaneLink::updateControls(quint64 time, float rollAilerons, float pitch
     {
         // Ail / Elevon / Rudder
         p.index = 12;   // XPlane, wing sweep
-        writeBytes((const char*)&p, sizeof(p));
+        writeBytesSafe((const char*)&p, sizeof(p));
 
         p.index = 8;    // XPlane, joystick? why?
-        writeBytes((const char*)&p, sizeof(p));
+        writeBytesSafe((const char*)&p, sizeof(p));
 
         p.index = 25;   // Thrust
         memset(p.f, 0, sizeof(p.f));
@@ -408,13 +408,13 @@ void QGCXPlaneLink::updateControls(quint64 time, float rollAilerons, float pitch
         p.f[3] = throttle;
 
         // Throttle
-        writeBytes((const char*)&p, sizeof(p));
+        writeBytesSafe((const char*)&p, sizeof(p));
     }
     else
     {
         qDebug() << "Transmitting p.index = 25";
         p.index = 25;   // XPlane, throttle command.
-        writeBytes((const char*)&p, sizeof(p));
+        writeBytesSafe((const char*)&p, sizeof(p));
     }
 
 }
@@ -448,14 +448,14 @@ Eigen::Matrix3f euler_to_wRo(double yaw, double pitch, double roll) {
   return wRo;
 }
 
-void QGCXPlaneLink::writeBytes(const char* data, qint64 size)
+void QGCXPlaneLink::_writeBytes(const QByteArray data)
 {
-    if (!data) return;
+    if (data.isEmpty()) return;
 
     // If socket exists and is connected, transmit the data
     if (socket && connectState)
     {
-        socket->writeDatagram(data, size, remoteHost, remotePort);
+        socket->writeDatagram(data, remoteHost, remotePort);
     }
 }
 
@@ -899,7 +899,7 @@ void QGCXPlaneLink::setPositionAttitude(double lat, double lon, double alt, doub
     pos.gear_flap_vect[1] = 0.0f;
     pos.gear_flap_vect[2] = 0.0f;
 
-    writeBytes((const char*)&pos, sizeof(pos));
+    writeBytesSafe((const char*)&pos, sizeof(pos));
 
 //    pos.header[0] = 'V';
 //    pos.header[1] = 'E';
@@ -917,7 +917,7 @@ void QGCXPlaneLink::setPositionAttitude(double lat, double lon, double alt, doub
 //    pos.gear_flap_vect[1] = -999;
 //    pos.gear_flap_vect[2] = -999;
 
-//    writeBytes((const char*)&pos, sizeof(pos));
+//    writeBytesSafe((const char*)&pos, sizeof(pos));
 }
 
 /**
@@ -933,16 +933,16 @@ void QGCXPlaneLink::setRandomPosition()
     double offLon = rand() / static_cast<double>(RAND_MAX) / 500.0 + 1.0/500.0;
     double offAlt = rand() / static_cast<double>(RAND_MAX) * 200.0 + 100.0;
 
-    if (_vehicle->altitudeAMSL() + offAlt < 0)
+    if (_vehicle->altitudeAMSL()->rawValue().toDouble() + offAlt < 0)
     {
         offAlt *= -1.0;
     }
 
     setPositionAttitude(_vehicle->latitude() + offLat,
                         _vehicle->longitude() + offLon,
-                        _vehicle->altitudeAMSL() + offAlt,
-                        _vehicle->roll(),
-                        _vehicle->pitch(),
+                        _vehicle->altitudeAMSL()->rawValue().toDouble() + offAlt,
+                        _vehicle->roll()->rawValue().toDouble(),
+                        _vehicle->pitch()->rawValue().toDouble(),
                         _vehicle->uas()->getYaw());
 }
 
@@ -957,7 +957,7 @@ void QGCXPlaneLink::setRandomAttitude()
 
     setPositionAttitude(_vehicle->latitude(),
                         _vehicle->longitude(),
-                        _vehicle->altitudeAMSL(),
+                        _vehicle->altitudeAMSL()->rawValue().toDouble(),
                         roll,
                         pitch,
                         yaw);

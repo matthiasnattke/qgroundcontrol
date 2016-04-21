@@ -31,12 +31,15 @@ class FactSystem;
 class FirmwarePluginManager;
 class FlightMapSettings;
 class GAudioOutput;
+class GPSManager;
 class HomePositionManager;
 class JoystickManager;
+class FollowMe;
 class LinkManager;
 class MAVLinkProtocol;
 class MissionCommands;
 class MultiVehicleManager;
+class QGCMapEngineManager;
 class QGCApplication;
 class QGCImageProvider;
 class UASMessageHandler;
@@ -58,8 +61,10 @@ public:
     MAVLinkProtocol*            mavlinkProtocol(void)           { return _mavlinkProtocol; }
     MissionCommands*            missionCommands(void)           { return _missionCommands; }
     MultiVehicleManager*        multiVehicleManager(void)       { return _multiVehicleManager; }
+    QGCMapEngineManager*        mapEngineManager(void)          { return _mapEngineManager; }
     QGCImageProvider*           imageProvider()                 { return _imageProvider; }
     UASMessageHandler*          uasMessageHandler(void)         { return _uasMessageHandler; }
+    FollowMe*                   followMe(void)                  { return _followMe; }
 
 private:
     GAudioOutput*               _audioOutput;
@@ -67,6 +72,7 @@ private:
     FactSystem*                 _factSystem;
     FirmwarePluginManager*      _firmwarePluginManager;
     FlightMapSettings*          _flightMapSettings;
+    GPSManager*                 _gpsManager;
     HomePositionManager*        _homePositionManager;
     QGCImageProvider*           _imageProvider;
     JoystickManager*            _joystickManager;
@@ -74,7 +80,9 @@ private:
     MAVLinkProtocol*            _mavlinkProtocol;
     MissionCommands*            _missionCommands;
     MultiVehicleManager*        _multiVehicleManager;
+    QGCMapEngineManager*         _mapEngineManager;
     UASMessageHandler*          _uasMessageHandler;
+    FollowMe*                   _followMe;
 };
 
 /// This is the base class for all tools

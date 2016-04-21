@@ -24,17 +24,17 @@
 /// @file
 ///     @author Don Gagne <don@thegagnes.com>
 
-import QtQuick 2.3
-import QtQuick.Controls 1.3
-import QtQuick.Controls.Styles 1.2
-import QtQuick.Dialogs 1.2
+import QtQuick                  2.5
+import QtQuick.Controls         1.3
+import QtQuick.Dialogs          1.2
 
-import QGroundControl.Controls 1.0
-import QGroundControl.Palette 1.0
-import QGroundControl.ScreenTools 1.0
-import QGroundControl.Controllers 1.0
-import QGroundControl.FactSystem 1.0
-import QGroundControl.FactControls 1.0
+import QGroundControl               1.0
+import QGroundControl.Controls      1.0
+import QGroundControl.Palette       1.0
+import QGroundControl.ScreenTools   1.0
+import QGroundControl.Controllers   1.0
+import QGroundControl.FactSystem    1.0
+import QGroundControl.FactControls  1.0
 
 QGCView {
     id:         qgcView
@@ -48,13 +48,13 @@ QGCView {
     property bool   _searchFilter:      false   ///< true: showing results of search
     property var    _searchResults              ///< List of parameter names from search results
     property string _currentGroup:      ""
-    property bool   _showRCToParam:     !ScreenTools.isMobile && multiVehicleManager.activeVehicle.px4Firmware
+    property bool   _showRCToParam:     !ScreenTools.isMobile && QGroundControl.multiVehicleManager.activeVehicle.px4Firmware
 
     ParameterEditorController {
         id: controller;
         factPanel: panel
         onShowErrorMessage: {
-            showMessage("Parameter Load Errors", errorMsg, StandardButton.Ok)
+            showMessage(qsTr("Parameter Load Errors"), errorMsg, StandardButton.Ok)
         }
     }
 
@@ -71,7 +71,7 @@ QGCView {
                 width:  parent.width
                 height: ScreenTools.defaultFontPixelHeight * 1.75
                 QGCLabel {
-                    text:           "Search Results"
+                    text:           qsTr("Search Results")
                     visible:        _searchFilter
                     font.weight:    Font.DemiBold
                     anchors.verticalCenter: parent.verticalCenter
@@ -82,13 +82,13 @@ QGCView {
                     width: ScreenTools.defaultFontPixelWidth * 25
                     anchors.verticalCenter: parent.verticalCenter
                     QGCLabel {
-                        text:             "GROUPS"
+                        text:             qsTr("GROUPS")
                         font.weight:      Font.DemiBold
                         anchors.centerIn: parent
                     }
                 }
                 QGCLabel {
-                    text:           _currentGroup + " Parameters"
+                    text:           qsTr("%1 Parameters").arg(_currentGroup)
                     visible:        !_searchFilter
                     font.weight:    Font.DemiBold
                     anchors.left:   groupTitle.right
@@ -96,7 +96,7 @@ QGCView {
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 QGCButton {
-                    text:           "Back"
+                    text:           qsTr("Back")
                     visible:        _searchFilter
                     anchors.right:  parent.right
                     height: ScreenTools.defaultFontPixelHeight * 1.75
@@ -106,37 +106,47 @@ QGCView {
                     }
                 }
                 QGCButton {
-                    text:           "Tools"
+                    text:           qsTr("Tools")
                     visible:        !_searchFilter
                     anchors.right:  parent.right
                     height: ScreenTools.defaultFontPixelHeight * 1.75
                     menu: Menu {
                         MenuItem {
-                            text:           "Refresh"
+                            text:           qsTr("Refresh")
                             onTriggered:	controller.refresh()
                         }
                         MenuItem {
-                            text:           "Reset all to defaults"
+                            text:           qsTr("Reset all to defaults")
                             onTriggered:	controller.resetAllToDefaults()
                         }
                         MenuItem {
-                            text:           "Search..."
-                            onTriggered:    showDialog(searchDialogComponent, "Parameter Search", qgcView.showDialogDefaultWidth, StandardButton.Reset | StandardButton.Apply)
+                            text:           qsTr("Search...")
+                            onTriggered:    showDialog(searchDialogComponent, qsTr("Parameter Search"), qgcView.showDialogDefaultWidth, StandardButton.Reset | StandardButton.Apply)
                         }
-                        MenuSeparator { visible: !ScreenTools.isMobile }
+                        MenuSeparator { }
                         MenuItem {
-                            text:           "Load from file..."
-                            onTriggered:	controller.loadFromFile()
-                            visible:        !ScreenTools.isMobile
+                            text:           qsTr("Load from file...")
+                            onTriggered: {
+                                if (ScreenTools.isMobile) {
+                                    qgcView.showDialog(mobileFilePicker, qsTr("Select Parameter File"), qgcView.showDialogDefaultWidth, StandardButton.Yes | StandardButton.Cancel)
+                                } else {
+                                    controller.loadFromFilePicker()
+                                }
+                            }
                         }
                         MenuItem {
-                            text:           "Save to file..."
-                            onTriggered:	controller.saveToFile()
-                            visible:        !ScreenTools.isMobile
+                            text:           qsTr("Save to file...")
+                            onTriggered: {
+                                if (ScreenTools.isMobile) {
+                                    qgcView.showDialog(mobileFileSaver, qsTr("Save Parameter File"), qgcView.showDialogDefaultWidth, StandardButton.Save | StandardButton.Cancel)
+                                } else {
+                                    controller.saveToFilePicker()
+                                }
+                            }
                         }
                         MenuSeparator { visible: _showRCToParam }
                         MenuItem {
-                            text:           "Clear RC to Param"
+                            text:           qsTr("Clear RC to Param")
                             onTriggered:	controller.clearRCToParam()
                             visible:        _showRCToParam
                         }
@@ -185,7 +195,7 @@ QGCView {
                             readonly property int componentId: parseInt(modelData)
                             spacing: Math.ceil(ScreenTools.defaultFontPixelHeight * 0.25)
                             QGCLabel {
-                                text: "Component #: " + componentId.toString()
+                                text: qsTr("Component #: %1)").arg(componentId.toString())
                                 font.weight: Font.DemiBold
                                 anchors.horizontalCenter: parent.horizontalCenter
                             }
@@ -320,7 +330,7 @@ QGCView {
                         acceptedButtons:    Qt.LeftButton
                         onClicked: {
                             _editorDialogFact = factRow.modelFact
-                            showDialog(editorDialogComponent, "Parameter Editor", qgcView.showDialogDefaultWidth, StandardButton.Cancel | StandardButton.Save)
+                            showDialog(editorDialogComponent, qsTr("Parameter Editor"), qgcView.showDialogDefaultWidth, StandardButton.Cancel | StandardButton.Save)
                         }
                     }
                 }
@@ -355,7 +365,7 @@ QGCView {
 
             QGCLabel {
                 id:     searchForLabel
-                text:   "Search for:"
+                text:   qsTr("Search for:")
             }
 
             QGCTextField {
@@ -370,9 +380,27 @@ QGCView {
                 anchors.top:        searchFor.bottom
                 width:              parent.width
                 wrapMode:           Text.WordWrap
-                text:               "Hint: Leave 'Search For' blank and click Apply to list all parameters sorted by name."
+                text:               qsTr("Hint: Leave 'Search For' blank and click Apply to list all parameters sorted by name.")
             }
         }
     }
 
+    Component {
+        id: mobileFilePicker
+
+        QGCMobileFileDialog {
+            fileExtension:      QGroundControl.parameterFileExtension
+            onFilenameReturned: controller.loadFromFile(filename)
+        }
+    }
+
+    Component {
+        id: mobileFileSaver
+
+        QGCMobileFileDialog {
+            openDialog:         false
+            fileExtension:      QGroundControl.parameterFileExtension
+            onFilenameReturned: controller.saveToFile(filename)
+        }
+    }
 } // QGCView

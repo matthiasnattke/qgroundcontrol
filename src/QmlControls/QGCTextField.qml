@@ -31,6 +31,7 @@ TextField {
     }
 
     style: TextFieldStyle {
+        font.pixelSize: ScreenTools.defaultFontPixelSize
         background: Item {
             id: backgroundItem
 
@@ -71,7 +72,7 @@ TextField {
     }
 
     onActiveFocusChanged: {
-        if (activeFocus) {
+        if (!ScreenTools.isMobile && activeFocus) {
             selectAll()
         }
     }

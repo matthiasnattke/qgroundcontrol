@@ -242,26 +242,26 @@ void QGCJSBSimLink::updateControls(quint64 time, float rollAilerons, float pitch
     Q_UNUSED(systemMode);
     Q_UNUSED(navMode);
 
-    if(!isnan(rollAilerons) && !isnan(pitchElevator) && !isnan(yawRudder) && !isnan(throttle))
+    if(!qIsNaN(rollAilerons) && !qIsNaN(pitchElevator) && !qIsNaN(yawRudder) && !qIsNaN(throttle))
     {
         QString state("%1\t%2\t%3\t%4\t%5\n");
         state = state.arg(rollAilerons).arg(pitchElevator).arg(yawRudder).arg(true).arg(throttle);
-        writeBytes(state.toLatin1().constData(), state.length());
+        emit _invokeWriteBytes(state.toLatin1());
     }
     else
     {
-        qDebug() << "HIL: Got NaN values from the hardware: isnan output: roll: " << isnan(rollAilerons) << ", pitch: " << isnan(pitchElevator) << ", yaw: " << isnan(yawRudder) << ", throttle: " << isnan(throttle);
+        qDebug() << "HIL: Got NaN values from the hardware: isnan output: roll: " << qIsNaN(rollAilerons) << ", pitch: " << qIsNaN(pitchElevator) << ", yaw: " << qIsNaN(yawRudder) << ", throttle: " << qIsNaN(throttle);
     }
     //qDebug() << "Updated controls" << state;
 }
 
-void QGCJSBSimLink::writeBytes(const char* data, qint64 size)
+void QGCJSBSimLink::_writeBytes(const QByteArray data)
 {
     //#define QGCJSBSimLink_DEBUG
 #ifdef QGCJSBSimLink_DEBUG
     QString bytes;
     QString ascii;
-    for (int i=0; i<size; i++)
+    for (int i=0, size = data.size(); i<size; i++)
     {
         unsigned char v = data[i];
         bytes.append(QString().sprintf("%02x ", v));
@@ -278,7 +278,7 @@ void QGCJSBSimLink::writeBytes(const char* data, qint64 size)
     qDebug() << bytes;
     qDebug() << "ASCII:" << ascii;
 #endif
-    if (connectState && socket) socket->writeDatagram(data, size, currentHost, currentPort);
+    if (connectState && socket) socket->writeDatagram(data, currentHost, currentPort);
 }
 
 /**

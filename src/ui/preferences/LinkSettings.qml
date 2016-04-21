@@ -32,7 +32,7 @@ import QGroundControl.Palette               1.0
 
 Rectangle {
     id:                 _linkRoot
-    color:              __qgcPal.window
+    color:              qgcPal.window
     anchors.fill:       parent
     anchors.margins:    ScreenTools.defaultFontPixelWidth
 
@@ -73,7 +73,7 @@ Rectangle {
             anchors.margins:    ScreenTools.defaultFontPixelWidth
             spacing:            ScreenTools.defaultFontPixelHeight / 2
             QGCLabel {
-                text:   "Comm Link Settings"
+                text:   qsTr("Comm Link Settings")
                 font.pixelSize: ScreenTools.mediumFontPixelSize
             }
             Rectangle {
@@ -110,7 +110,7 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         QGCButton {
             width:      ScreenTools.defaultFontPixelWidth * 10
-            text:       "Delete"
+            text:       qsTr("Delete")
             enabled:    _currentSelection && !_currentSelection.dynamic
             onClicked: {
                 if(_currentSelection)
@@ -121,8 +121,8 @@ Rectangle {
                 visible:    false
                 icon:       StandardIcon.Warning
                 standardButtons: StandardButton.Yes | StandardButton.No
-                title:      "Remove Link Configuration"
-                text:       _currentSelection ? "Remove " + _currentSelection.name + ". Is this really what you want?" : ""
+                title:      qsTr("Remove Link Configuration")
+                text:       _currentSelection ? qsTr("Remove %1. Is this really what you want?").arg(_currentSelection.name) : ""
                 onYes: {
                     if(_currentSelection)
                         QGroundControl.linkManager.removeConfiguration(_currentSelection)
@@ -134,23 +134,20 @@ Rectangle {
             }
         }
         QGCButton {
-            width:      ScreenTools.defaultFontPixelWidth * 10
-            text:       "Edit"
+            text:       qsTr("Edit")
             enabled:    _currentSelection && !_currentSelection.link
             onClicked: {
                 _linkRoot.openCommSettings(_currentSelection)
             }
         }
         QGCButton {
-            width:      ScreenTools.defaultFontPixelWidth * 10
-            text:       "Add"
+            text:       qsTr("Add")
             onClicked: {
                 _linkRoot.openCommSettings(null)
             }
         }
         QGCButton {
-            width:      ScreenTools.defaultFontPixelWidth * 10
-            text:       "Connect"
+            text:       qsTr("Connect")
             enabled:    _currentSelection && !_currentSelection.link
             onClicked: {
                 QGroundControl.linkManager.createConnectedLink(_currentSelection)
@@ -158,8 +155,7 @@ Rectangle {
             }
         }
         QGCButton {
-            width:      ScreenTools.defaultFontPixelWidth * 10
-            text:       "Disconnect"
+            text:       qsTr("Disconnect")
             enabled:    _currentSelection && _currentSelection.link
             onClicked: {
                 QGroundControl.linkManager.disconnectLink(_currentSelection.link, false)
@@ -180,7 +176,7 @@ Rectangle {
     Component {
         id: commSettings
         Rectangle {
-            color:          __qgcPal.window
+            color:          qgcPal.window
             anchors.fill:   parent
             Component.onCompleted: {
                 // If editing, create copy for editing
@@ -217,7 +213,7 @@ Rectangle {
                     anchors.margins:    ScreenTools.defaultFontPixelWidth
                     spacing:            ScreenTools.defaultFontPixelHeight / 2
                     QGCLabel {
-                        text:   linkConfig ? "Edit Link Configuration Settings (WIP)" : "Create New Link Configuration (WIP)"
+                        text:   linkConfig ? qsTr("Edit Link Configuration Settings (WIP)") : qsTr("Create New Link Configuration (WIP)")
                         font.pixelSize: ScreenTools.mediumFontPixelSize
                     }
                     Rectangle {
@@ -232,7 +228,7 @@ Rectangle {
                     Row {
                         spacing:    ScreenTools.defaultFontPixelWidth
                         QGCLabel {
-                            text:   "Name:"
+                            text:   qsTr("Name:")
                             width:  _firstColumn
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -246,7 +242,7 @@ Rectangle {
                     Row {
                         spacing:        ScreenTools.defaultFontPixelWidth
                         QGCLabel {
-                            text:       "Type:"
+                            text:       qsTr("Type:")
                             width:      _firstColumn
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -301,6 +297,7 @@ Rectangle {
                         height: ScreenTools.defaultFontPixelHeight * 0.5
                         width:  parent.width
                     }
+                    /*
                     //-- Auto Connect
                     QGCCheckBox {
                         text:       "Automatically Connect on Start"
@@ -316,6 +313,7 @@ Rectangle {
                                 checked = editConfig.autoConnect
                         }
                     }
+                    */
                     Item {
                         height: ScreenTools.defaultFontPixelHeight
                         width:  parent.width
@@ -336,7 +334,7 @@ Rectangle {
                 anchors.right:      parent.right
                 QGCButton {
                     width:      ScreenTools.defaultFontPixelWidth * 10
-                    text:       "OK"
+                    text:       qsTr("OK")
                     enabled:    nameField.text !== ""
                     onClicked: {
                         // Save editting
@@ -356,7 +354,7 @@ Rectangle {
                 }
                 QGCButton {
                     width:      ScreenTools.defaultFontPixelWidth * 10
-                    text:       "Cancel"
+                    text:       qsTr("Cancel")
                     onClicked: {
                         QGroundControl.linkManager.cancelConfigurationEditing(editConfig)
                         editConfig = null

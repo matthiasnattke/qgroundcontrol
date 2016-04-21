@@ -71,7 +71,7 @@ QGCView {
         QGCFlickable {
             clip:               true
             anchors.fill:       parent
-            contentHeight:      sliderRect.y + sliderRect.height
+            contentHeight:      sliderOuterColumn.y + sliderOuterColumn.height
             flickableDirection: Flickable.VerticalFlick
 
             QGCLabel {
@@ -80,32 +80,34 @@ QGCView {
                 font.weight:    Font.DemiBold
             }
 
-            Rectangle {
-                id:                 sliderRect
-                anchors.topMargin:  _margins / 2
+
+            Column {
+                id:                 sliderOuterColumn
+                anchors.margins:    _margins
                 anchors.left:       parent.left
                 anchors.right:      parent.right
                 anchors.top:        panelLabel.bottom
-                height:             sliderColumns.y + sliderColumns.height + _margins
-                color:              palette.windowShade
+                spacing:            _margins
 
-                Column {
-                    id:                 sliderColumns
-                    anchors.margins:    _margins
-                    anchors.left:       parent.left
-                    anchors.right:      parent.right
-                    anchors.top:        parent.top
-                    spacing:            _margins
+                Repeater {
+                    id:     sliderRepeater
+                    model:  sliderModel
 
-                    Repeater {
-                        id:     sliderRepeater
-                        model:  sliderModel
+                    Rectangle {
+                        id:                 sliderRect
+                        anchors.left:       parent.left
+                        anchors.right:      parent.right
+                        height:             sliderColumn.y + sliderColumn.height + _margins
+                        color:              palette.windowShade
+
+                        property alias sliderValue: slider.value
 
                         Column {
-                            anchors.left:   parent.left
-                            anchors.right:  parent.right
-
-                            property alias sliderValue: slider.value
+                            id:                 sliderColumn
+                            anchors.margins:    _margins
+                            anchors.left:       parent.left
+                            anchors.right:      parent.right
+                            anchors.top:        sliderRect.top
 
                             QGCLabel {
                                 text:           title
@@ -113,7 +115,10 @@ QGCView {
                             }
 
                             QGCLabel {
-                                text: description
+                                text:           description
+                                anchors.left:   parent.left
+                                anchors.right:  parent.right
+                                wrapMode:       Text.WordWrap
                             }
 
                             Slider {
@@ -122,7 +127,7 @@ QGCView {
                                 anchors.right:      parent.right
                                 minimumValue:       min
                                 maximumValue:       max
-                                stepSize:           step
+                                stepSize:           isNaN(fact.increment) ? step : fact.increment
                                 tickmarksEnabled:   true
 
                                 property Fact fact: controller.getParameterFact(-1, param)
@@ -132,11 +137,11 @@ QGCView {
                                         fact.value = value
                                     }
                                 }
-                            }
+                            } // Slider
                         } // Column
-                    } // Repeater
-                } // Column
-            } // Rectangle
+                    } // Rectangle
+                } // Repeater
+            } // Column
         } // QGCFlickable
     } // QGCViewPanel
 } // QGCView

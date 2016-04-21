@@ -40,12 +40,12 @@ import QGroundControl.ScreenTools           1.0
 import QGroundControl.Controllers           1.0
 
 Rectangle {
-    id:     toolBar
-    color:  opaqueBackground ? "#404040" : Qt.rgba(0,0,0,0.75)
+    id:         toolBar
+    color:      qgcPal.window
 
     QGCPalette { id: qgcPal; colorGroupEnabled: true }
 
-    property var  activeVehicle:        multiVehicleManager.activeVehicle
+    property var  activeVehicle:        QGroundControl.multiVehicleManager.activeVehicle
     property var  mainWindow:           null
     property bool isMessageImportant:   activeVehicle ? !activeVehicle.messageTypeNormal && !activeVehicle.messageTypeNone : false
     property bool isBackgroundDark:     true
@@ -165,13 +165,13 @@ Rectangle {
 
     function getBatteryColor() {
         if(activeVehicle) {
-            if(activeVehicle.batteryPercent > 75) {
+            if(activeVehicle.battery.percentRemaining.value > 75) {
                 return colorGreen
             }
-            if(activeVehicle.batteryPercent > 50) {
+            if(activeVehicle.battery.percentRemaining.value > 50) {
                 return colorOrange
             }
-            if(activeVehicle.batteryPercent > 0.1) {
+            if(activeVehicle.battery.percentRemaining.value > 0.1) {
                 return colorRed
             }
         }
@@ -188,28 +188,6 @@ Rectangle {
         return colorRed;
     }
 
-    function getGpsLockStatus() {
-        if(activeVehicle) {
-            if(activeVehicle.satelliteLock < 2) {
-                return "No Satellite Lock"
-            }
-            if(activeVehicle.satelliteLock == 2) {
-                return "2D Lock"
-            }
-            if(activeVehicle.satelliteLock == 3) {
-                return "3D Lock"
-            }
-            if(activeVehicle.satelliteLock == 4) {
-                return "3D DGPS Lock"
-            }
-            if(activeVehicle.satelliteLock == 5) {
-                return "3D RTK GPS Lock"
-            }
-            return "Unkown Lock Type (" + activeVehicle.satelliteLock + ")"
-        }
-        return "N/A"
-    }
-
     Component.onCompleted: {
         //-- TODO: Get this from the actual state
         flyButton.checked = true
@@ -219,73 +197,48 @@ Rectangle {
     // GPS Info
     Component {
         id: gpsInfo
+
         Rectangle {
-            color:          Qt.rgba(0,0,0,0.75)
-            width:          gpsCol.width   + ScreenTools.defaultFontPixelWidth  * 3
-            height:         gpsCol.height  + ScreenTools.defaultFontPixelHeight * 2
-            radius:         ScreenTools.defaultFontPixelHeight * 0.5
+            width:  gpsCol.width   + ScreenTools.defaultFontPixelWidth  * 3
+            height: gpsCol.height  + ScreenTools.defaultFontPixelHeight * 2
+            radius: ScreenTools.defaultFontPixelHeight * 0.5
+            color:  qgcPal.window
+
             Column {
                 id:                 gpsCol
                 spacing:            ScreenTools.defaultFontPixelHeight * 0.5
                 width:              Math.max(gpsGrid.width, gpsLabel.width)
                 anchors.margins:    ScreenTools.defaultFontPixelHeight
                 anchors.centerIn:   parent
+
                 QGCLabel {
                     id:         gpsLabel
-                    text:       (activeVehicle && activeVehicle.satelliteCount >= 0) ? "GPS Status" : "GPS Data Unavailable"
+                    text:       (activeVehicle && activeVehicle.gps.count.value >= 0) ? qsTr("GPS Status") : qsTr("GPS Data Unavailable")
                     font.weight:Font.DemiBold
-                    color:      colorWhite
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
+
                 GridLayout {
                     id:                 gpsGrid
-                    visible:            (activeVehicle && activeVehicle.satelliteCount >= 0)
+                    visible:            (activeVehicle && activeVehicle.gps.count.value >= 0)
                     anchors.margins:    ScreenTools.defaultFontPixelHeight
                     columnSpacing:      ScreenTools.defaultFontPixelWidth
                     anchors.horizontalCenter: parent.horizontalCenter
                     columns: 2
-                    QGCLabel {
-                        text:   "GPS Count:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   activeVehicle ? (activeVehicle.satelliteCount) : "N/A"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "GPS Lock:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   getGpsLockStatus()
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "HDOP:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   activeVehicle ? (activeVehicle.satRawHDOP < 10000 ? activeVehicle.satRawHDOP.toFixed(0) : "N/A") : "N/A"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "VDOP:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   activeVehicle ? (activeVehicle.satRawVDOP < 10000 ? activeVehicle.satRawVDOP.toFixed(0) : "N/A") : "N/A"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "Course Over Ground:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   activeVehicle ? (activeVehicle.satRawCOG).toFixed(2) : "N/A"
-                        color:  colorWhite
-                    }
+
+                    QGCLabel { text: qsTr("GPS Count:") }
+                    QGCLabel { text: activeVehicle ? activeVehicle.gps.count.valueString : qsTr("N/A", "No data to display") }
+                    QGCLabel { text: qsTr("GPS Lock:") }
+                    QGCLabel { text: activeVehicle ? activeVehicle.gps.lock.enumStringValue : qsTr("N/A", "No data to display") }
+                    QGCLabel { text: qsTr("HDOP:") }
+                    QGCLabel { text: activeVehicle ? activeVehicle.gps.hdop.valueString : qsTr("--.--", "No data to display") }
+                    QGCLabel { text: qsTr("VDOP:") }
+                    QGCLabel { text: activeVehicle ? activeVehicle.gps.vdop.valueString : qsTr("--.--", "No data to display") }
+                    QGCLabel { text: qsTr("Course Over Ground:") }
+                    QGCLabel { text: activeVehicle ? activeVehicle.gps.courseOverGround.valueString : qsTr("--.--", "No data to display") }
                 }
             }
+
             Component.onCompleted: {
                 var pos = mapFromItem(toolBar, centerX - (width / 2), toolBar.height)
                 x = pos.x
@@ -298,59 +251,41 @@ Rectangle {
     // Battery Info
     Component {
         id: batteryInfo
+
         Rectangle {
-            color:          Qt.rgba(0,0,0,0.75)
-            width:          battCol.width   + ScreenTools.defaultFontPixelWidth  * 3
-            height:         battCol.height  + ScreenTools.defaultFontPixelHeight * 2
-            radius:         ScreenTools.defaultFontPixelHeight * 0.5
+            width:  battCol.width   + ScreenTools.defaultFontPixelWidth  * 3
+            height: battCol.height  + ScreenTools.defaultFontPixelHeight * 2
+            radius: ScreenTools.defaultFontPixelHeight * 0.5
+            color:  qgcPal.window
+
             Column {
                 id:                 battCol
                 spacing:            ScreenTools.defaultFontPixelHeight * 0.5
                 width:              Math.max(battGrid.width, battLabel.width)
                 anchors.margins:    ScreenTools.defaultFontPixelHeight
                 anchors.centerIn:   parent
+
                 QGCLabel {
                     id:         battLabel
-                    text:       (activeVehicle && (activeVehicle.batteryVoltage > 0)) ? "Battery Status" : "Battery Data Unavailable"
-                    color:      colorWhite
+                    text:       qsTr("Battery Status")
                     font.weight:Font.DemiBold
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
+
                 GridLayout {
                     id:                 battGrid
-                    visible:            (activeVehicle && (activeVehicle.batteryVoltage > 0))
                     anchors.margins:    ScreenTools.defaultFontPixelHeight
                     columnSpacing:      ScreenTools.defaultFontPixelWidth
+                    columns:            2
                     anchors.horizontalCenter: parent.horizontalCenter
-                    columns: 2
-                    QGCLabel {
-                        text:   "Voltage:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   activeVehicle ? (activeVehicle.batteryVoltage.toFixed(1) + " V") : "N/A"
-                        color:  getBatteryColor()
-                    }
-                    // TODO: What "controller" provides "Facts"?
-                    /*
-                    QGCLabel {
-                        text:   "Cell Voltage:"
-                    }
-                    QGCLabel {
-                        text:   (activeVehicle.batteryVoltage / controller.getParameterFact(-1, "BAT_N_CELLS").value) + "V"
-                        color:  getBatteryColor()
-                    }
-                    */
-                    QGCLabel {
-                        text:   "Accumulated Consumption:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   activeVehicle ? (activeVehicle.batteryConsumed + " mA") : "N/A"
-                        color:  getBatteryColor()
-                    }
+
+                    QGCLabel { text: qsTr("Voltage:") }
+                    QGCLabel { text: (activeVehicle && activeVehicle.battery.voltage.value != -1) ? (activeVehicle.battery.voltage.valueString + " " + activeVehicle.battery.voltage.units) : "N/A" }
+                    QGCLabel { text: qsTr("Accumulated Consumption:") }
+                    QGCLabel { text: (activeVehicle && activeVehicle.battery.mahConsumed.value != -1) ? (activeVehicle.battery.mahConsumed.valueString + " " + activeVehicle.battery.mahConsumed.units) : "N/A" }
                 }
             }
+
             Component.onCompleted: {
                 var pos = mapFromItem(toolBar, centerX - (width / 2), toolBar.height)
                 x = pos.x
@@ -363,41 +298,40 @@ Rectangle {
     // RC RSSI Info
     Component {
         id: rcRSSIInfo
+
         Rectangle {
-            color:          Qt.rgba(0,0,0,0.75)
-            width:          rcrssiCol.width   + ScreenTools.defaultFontPixelWidth  * 3
-            height:         rcrssiCol.height  + ScreenTools.defaultFontPixelHeight * 2
-            radius:         ScreenTools.defaultFontPixelHeight * 0.5
+            width:  rcrssiCol.width   + ScreenTools.defaultFontPixelWidth  * 3
+            height: rcrssiCol.height  + ScreenTools.defaultFontPixelHeight * 2
+            radius: ScreenTools.defaultFontPixelHeight * 0.5
+            color:  qgcPal.window
+
             Column {
                 id:                 rcrssiCol
                 spacing:            ScreenTools.defaultFontPixelHeight * 0.5
                 width:              Math.max(rcrssiGrid.width, rssiLabel.width)
                 anchors.margins:    ScreenTools.defaultFontPixelHeight
                 anchors.centerIn:   parent
+
                 QGCLabel {
                     id:         rssiLabel
-                    text:       activeVehicle ? (activeVehicle.rcRSSI > 0 ? "RC RSSI Status" : "RC RSSI Data Unavailable") : "N/A"
-                    color:      colorWhite
+                    text:       activeVehicle ? (activeVehicle.rcRSSI > 0 ? qsTr("RC RSSI Status") : qsTr("RC RSSI Data Unavailable")) : qsTr("N/A", "No data avaliable")
                     font.weight:Font.DemiBold
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
+
                 GridLayout {
                     id:                 rcrssiGrid
                     visible:            activeVehicle && activeVehicle.rcRSSI > 0
                     anchors.margins:    ScreenTools.defaultFontPixelHeight
                     columnSpacing:      ScreenTools.defaultFontPixelWidth
+                    columns:            2
                     anchors.horizontalCenter: parent.horizontalCenter
-                    columns: 2
-                    QGCLabel {
-                        text:   "RSSI:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   activeVehicle ? (activeVehicle.rcRSSI + "%") : 0
-                        color:  colorWhite
-                    }
+
+                    QGCLabel { text: qsTr("RSSI:") }
+                    QGCLabel { text: activeVehicle ? (activeVehicle.rcRSSI + "%") : 0 }
                 }
             }
+
             Component.onCompleted: {
                 var pos = mapFromItem(toolBar, centerX - (width / 2), toolBar.height)
                 x = pos.x
@@ -410,88 +344,51 @@ Rectangle {
     // Telemetry RSSI Info
     Component {
         id: telemRSSIInfo
+
         Rectangle {
-            color:          Qt.rgba(0,0,0,0.75)
-            width:          telemCol.width   + ScreenTools.defaultFontPixelWidth  * 3
-            height:         telemCol.height  + ScreenTools.defaultFontPixelHeight * 2
-            radius:         ScreenTools.defaultFontPixelHeight * 0.5
+            width:  telemCol.width   + ScreenTools.defaultFontPixelWidth  * 3
+            height: telemCol.height  + ScreenTools.defaultFontPixelHeight * 2
+            radius: ScreenTools.defaultFontPixelHeight * 0.5
+            color:  qgcPal.window
+
             Column {
                 id:                 telemCol
                 spacing:            ScreenTools.defaultFontPixelHeight * 0.5
                 width:              Math.max(telemGrid.width, telemLabel.width)
                 anchors.margins:    ScreenTools.defaultFontPixelHeight
                 anchors.centerIn:   parent
+
                 QGCLabel {
-                    id:         telemLabel
-                    text:       "Telemetry RSSI Status"
-                    color:      colorWhite
-                    font.weight:Font.DemiBold
+                    id:             telemLabel
+                    text:           qsTr("Telemetry RSSI Status")
+                    font.weight:    Font.DemiBold
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
+
                 GridLayout {
                     id:                 telemGrid
                     anchors.margins:    ScreenTools.defaultFontPixelHeight
                     columnSpacing:      ScreenTools.defaultFontPixelWidth
+                    columns:            2
                     anchors.horizontalCenter: parent.horizontalCenter
-                    columns: 2
-                    QGCLabel {
-                        text:   "Local RSSI:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   _controller.telemetryLRSSI + " dBm"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "Remote RSSI:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   _controller.telemetryRRSSI + " dBm"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "RX Errors:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   _controller.telemetryRXErrors
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "Errors Fixed:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   _controller.telemetryFixed
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "TX Buffer:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   _controller.telemetryTXBuffer
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "Local Noise:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   _controller.telemetryLNoise
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   "Remote Noise:"
-                        color:  colorWhite
-                    }
-                    QGCLabel {
-                        text:   _controller.telemetryRNoise
-                        color:  colorWhite
-                    }
+
+                    QGCLabel { text: qsTr("Local RSSI:") }
+                    QGCLabel { text: _controller.telemetryLRSSI + " dBm" }
+                    QGCLabel { text: qsTr("Remote RSSI:") }
+                    QGCLabel { text: _controller.telemetryRRSSI + " dBm" }
+                    QGCLabel { text: qsTr("RX Errors:") }
+                    QGCLabel { text: _controller.telemetryRXErrors }
+                    QGCLabel { text: qsTr("Errors Fixed:") }
+                    QGCLabel { text: _controller.telemetryFixed }
+                    QGCLabel { text: qsTr("TX Buffer:") }
+                    QGCLabel { text: _controller.telemetryTXBuffer }
+                    QGCLabel { text: qsTr("Local Noise:") }
+                    QGCLabel { text: _controller.telemetryLNoise }
+                    QGCLabel { text: qsTr("Remote Noise:") }
+                    QGCLabel { text: _controller.telemetryRNoise }
                 }
             }
+
             Component.onCompleted: {
                 var pos = mapFromItem(toolBar, centerX - (width / 2), toolBar.height)
                 x = pos.x
@@ -500,80 +397,82 @@ Rectangle {
         }
     }
 
+    Rectangle {
+        anchors.left:   parent.left
+        anchors.right:  parent.right
+        anchors.bottom: parent.bottom
+        height:         1
+        color:          "black"
+        visible:        qgcPal.globalTheme == QGCPalette.Light
+    }
+
+    //---------------------------------------------
+    // Logo (Preferences Button)
+    Rectangle {
+        id:                     preferencesButton
+        width:                  mainWindow.tbButtonWidth * 1.25
+        height:                 parent.height
+        anchors.top:            parent.top
+        anchors.left:           parent.left
+        color:                  "#4A2C6D"
+        Image {
+            height:                 mainWindow.tbCellHeight
+            anchors.centerIn:       parent
+            source:                 "/res/QGCLogoWhite"
+            fillMode:               Image.PreserveAspectFit
+            smooth:                 true
+            mipmap:                 true
+            antialiasing:           true
+        }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: mainWindow.showLeftMenu()
+        }
+    }
+
     //---------------------------------------------
     // Toolbar Row
     Row {
-        id:             viewRow
-        height:         mainWindow.tbCellHeight
-        spacing:        mainWindow.tbSpacing
-        anchors.left:   parent.left
+        id:                     viewRow
+        height:                 mainWindow.tbCellHeight
+        spacing:                mainWindow.tbSpacing
+        anchors.left:           preferencesButton.right
         anchors.leftMargin:     mainWindow.tbSpacing
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.bottomMargin:   1
+        anchors.top:            parent.top
+        anchors.bottom:         parent.bottom
 
         ExclusiveGroup { id: mainActionGroup }
 
         QGCToolBarButton {
-            id:                 preferencesButton
-            width:              mainWindow.tbButtonWidth
-            height:             mainWindow.tbCellHeight
-            source:             "/qmlimages/Hamburger.svg"
-            onClicked: {
-                mainWindow.showLeftMenu();
-                preferencesButton.checked = false;
-            }
-        }
-
-        Rectangle {
-            height: mainWindow.tbCellHeight
-            width:  1
-            color: Qt.rgba(1,1,1,0.45)
-        }
-
-        QGCToolBarButton {
             id:                 setupButton
             width:              mainWindow.tbButtonWidth
-            height:             mainWindow.tbCellHeight
+            anchors.top:        parent.top
+            anchors.bottom:     parent.bottom
             exclusiveGroup:     mainActionGroup
             source:             "/qmlimages/Gears.svg"
             onClicked:          toolBar.showSetupView()
         }
 
-        Rectangle {
-            height: mainWindow.tbCellHeight
-            width:  1
-            color: Qt.rgba(1,1,1,0.45)
-        }
-
         QGCToolBarButton {
             id:                 planButton
             width:              mainWindow.tbButtonWidth
-            height:             mainWindow.tbCellHeight
+            anchors.top:        parent.top
+            anchors.bottom:     parent.bottom
             exclusiveGroup:     mainActionGroup
             source:             "/qmlimages/Plan.svg"
             onClicked:          toolBar.showPlanView()
         }
 
-        Rectangle {
-            height: mainWindow.tbCellHeight
-            width:  1
-            color: Qt.rgba(1,1,1,0.45)
-        }
-
         QGCToolBarButton {
             id:                 flyButton
             width:              mainWindow.tbButtonWidth
-            height:             mainWindow.tbCellHeight
+            anchors.top:        parent.top
+            anchors.bottom:     parent.bottom
             exclusiveGroup:     mainActionGroup
             source:             "/qmlimages/PaperPlane.svg"
             onClicked:          toolBar.showFlyView()
         }
-
-        Rectangle {
-            height: mainWindow.tbCellHeight
-            width:  1
-            color: Qt.rgba(1,1,1,0.45)
-        }
-
     }
 
     Item {
@@ -594,22 +493,25 @@ Rectangle {
 
         QGCLabel {
             id:                     connectionLost
-            text:                   "CONNECTION LOST"
+            text:                   qsTr("COMMUNICATION LOST")
             font.pixelSize:         tbFontLarge
             font.weight:            Font.DemiBold
             color:                  colorRed
-            anchors.left:           parent.left
+            anchors.rightMargin:    ScreenTools.defaultFontPixelWidth
+            anchors.right:          disconnectButton.left
             anchors.verticalCenter: parent.verticalCenter
             visible:                parent.vehicleConnectionLost
 
         }
 
         QGCButton {
+            id:                     disconnectButton
             anchors.rightMargin:     mainWindow.tbSpacing * 2
             anchors.right:          parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text:                   "Disconnect"
+            text:                   qsTr("Disconnect")
             visible:                parent.vehicleConnectionLost
+            primary:                true
             onClicked:              activeVehicle.disconnectInactiveVehicle()
         }
     }

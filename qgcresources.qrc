@@ -43,7 +43,7 @@
         <file alias="Airframe/Y6B">src/AutoPilotPlugins/Common/Images/Y6B.svg</file>
         <file alias="Airframe/YMinus">src/AutoPilotPlugins/Common/Images/YMinus.svg</file>
         <file alias="Airframe/YPlus">src/AutoPilotPlugins/Common/Images/YPlus.svg</file>
-        <file alias="Airframe/HelicopterCoaxial">src/ui/toolbar/Images/Yield.svg</file>
+        <file alias="Airframe/HelicopterCoaxial">src/AutoPilotPlugins/Common/Images/HelicopterCoaxial.svg</file>
         <file alias="wifi.svg">src/AutoPilotPlugins/Common/Images/wifi.svg</file>
         <file alias="arrow-down.png">src/QmlControls/arrow-down.png</file>
         <file alias="FirmwareUpgradeIcon.png">src/VehicleSetup/FirmwareUpgradeIcon.png</file>
@@ -99,6 +99,7 @@
         <file alias="MapAddMissionBlack.svg">src/FlightMap/Images/MapAddMissionBlack.svg</file>
         <file alias="MapCenter.svg">src/FlightMap/Images/MapCenter.svg</file>
         <file alias="MapCenterBlack.svg">src/FlightMap/Images/MapCenterBlack.svg</file>
+        <file alias="MapDrawShape.svg">src/FlightMap/Images/MapDrawShape.svg</file>
         <file alias="MapHome.svg">src/FlightMap/Images/MapHome.svg</file>
         <file alias="MapHomeBlack.svg">src/FlightMap/Images/MapHomeBlack.svg</file>
         <file alias="MapSync.svg">src/FlightMap/Images/MapSync.svg</file>
@@ -135,19 +136,26 @@
         <file alias="AntennaRC">resources/Antenna_RC.svg</file>
         <file alias="AntennaT">resources/Antenna_T.svg</file>
         <file alias="ArrowDown.svg">resources/ArrowDown.svg</file>
+        <file alias="ArrowRight.svg">resources/ArrowRight.svg</file>
         <file alias="buttonLeft.svg">resources/buttonLeft.svg</file>
         <file alias="buttonRight.svg">resources/buttonRight.svg</file>
+        <file alias="cancel.svg">resources/cancel.svg</file>
+        <file alias="gear-black.svg">resources/gear-black.svg</file>
+        <file alias="gear-white.svg">resources/gear-white.svg</file>
         <file alias="JoystickBezel.png">resources/JoystickBezel.png</file>
         <file alias="JoystickBezelLight.png">resources/JoystickBezelLight.png</file>
+        <file alias="notile.png">resources/notile.png</file>
         <file alias="Pause">resources/Pause.svg</file>
         <file alias="Play">resources/Play.svg</file>
         <file alias="PowerButton">resources/PowerButton.svg</file>
+        <file alias="QGCLogoWhite">resources/QGCLogoWhite.svg</file>
+        <file alias="QGCLogoBlack">resources/QGCLogoBlack.svg</file>
         <file alias="QGroundControlConnect">resources/QGroundControlConnect.svg</file>
         <file alias="SplashScreen">resources/SplashScreen.png</file>
         <file alias="Stop">resources/Stop.svg</file>
         <file alias="XDelete.svg">resources/XDelete.svg</file>
         <file alias="XDeleteBlack.svg">resources/XDeleteBlack.svg</file>
-    </qresource>
+</qresource>
     <qresource prefix="/res/firmware">
         <file alias="px4.png">resources/firmware/px4.png</file>
         <file alias="apm.png">resources/firmware/apm.png</file>
@@ -228,12 +236,21 @@
     </qresource>
     <qresource prefix="/AutoPilotPlugins/PX4">
         <file alias="AirframeFactMetaData.xml">src/AutoPilotPlugins/PX4/AirframeFactMetaData.xml</file>
-        <file alias="ParameterFactMetaData.xml">src/AutoPilotPlugins/PX4/ParameterFactMetaData.xml</file>
     </qresource>
     <qresource prefix="/AutoPilotPlugins/APM">
         <file alias="APMAirframeFactMetaData.xml">src/AutoPilotPlugins/APM/APMAirframeFactMetaData.xml</file>
     </qresource>
     <qresource prefix="/FirmwarePlugin/APM">
-        <file alias="apm.pdef.xml">src/FirmwarePlugin/APM/apm.pdef.xml</file>
+        <file alias="APMParameterFactMetaData.Plane.3.3.xml">src/FirmwarePlugin/APM/APMParameterFactMetaData.Plane.3.3.xml</file>
+        <file alias="APMParameterFactMetaData.Plane.3.5.xml">src/FirmwarePlugin/APM/APMParameterFactMetaData.Plane.3.5.xml</file>
+        <file alias="APMParameterFactMetaData.Copter.3.3.xml">src/FirmwarePlugin/APM/APMParameterFactMetaData.Copter.3.3.xml</file>
+        <file alias="APMParameterFactMetaData.Copter.3.4.xml">src/FirmwarePlugin/APM/APMParameterFactMetaData.Copter.3.4.xml</file>
+        <file alias="APMParameterFactMetaData.Rover.3.0.xml">src/FirmwarePlugin/APM/APMParameterFactMetaData.Rover.3.0.xml</file>
+    </qresource>
+    <qresource prefix="/FirmwarePlugin/PX4">
+        <file alias="PX4ParameterFactMetaData.xml">src/FirmwarePlugin/PX4/PX4ParameterFactMetaData.xml</file>
+    </qresource>
+    <qresource prefix="/opengl">
+        <file>resources/opengl/buglist.json</file>
     </qresource>
 </RCC>

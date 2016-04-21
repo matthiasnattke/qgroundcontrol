@@ -72,7 +72,9 @@ public:
     Q_PROPERTY(QString      units                   READ cookedUnits                                        CONSTANT)
     Q_PROPERTY(QVariant     value                   READ cookedValue            WRITE setCookedValue        NOTIFY valueChanged)
     Q_PROPERTY(bool         valueEqualsDefault      READ valueEqualsDefault                                 NOTIFY valueChanged)
-    Q_PROPERTY(QVariant     valueString             READ cookedValueString                                  NOTIFY valueChanged)
+    Q_PROPERTY(QString      valueString             READ cookedValueString                                  NOTIFY valueChanged)
+    Q_PROPERTY(QString      enumOrValueString       READ enumOrValueString                                  NOTIFY valueChanged)
+    Q_PROPERTY(double       increment               READ increment                                          CONSTANT)
 
     /// Convert and validate value
     ///     @param convertOnly true: validate type conversion only, false: validate against meta data as well
@@ -86,8 +88,8 @@ public:
     QVariant        cookedDefaultValue      (void) const;
     bool            defaultValueAvailable   (void) const;
     QString         cookedDefaultValueString(void) const;
-    QStringList     bitmaskStrings             (void) const;
-    QVariantList    bitmaskValues              (void) const;
+    QStringList     bitmaskStrings          (void) const;
+    QVariantList    bitmaskValues           (void) const;
     int             enumIndex               (void);         // This is not const, since an unknown value can modify the enum lists
     QStringList     enumStrings             (void) const;
     QString         enumStringValue         (void);         // This is not const, since an unknown value can modify the enum lists
@@ -111,11 +113,25 @@ public:
     QString         cookedValueString       (void) const;
     bool            valueEqualsDefault      (void) const;
     bool            rebootRequired          (void) const;
+    QString         enumOrValueString       (void);         // This is not const, since an unknown value can modify the enum lists
+    double          increment               (void) const;
+
+    /// Returns the values as a string with full 18 digit precision if float/double.
+    QString rawValueStringFullPrecision(void) const;
 
     void setRawValue        (const QVariant& value);
     void setCookedValue     (const QVariant& value);
     void setEnumIndex       (int index);
     void setEnumStringValue (const QString& value);
+
+    // The following methods allow you to defer sending of the valueChanged signals in order to implement
+    // rate limited signalling for ui performance. Used by FactGroup for example.
+
+    void setSendValueChangedSignals (bool sendValueChangedSignals);
+    bool sendValueChangedSignals (void) const { return _sendValueChangedSignals; }
+    bool deferredValueChangeSignal(void) const { return _deferredValueChangeSignal; }
+    void clearDeferredValueChangeSignal(void) { _deferredValueChangeSignal = false; }
+    void sendDeferredValueChangedSignal(void);
 
     // C++ methods
 
@@ -129,12 +145,14 @@ public:
     
     /// Generally you should not change the name of a fact. But if you know what you are doing, you can.
     void _setName(const QString& name) { _name = name; }
+
     
 signals:
     void bitmaskStringsChanged(void);
     void bitmaskValuesChanged(void);
     void enumStringsChanged(void);
     void enumValuesChanged(void);
+    void sendValueChangedSignalsChanged(bool sendValueChangedSignals);
 
     /// QObject Property System signal for value property changes
     ///
@@ -150,13 +168,16 @@ signals:
     void _containerRawValueChanged(const QVariant& value);
     
 protected:
-    QString _variantToString(const QVariant& variant) const;
+    QString _variantToString(const QVariant& variant, int decimalPlaces) const;
+    void _sendValueChangedSignal(QVariant value);
 
     QString                     _name;
     int                         _componentId;
     QVariant                    _rawValue;
     FactMetaData::ValueType_t   _type;
     FactMetaData*               _metaData;
+    bool                        _sendValueChangedSignals;
+    bool                        _deferredValueChangeSignal;
 };
 
 #endif

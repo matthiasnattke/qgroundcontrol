@@ -98,8 +98,8 @@ public:
     bool connect(void);
     bool disconnect(void);
 
-public slots:
-    virtual void writeBytes(const char *bytes, qint64 cBytes);
+private slots:
+    virtual void _writeBytes(const QByteArray bytes);
 
 signals:
     void logFileStats(bool logTimestamped, int logDurationSecs, int binaryBaudRate);
@@ -113,10 +113,6 @@ signals:
     void _playOnThread(void);
     void _pauseOnThread(void);
     void _setAccelerationFactorOnThread(int factor);
-
-protected slots:
-    // FIXME: This should not be part of LinkInterface. It is an internal link implementation detail.
-    virtual void readBytes(void);
 
 private slots:
     void _readNextLogEntry(void);

@@ -77,8 +77,6 @@ public:
 
     /** @brief The time interval the robot is switched on */
     quint64 getUptime() const;
-    /** @brief Add one measurement and get low-passed voltage */
-    float filterVoltage(float value);
 
     Q_PROPERTY(double   latitude                READ getLatitude            WRITE setLatitude           NOTIFY latitudeChanged)
     Q_PROPERTY(double   longitude               READ getLongitude           WRITE setLongitude          NOTIFY longitudeChanged)
@@ -93,7 +91,6 @@ public:
     Q_PROPERTY(double   bearingToWaypoint       READ getBearingToWaypoint   WRITE setBearingToWaypoint  NOTIFY bearingToWaypointChanged)
     Q_PROPERTY(double   altitudeAMSL            READ getAltitudeAMSL        WRITE setAltitudeAMSL       NOTIFY altitudeAMSLChanged)
     Q_PROPERTY(double   altitudeAMSLFT          READ getAltitudeAMSLFT                                  NOTIFY altitudeAMSLFTChanged)
-    Q_PROPERTY(double   altitudeWGS84           READ getAltitudeWGS84       WRITE setAltitudeWGS84      NOTIFY altitudeWGS84Changed)
     Q_PROPERTY(double   altitudeRelative        READ getAltitudeRelative    WRITE setAltitudeRelative   NOTIFY altitudeRelativeChanged)
     Q_PROPERTY(double   satRawHDOP              READ getSatRawHDOP                                      NOTIFY satRawHDOPChanged)
     Q_PROPERTY(double   satRawVDOP              READ getSatRawVDOP                                      NOTIFY satRawVDOPChanged)
@@ -202,19 +199,6 @@ public:
     {
         return altitudeAMSLFT;
     }
-
-    void setAltitudeWGS84(double val)
-    {
-        altitudeWGS84 = val;
-        emit altitudeWGS84Changed(val, "altitudeWGS84");
-        emit valueChanged(this->uasId,"altitudeWGS84","m",QVariant(val),getUnixTime());
-    }
-
-    double getAltitudeWGS84() const
-    {
-        return altitudeWGS84;
-    }
-
 
     void setAltitudeRelative(double val)
     {
@@ -386,24 +370,7 @@ protected: //COMMENTS FOR TEST UNIT
     float sendDropRate;           ///< Percentage of packets that were not received from the MAV by the GCS
 
     /// BASIC UAS TYPE, NAME AND STATE
-    uint8_t base_mode;                 ///< The current mode of the MAV
-    uint32_t custom_mode;         ///< The current mode of the MAV
     int status;                   ///< The current status of the MAV
-
-    // dongfang: This looks like a candidate for being moved off to a separate class.
-    /// BATTERY / ENERGY
-    float startVoltage;         ///< Voltage at system start
-    float tickVoltage;          ///< Voltage where 0.1 V ticks are told
-    float lastTickVoltageValue; ///< The last voltage where a tick was announced
-    float tickLowpassVoltage;   ///< Lowpass-filtered voltage for the tick announcement
-    float warnLevelPercent;     ///< Warning level, in percent
-    double currentVoltage;      ///< Voltage currently measured
-    float lpVoltage;            ///< Low-pass filtered voltage
-    double currentCurrent;      ///< Battery current currently measured
-    bool batteryRemainingEstimateEnabled; ///< If the estimate is enabled, QGC will try to estimate the remaining battery life
-    float chargeLevel;          ///< Charge level of battery, in percent
-    bool lowBattAlarm;          ///< Switch if battery is low
-
 
     /// TIMEKEEPING
     quint64 startTime;            ///< The time the UAS was switched on
@@ -431,7 +398,6 @@ protected: //COMMENTS FOR TEST UNIT
     double longitude;           ///< Global longitude as estimated by position estimator
     double altitudeAMSL;        ///< Global altitude as estimated by position estimator, AMSL
     double altitudeAMSLFT;      ///< Global altitude as estimated by position estimator, AMSL
-    double altitudeWGS84;       ///< Global altitude as estimated by position estimator, WGS84
     double altitudeRelative;    ///< Altitude above home as estimated by position estimator
 
     double satRawHDOP;
@@ -468,7 +434,7 @@ protected: //COMMENTS FOR TEST UNIT
     /// IMAGING
     int imageSize;              ///< Image size being transmitted (bytes)
     int imagePackets;           ///< Number of data packets being sent for this image
-    int imagePacketsArrived;    ///< Number of data packets recieved
+    int imagePacketsArrived;    ///< Number of data packets received
     int imagePayload;           ///< Payload size per transmitted packet (bytes). Standard is 254, and decreases when image resolution increases.
     int imageQuality;           ///< Quality of the transmitted image (percentage)
     int imageType;              ///< Type of the transmitted image (BMP, PNG, JPEG, RAW 8 bit, RAW 32 bit)
@@ -501,8 +467,6 @@ protected: //COMMENTS FOR TEST UNIT
 #endif
 
 public:
-    /** @brief Get the current charge level */
-    float getChargeLevel();
     /** @brief Get the human-readable status message for this code */
     void getStatusForCode(int statusCode, QString& uasState, QString& stateDescription);
 
@@ -574,9 +538,6 @@ public slots:
     void stopHil();
 #endif
 
-    void startLowBattAlarm();
-    void stopLowBattAlarm();
-
     /** @brief Set the values for the manual control of the vehicle */
     void setExternalControlSetpoint(float roll, float pitch, float yaw, float thrust, quint16 buttons, int joystickMode);
 
@@ -614,7 +575,6 @@ signals:
     void latitudeChanged(double val,QString name);
     void altitudeAMSLChanged(double val,QString name);
     void altitudeAMSLFTChanged(double val,QString name);
-    void altitudeWGS84Changed(double val,QString name);
     void altitudeRelativeChanged(double val,QString name);
 
     void satRawHDOPChanged  (double value);

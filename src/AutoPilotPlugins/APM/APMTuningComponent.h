@@ -24,16 +24,16 @@
 #ifndef APMTuningComponent_H
 #define APMTuningComponent_H
 
-#include "APMComponent.h"
+#include "VehicleComponent.h"
 
-class APMTuningComponent : public APMComponent
+class APMTuningComponent : public VehicleComponent
 {
     Q_OBJECT
     
 public:
     APMTuningComponent(Vehicle* vehicle, AutoPilotPlugin* autopilot, QObject* parent = NULL);
     
-    // Virtuals from PX4Component
+    // Virtuals from VehicleComponent
     QStringList setupCompleteChangedTriggerList(void) const final;
     
     // Virtuals from VehicleComponent
@@ -45,7 +45,8 @@ public:
     QUrl setupSource(void) const final;
     QUrl summaryQmlSource(void) const final;
     QString prerequisiteSetup(void) const final;
-    
+    bool allowSetupWhileArmed(void) const final { return true; }
+
 private:
     const QString   _name;
     QVariantList    _summaryItems;
