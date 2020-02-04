@@ -40,7 +40,7 @@
 ** 2015.4.4
 ** Adapted for use with QGroundControl
 **
-** Gus Grubba <mavlink@grubba.com>
+** Gus Grubba <gus@auterion.com>
 **
 ****************************************************************************/
 
@@ -57,6 +57,10 @@ QGeoTileFetcherQGC::QGeoTileFetcherQGC(QGeoTiledMappingManagerEngine *parent)
     : QGeoTileFetcher(parent)
     , _networkManager(new QNetworkAccessManager(this))
 {
+    //-- Check internet status every 30 seconds or so
+    connect(&_timer, &QTimer::timeout, this, &QGeoTileFetcherQGC::timeout);
+    _timer.setSingleShot(false);
+    _timer.start(30000);
 }
 
 //-----------------------------------------------------------------------------
@@ -70,6 +74,18 @@ QGeoTiledMapReply*
 QGeoTileFetcherQGC::getTileImage(const QGeoTileSpec &spec)
 {
     //-- Build URL
-    QNetworkRequest request = getQGCMapEngine()->urlFactory()->getTileURL((UrlFactory::MapType)spec.mapId(), spec.x(), spec.y(), spec.zoom(), _networkManager);
-    return new QGeoTiledMapReplyQGC(_networkManager, request, spec);
+    QNetworkRequest request = getQGCMapEngine()->urlFactory()->getTileURL(spec.mapId(), spec.x(), spec.y(), spec.zoom(), _networkManager);
+    if ( ! request.url().isEmpty() ) {
+        return new QGeoTiledMapReplyQGC(_networkManager, request, spec);
+    }
+    else {
+        return nullptr;
+    }
+}
+
+//-----------------------------------------------------------------------------
+void
+QGeoTileFetcherQGC::timeout()
+{
+    getQGCMapEngine()->testInternet();
 }

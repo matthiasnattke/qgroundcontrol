@@ -1,32 +1,17 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
+import QtQuick          2.3
+import QtQuick.Controls 1.2
+import QtQuick.Layouts  1.2
 
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
- This file is part of the QGROUNDCONTROL project
-
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
- ======================================================================*/
-
-/// @file
-///     @author Don Gagne <don@thegagnes.com>
-
-import QtQuick          2.5
-import QtQuick.Controls 1.3
-
+import QGroundControl               1.0
 import QGroundControl.Controls      1.0
 import QGroundControl.Palette       1.0
 import QGroundControl.Controllers   1.0
@@ -35,43 +20,80 @@ import QGroundControl.FactControls  1.0
 import QGroundControl.ScreenTools   1.0
 
 QGCViewDialog {
-    id: root
+    id:     root
+    focus:  true
 
     property Fact   fact
     property bool   showRCToParam:  false
     property bool   validate:       false
     property string validateValue
+    property bool   setFocus:       true    ///< true: focus is set to text field on display, false: focus not set (works around strange virtual keyboard bug with FactValueSlider
 
-    ParameterEditorController { id: controller; factPanel: parent }
+    signal valueChanged
+
+    property real   _editFieldWidth:            ScreenTools.defaultFontPixelWidth * 20
+    property bool   _longDescriptionAvailable:  fact.longDescription != ""
+    property bool   _editingParameter:          fact.componentId != 0
+    property bool   _allowForceSave:            QGroundControl.corePlugin.showAdvancedUI || !_editingParameter
+    property bool   _allowDefaultReset:         fact.defaultValueAvailable && (QGroundControl.corePlugin.showAdvancedUI || !_editingParameter)
+
+    ParameterEditorController { id: controller; }
 
     QGCPalette { id: qgcPal; colorGroupEnabled: true }
 
     function accept() {
-        if (factCombo.visible) {
+        if (bitmaskColumn.visible && !manualEntry.checked) {
+            fact.value = bitmaskValue();
+            fact.valueChanged(fact.value)
+            valueChanged()
+            hideDialog();
+        } else if (factCombo.visible && !manualEntry.checked) {
             fact.enumIndex = factCombo.currentIndex
+            valueChanged()
             hideDialog()
         } else {
             var errorString = fact.validate(valueField.text, forceSave.checked)
-            if (errorString == "") {
+            if (errorString === "") {
                 fact.value = valueField.text
                 fact.valueChanged(fact.value)
+                valueChanged()
                 hideDialog()
             } else {
                 validationError.text = errorString
-                forceSave.visible = true
+                if (_allowForceSave) {
+                    forceSave.visible = true
+                }
             }
         }
+    }
+
+    function reject() {
+        fact.valueChanged(fact.value)
+        hideDialog();
+    }
+
+    function bitmaskValue() {
+        var value = 0;
+        for (var i = 0; i < fact.bitmaskValues.length; ++i) {
+            var checkbox = bitmaskRepeater.itemAt(i)
+            if (checkbox.checked) {
+                value |= fact.bitmaskValues[i];
+            }
+        }
+        return value
     }
 
     Component.onCompleted: {
         if (validate) {
             validationError.text = fact.validate(validateValue, false /* convertOnly */)
-            forceSave.visible = true
+            if (_allowForceSave) {
+                forceSave.visible = true
+            }
         }
-        //valueField.forceActiveFocus()
     }
 
     QGCFlickable {
+        id:                 flickable
         anchors.fill:       parent
         contentHeight:      _column.y + _column.height
         flickableDirection: Flickable.VerticalFlick
@@ -83,35 +105,33 @@ QGCViewDialog {
             anchors.right:  parent.right
 
             QGCLabel {
+                id:         validationError
                 width:      parent.width
                 wrapMode:   Text.WordWrap
-                text:       fact.shortDescription ? fact.shortDescription : qsTr("Description missing")
+                color:      qgcPal.warningText
             }
 
-            QGCLabel {
-                width:      parent.width
-                wrapMode:   Text.WordWrap
-                visible:    fact.longDescription
-                text:       fact.longDescription
-            }
-
-            Row {
-                spacing: defaultTextWidth
+            RowLayout {
+                spacing:        ScreenTools.defaultFontPixelWidth
+                anchors.left:   parent.left
+                anchors.right:  parent.right
 
                 QGCTextField {
-                    id:         valueField
-                    text:       validate ? validateValue : fact.valueString
-                    visible:    fact.enumStrings.length == 0 || validate
-                    //focus:  true
-
-                    // At this point all Facts are numeric
-                    inputMethodHints:   Qt.ImhFormattedNumbersOnly
+                    id:                 valueField
+                    text:               validate ? validateValue : fact.valueString
+                    visible:            fact.enumStrings.length === 0 || validate || manualEntry.checked
+                    unitsLabel:         fact.units
+                    showUnits:          fact.units != ""
+                    Layout.fillWidth:   true
+                    focus:              setFocus
+                    inputMethodHints:   (fact.typeIsString || ScreenTools.isiOS) ?
+                                          Qt.ImhNone :                // iOS numeric keyboard has no done button, we can't use it
+                                          Qt.ImhFormattedNumbersOnly  // Forces use of virtual numeric keyboard
                 }
 
                 QGCButton {
-                    anchors.baseline:   valueField.baseline
-                    visible:            fact.defaultValueAvailable
-                    text:               qsTr("Reset to default")
+                    visible:    _allowDefaultReset
+                    text:       qsTr("Reset to default")
 
                     onClicked: {
                         fact.value = fact.defaultValue
@@ -123,11 +143,12 @@ QGCViewDialog {
 
             QGCComboBox {
                 id:             factCombo
-                width:          valueField.width
+                anchors.left:   parent.left
+                anchors.right:  parent.right
                 visible:        _showCombo
                 model:          fact.enumStrings
 
-                property bool _showCombo: fact.enumStrings.length != 0 && !validate
+                property bool _showCombo: fact.enumStrings.length !== 0 && fact.bitmaskStrings.length === 0 && !validate
 
                 Component.onCompleted: {
                     // We can't bind directly to fact.enumIndex since that would add an unknown value
@@ -136,52 +157,90 @@ QGCViewDialog {
                         currentIndex = fact.enumIndex
                     }
                 }
+
+                onCurrentIndexChanged: {
+                    if (currentIndex >=0 && currentIndex < model.length) {
+                        valueField.text = fact.enumValues[currentIndex]
+                    }
+                }
             }
 
-            QGCLabel { text: fact.name }
+            Column {
+                id:         bitmaskColumn
+                spacing:    ScreenTools.defaultFontPixelHeight / 2
+                visible:    fact.bitmaskStrings.length > 0 ? true : false;
 
-            Row {
-                spacing: defaultTextWidth
+                Repeater {
+                    id:     bitmaskRepeater
+                    model:  fact.bitmaskStrings
 
-                QGCLabel { text: qsTr("Units:") }
-                QGCLabel { text: fact.units ? fact.units : qsTr("none") }
-            }
+                    delegate : QGCCheckBox {
+                        text : modelData
+                        checked : fact.value & fact.bitmaskValues[index]
 
-            Row {
-                spacing: defaultTextWidth
-                visible: !fact.minIsDefaultForType
-
-                QGCLabel { text: qsTr("Minimum value:") }
-                QGCLabel { text: fact.minString }
-            }
-
-            Row {
-                spacing: defaultTextWidth
-                visible: !fact.maxIsDefaultForType
-
-                QGCLabel { text: qsTr("Maximum value:") }
-                QGCLabel { text: fact.maxString }
-            }
-
-            Row {
-                spacing: defaultTextWidth
-
-                QGCLabel { text: qsTr("Default value:") }
-                QGCLabel { text: fact.defaultValueAvailable ? fact.defaultValueString : qsTr("none") }
+                        onClicked: {
+                            valueField.text = bitmaskValue()
+                        }
+                    }
+                }
             }
 
             QGCLabel {
                 width:      parent.width
                 wrapMode:   Text.WordWrap
-                text:       qsTr("Warning: Modifying parameters while vehicle is in flight can lead to vehicle instability and possible vehicle loss. ") +
+                visible:    !longDescriptionLabel.visible
+                text:       fact.shortDescription
+            }
+
+            QGCLabel {
+                id:         longDescriptionLabel
+                width:      parent.width
+                wrapMode:   Text.WordWrap
+                visible:    fact.longDescription != ""
+                text:       fact.longDescription
+            }
+
+            Row {
+                spacing: ScreenTools.defaultFontPixelWidth
+
+                QGCLabel {
+                    id:         minValueDisplay
+                    text:       qsTr("Min: ") + fact.minString
+                    visible:    !fact.minIsDefaultForType
+                }
+
+                QGCLabel {
+                    text:       qsTr("Max: ") + fact.maxString
+                    visible:    !fact.maxIsDefaultForType
+                }
+
+                QGCLabel {
+                    text:       qsTr("Default: ") + fact.defaultValueString
+                    visible:    _allowDefaultReset
+                }
+            }
+
+            QGCLabel {
+                text:       qsTr("Parameter name: ") + fact.name
+                visible:    fact.componentId > 0 // > 0 means it's a parameter fact
+            }
+
+            QGCLabel {
+                visible:    fact.vehicleRebootRequired
+                text:       "Vehicle reboot required after change"
+            }
+
+            QGCLabel {
+                visible:    fact.qgcRebootRequired
+                text:       "Application restart required after change"
+            }
+
+            QGCLabel {
+                width:      parent.width
+                wrapMode:   Text.WordWrap
+                text:       qsTr("Warning: Modifying values while vehicle is in flight can lead to vehicle instability and possible vehicle loss. ") +
                             qsTr("Make sure you know what you are doing and double-check your values before Save!")
-            }
-
-            QGCLabel {
-                id:         validationError
-                width:      parent.width
-                wrapMode:   Text.WordWrap
-                color:      qsTr("yellow")
+                visible:    fact.componentId != -1
             }
 
             QGCCheckBox {
@@ -193,7 +252,7 @@ QGCViewDialog {
             Row {
                 width:      parent.width
                 spacing:    ScreenTools.defaultFontPixelWidth / 2
-                visible:    showRCToParam
+                visible:    showRCToParam || factCombo.visible || bitmaskColumn.visible
 
                 Rectangle {
                     height: 1
@@ -215,8 +274,20 @@ QGCViewDialog {
                 }
             }
 
+            // Checkbox to allow manual entry of enumerated or bitmask parameters
+            QGCCheckBox {
+                id:         manualEntry
+                visible:    _advanced.checked && (factCombo.visible || bitmaskColumn.visible)
+                text:       qsTr("Manual Entry")
+
+                onClicked: {
+                    valueField.text = fact.valueString
+                }
+            }
+
             QGCButton {
                 text:           qsTr("Set RC to Param...")
+                width:          _editFieldWidth
                 visible:        _advanced.checked && !validate && showRCToParam
                 onClicked:      controller.setRCToParam(fact.name)
             }

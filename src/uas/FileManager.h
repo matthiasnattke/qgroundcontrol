@@ -1,35 +1,29 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-#ifndef FILEMANAGER_H
-#define FILEMANAGER_H
+
+#pragma once
 
 #include <QObject>
 #include <QDir>
 #include <QTimer>
+#include <QQueue>
 
 #include "UASInterface.h"
 #include "QGCLoggingCategory.h"
+
+#ifdef __GNUC__
+  #define PACKED_STRUCT( __Declaration__ ) __Declaration__ __attribute__((packed))
+#else
+  #define PACKED_STRUCT( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop) )
+#endif
+
 
 Q_DECLARE_LOGGING_CATEGORY(FileManagerLog)
 
@@ -41,6 +35,7 @@ class FileManager : public QObject
     
 public:
     FileManager(QObject* parent, Vehicle* vehicle);
+    FileManager(QObject* parent, LinkInterface *link, uint8_t systemIdQGC, uint8_t systemIdServer);
     
     /// These methods are only used for testing purposes.
     bool _sendCmdTestAck(void) { return _sendOpcodeOnlyCmd(kCmdNone, kCOAck); };
@@ -48,7 +43,14 @@ public:
     
     /// Timeout in msecs to wait for an Ack time come back. This is public so we can write unit tests which wait long enough
     /// for the FileManager to timeout.
-    static const int ackTimerTimeoutMsecs = 10000;
+    static const int ackTimerTimeoutMsecs = 5000;
+
+    static const int ackTimerMaxRetries = 6;
+
+    int _ackTimerTimeoutMsecs = ackTimerTimeoutMsecs;
+
+    int _ackTimerMaxRetries = ackTimerMaxRetries;
+
 
 	/// Downloads the specified file.
 	///     @param from File to download from UAS, fully qualified path
@@ -67,6 +69,9 @@ public:
     /// Upload the specified file to the specified location
     void uploadPath(const QString& toPath, const QFileInfo& uploadFile);
     
+    /// Create a remote directory
+    void createDirectory(const QString& directory);
+
 signals:
     // Signals associated with the listDirectory method
     
@@ -86,6 +91,9 @@ signals:
     ///     @param value Amount of progress: 0.0 = none, 1.0 = complete
     void commandProgress(int value);
 
+    /// Used internally to move sendMessage call to main thread
+    void _sendMessageOnLinkOnThread(LinkInterface* link, mavlink_message_t message);
+
 public slots:
     void receiveMessage(mavlink_message_t message);
 	
@@ -93,9 +101,11 @@ private slots:
 	void _ackTimeout(void);
 
 private:
-    /// @brief This is the fixed length portion of the protocol data. Trying to pack structures across differing compilers is
-    /// questionable, so we pad the structure ourselves to 32 bit alignment which should get us what we want.
-    struct RequestHeader
+    /// @brief This is the fixed length portion of the protocol data.
+    /// This needs to be packed, because it's typecasted from mavlink_file_transfer_protocol_t.payload, which starts
+    /// at a 3 byte offset, causing an unaligned access to seq_number and offset
+    PACKED_STRUCT(
+    typedef struct _RequestHeader
         {
             uint16_t    seqNumber;      ///< sequence number for message
             uint8_t     session;        ///< Session id for read and write commands
@@ -105,11 +115,12 @@ private:
             uint8_t     burstComplete;  ///< Only used if req_opcode=kCmdBurstReadFile - 1: set of burst packets complete, 0: More burst packets coming.
             uint8_t     padding;        ///< 32 bit aligment padding
             uint32_t    offset;         ///< Offsets for List and Read commands
-        };
+        }) RequestHeader;
 
-    struct Request
+    PACKED_STRUCT(
+    typedef struct _Request
     {
-        struct RequestHeader hdr;
+        RequestHeader hdr;
 
         // We use a union here instead of just casting (uint32_t)&payload[0] to not break strict aliasing rules
         union {
@@ -123,7 +134,7 @@ private:
             // Length of file chunk written by write command
             uint32_t writeFileLength;
         };
-    };
+    }) Request;
 
     enum Opcode
 	{
@@ -177,6 +188,7 @@ private:
 			kCOBurst,		// waiting for Burst response
             kCOWrite,       // waiting for Write response
             kCOCreate,      // waiting for Create response
+            kCOCreateDir,   // waiting for Create Directory response
         };
     
     bool _sendOpcodeOnlyCmd(uint8_t opcode, OperationState newOpState);
@@ -185,6 +197,8 @@ private:
     void _emitErrorMessage(const QString& msg);
     void _emitListEntry(const QString& entry);
     void _sendRequest(Request* request);
+    void _sendRequestNoAck(Request* request);
+    void _sendMessageOnLink(LinkInterface* link, mavlink_message_t message);
     void _fillRequestWithString(Request* request, const QString& str);
     void _openAckResponse(Request* openAck);
     void _downloadAckResponse(Request* readAck, bool readFile);
@@ -196,17 +210,19 @@ private:
     void _sendResetCommand(void);
     void _closeDownloadSession(bool success);
     void _closeUploadSession(bool success);
-	void _downloadWorker(const QString& from, const QDir& downloadDir, bool readFile);
+    void _downloadWorker(const QString& from, const QDir& downloadDir, bool readFile);
+    void _requestMissingData();
     
     static QString errorString(uint8_t errorCode);
 
     OperationState  _currentOperation;              ///< Current operation of state machine
     QTimer          _ackTimer;                      ///< Used to signal a timeout waiting for an ack
+    int             _ackNumTries;                   ///< current number of tries
     
     Vehicle*        _vehicle;
     LinkInterface*  _dedicatedLink; ///< Link to use for communication
     
-    uint16_t _lastOutgoingSeqNumber; ///< Sequence number sent in last outgoing packet
+    Request  _lastOutgoingRequest; ///< contains the last outgoing packet
 
     unsigned    _listOffset;    ///< offset for the current List operation
     QString     _listPath;      ///< path for the current List operation
@@ -220,7 +236,14 @@ private:
     uint32_t    _writeFileSize;             ///< Size of file being uploaded
     QByteArray  _writeFileAccumulator;      ///< Holds file being uploaded
     
+    struct MissingData {
+        uint32_t offset;
+        uint32_t size;
+    };
     uint32_t    _downloadOffset;            ///< current download offset
+    uint32_t    _missingDownloadedBytes;    ///< number of missing bytes for burst download
+    QQueue<MissingData> _missingData;       ///< missing chunks of downloaded file (for burst downloads)
+    bool        _downloadingMissingParts;   ///< true if we are currently downloading missing parts
     QByteArray  _readFileAccumulator;       ///< Holds file being downloaded
     QDir        _readFileDownloadDir;       ///< Directory to download file to
     QString     _readFileDownloadFilename;  ///< Filename (no path) for download file
@@ -234,4 +257,3 @@ private:
     friend class MockLinkFileServer;
 };
 
-#endif // FileManager_H

@@ -40,7 +40,7 @@
 ** 2015.4.4
 ** Adapted for use with QGroundControl
 **
-** Gus Grubba <mavlink@grubba.com>
+** Gus Grubba <gus@auterion.com>
 **
 ****************************************************************************/
 
@@ -48,6 +48,7 @@
 #define QGEOTILEFETCHERQGC_H
 
 #include <QtLocation/private/qgeotilefetcher_p.h>
+#include <QTimer>
 #include "QGCMapUrlEngine.h"
 
 class QGeoTiledMappingManagerEngine;
@@ -59,10 +60,13 @@ class QGeoTileFetcherQGC : public QGeoTileFetcher
 public:
     explicit QGeoTileFetcherQGC             (QGeoTiledMappingManagerEngine *parent = 0);
     ~QGeoTileFetcherQGC();
+public slots:
+    void                    timeout         ();
 private:
     QGeoTiledMapReply*      getTileImage    (const QGeoTileSpec &spec);
 private:
     QNetworkAccessManager*  _networkManager;
+    QTimer                  _timer;
 };
 
 #endif // QGEOTILEFETCHERQGC_H

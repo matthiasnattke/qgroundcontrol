@@ -18,7 +18,7 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
 /*
@@ -86,7 +86,7 @@ void GstQtGLVideoSink::class_init(gpointer g_class, gpointer class_data)
      * This is an action signal that you can call from your Qt surface class inside
      * its paint function to render the video. It takes a QPainter* and the target
      * area rectangle as arguments. You should schedule to call this function to
-     * repaint the surface whenever the ::update signal is emited.
+     * repaint the surface whenever the ::update signal is emitted.
      *
      * Note that the x,y,width and height arguments are actually qreal. This means
      * that on architectures like arm they will be float instead of double. You should
@@ -97,7 +97,7 @@ void GstQtGLVideoSink::class_init(gpointer g_class, gpointer class_data)
         g_signal_new("paint", G_TYPE_FROM_CLASS(g_class),
                      static_cast<GSignalFlags>(G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION),
                      G_STRUCT_OFFSET(GstQtGLVideoSinkClass, paint),
-                     NULL, NULL,
+                     nullptr, nullptr,
                      qRealIsDouble() ?
                         g_cclosure_user_marshal_VOID__POINTER_DOUBLE_DOUBLE_DOUBLE_DOUBLE :
                         g_cclosure_user_marshal_VOID__POINTER_FLOAT_FLOAT_FLOAT_FLOAT,
@@ -107,14 +107,14 @@ void GstQtGLVideoSink::class_init(gpointer g_class, gpointer class_data)
     /**
      * GstQtGLVideoSink::update
      *
-     * This signal is emited when the surface should be repainted. It should
+     * This signal is emitted when the surface should be repainted. It should
      * be connected to QWidget::update() or QGraphicsItem::update() or any
      * other similar function in your surface.
      */
     s_signals[UPDATE_SIGNAL] =
         g_signal_new("update", G_TYPE_FROM_CLASS(g_class),
                      G_SIGNAL_RUN_LAST,
-                     0, NULL, NULL,
+                     0, nullptr, nullptr,
                      g_cclosure_marshal_VOID__VOID,
                      G_TYPE_NONE, 0);
 

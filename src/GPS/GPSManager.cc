@@ -1,31 +1,21 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
 
 #include "GPSManager.h"
-#include <QDebug>
+#include "QGCLoggingCategory.h"
+#include "QGCApplication.h"
+#include "SettingsManager.h"
+#include "RTKSettings.h"
 
-GPSManager::GPSManager(QGCApplication* app)
-    : QGCTool(app)
+GPSManager::GPSManager(QGCApplication* app, QGCToolbox* toolbox)
+    : QGCTool(app, toolbox)
 {
     qRegisterMetaType<GPSPositionMessage>();
     qRegisterMetaType<GPSSatelliteMessage>();
@@ -33,44 +23,55 @@ GPSManager::GPSManager(QGCApplication* app)
 
 GPSManager::~GPSManager()
 {
-    cleanup();
+    disconnectGPS();
 }
 
-void GPSManager::setupGPS(const QString& device)
+void GPSManager::connectGPS(const QString& device, const QString& gps_type)
 {
-    Q_ASSERT(_toolbox);
+    RTKSettings* rtkSettings = qgcApp()->toolbox()->settingsManager()->rtkSettings();
 
-    cleanup();
+    GPSProvider::GPSType type;
+    if (gps_type.contains("trimble",  Qt::CaseInsensitive)) {
+        type = GPSProvider::GPSType::trimble;
+        qCDebug(RTKGPSLog) << "Connecting Trimble device";
+    } else if (gps_type.contains("septentrio",  Qt::CaseInsensitive)) {
+        type = GPSProvider::GPSType::septentrio;
+        qCDebug(RTKGPSLog) << "Connecting Septentrio device";
+    } else {
+        type = GPSProvider::GPSType::u_blox;
+        qCDebug(RTKGPSLog) << "Connecting U-blox device";
+    }
+
+    disconnectGPS();
     _requestGpsStop = false;
-    _gpsProvider = new GPSProvider(device, true, _requestGpsStop);
+    _gpsProvider = new GPSProvider(device,
+                                   type,
+                                   true,    /* enableSatInfo */
+                                   rtkSettings->surveyInAccuracyLimit()->rawValue().toDouble(),
+                                   rtkSettings->surveyInMinObservationDuration()->rawValue().toInt(),
+                                   rtkSettings->useFixedBasePosition()->rawValue().toBool(),
+                                   rtkSettings->fixedBasePositionLatitude()->rawValue().toDouble(),
+                                   rtkSettings->fixedBasePositionLongitude()->rawValue().toDouble(),
+                                   rtkSettings->fixedBasePositionAltitude()->rawValue().toFloat(),
+                                   rtkSettings->fixedBasePositionAccuracy()->rawValue().toFloat(),
+                                   _requestGpsStop);
     _gpsProvider->start();
 
     //create RTCM device
     _rtcmMavlink = new RTCMMavlink(*_toolbox);
 
-    connect(_gpsProvider, SIGNAL(RTCMDataUpdate(QByteArray)), _rtcmMavlink,
-            SLOT(RTCMDataUpdate(QByteArray)));
+    connect(_gpsProvider, &GPSProvider::RTCMDataUpdate, _rtcmMavlink, &RTCMMavlink::RTCMDataUpdate);
 
     //test: connect to position update
-    connect(_gpsProvider, SIGNAL(positionUpdate(GPSPositionMessage)), this,
-            SLOT(GPSPositionUpdate(GPSPositionMessage)));
-    connect(_gpsProvider, SIGNAL(satelliteInfoUpdate(GPSSatelliteMessage)), this,
-            SLOT(GPSSatelliteUpdate(GPSSatelliteMessage)));
+    connect(_gpsProvider, &GPSProvider::positionUpdate,         this, &GPSManager::GPSPositionUpdate);
+    connect(_gpsProvider, &GPSProvider::satelliteInfoUpdate,    this, &GPSManager::GPSSatelliteUpdate);
+    connect(_gpsProvider, &GPSProvider::finished,               this, &GPSManager::onDisconnect);
+    connect(_gpsProvider, &GPSProvider::surveyInStatus,         this, &GPSManager::surveyInStatus);
 
+    emit onConnect();
 }
 
-void GPSManager::GPSPositionUpdate(GPSPositionMessage msg)
-{
-    qDebug("GPS: got position update: alt=%i, long=%i, lat=%i",
-            msg.position_data.alt, msg.position_data.lon,
-            msg.position_data.lat);
-}
-void GPSManager::GPSSatelliteUpdate(GPSSatelliteMessage msg)
-{
-    qDebug("GPS: got satellite info update, %i satellites", (int)msg.satellite_data.count);
-}
-
-void GPSManager::cleanup()
+void GPSManager::disconnectGPS(void)
 {
     if (_gpsProvider) {
         _requestGpsStop = true;
@@ -83,4 +84,17 @@ void GPSManager::cleanup()
     if (_rtcmMavlink) {
         delete(_rtcmMavlink);
     }
+    _gpsProvider = nullptr;
+    _rtcmMavlink = nullptr;
+}
+
+
+void GPSManager::GPSPositionUpdate(GPSPositionMessage msg)
+{
+    qCDebug(RTKGPSLog) << QString("GPS: got position update: alt=%1, long=%2, lat=%3").arg(msg.position_data.alt).arg(msg.position_data.lon).arg(msg.position_data.lat);
+}
+void GPSManager::GPSSatelliteUpdate(GPSSatelliteMessage msg)
+{
+    qCDebug(RTKGPSLog) << QString("GPS: got satellite info update, %1 satellites").arg((int)msg.satellite_data.count);
+    emit satelliteUpdate(msg.satellite_data.count);
 }

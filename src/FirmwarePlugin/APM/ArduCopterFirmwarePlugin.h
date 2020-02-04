@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 /// @file
 ///     @author Don Gagne <don@thegagnes.com>
@@ -41,19 +28,24 @@ public:
         LOITER      = 5,   // Hold a single location
         RTL         = 6,   // AUTO control
         CIRCLE      = 7,   // AUTO control
-        POSITION    = 8,   // AUTO control
+        POSITION    = 8,   // Deprecated
         LAND        = 9,   // AUTO control
-        OF_LOITER   = 10,  // Hold a single location using optical flow
-                           // sensor
+        OF_LOITER   = 10,  // Deprecated
         DRIFT       = 11,  // Drift 'Car Like' mode
         RESERVED_12 = 12,  // RESERVED FOR FUTURE USE
-        SPORT       = 13,  // [TODO] Verify this is correct.
+        SPORT       = 13,
         FLIP        = 14,
         AUTOTUNE    = 15,
         POS_HOLD    = 16, // HYBRID LOITER.
-        BRAKE       = 17
+        BRAKE       = 17,
+        THROW       = 18,
+        AVOID_ADSB  = 19,
+        GUIDED_NOGPS= 20,
+        SMART_RTL   = 21,  // SMART_RTL returns to home by retracing its steps
+        FLOWHOLD    = 22,  // FLOWHOLD holds position with optical flow without rangefinder
+        FOLLOW      = 23,  // follow attempts to follow another vehicle or ground station
+        ZIGZAG      = 24,  // ZIGZAG mode is able to fly in a zigzag manner with predefined point A and point B
     };
-    static const int modeCount = 18;
 
     APMCopterMode(uint32_t mode, bool settable);
 };
@@ -61,22 +53,25 @@ public:
 class ArduCopterFirmwarePlugin : public APMFirmwarePlugin
 {
     Q_OBJECT
-    
+
 public:
     ArduCopterFirmwarePlugin(void);
 
     // Overrides from FirmwarePlugin
-    bool isCapable(FirmwareCapabilities capabilities) final;
-    bool isPaused(const Vehicle* vehicle) const final;
-    void setGuidedMode(Vehicle* vehicle, bool guidedMode) final;
-    void pauseVehicle(Vehicle* vehicle) final;
-    void guidedModeRTL(Vehicle* vehicle) final;
-    void guidedModeLand(Vehicle* vehicle) final;
-    void guidedModeTakeoff(Vehicle* vehicle, double altitudeRel) final;
-    void guidedModeGotoLocation(Vehicle* vehicle, const QGeoCoordinate& gotoCoord) final;
-    void guidedModeChangeAltitude(Vehicle* vehicle, double altitudeRel) final;
+    void    guidedModeLand                      (Vehicle* vehicle) final;
     const FirmwarePlugin::remapParamNameMajorVersionMap_t& paramNameRemapMajorVersionMap(void) const final { return _remapParamName; }
-    virtual int remapParamNameHigestMinorVersionNumber(int majorVersionNumber) const final;
+    int     remapParamNameHigestMinorVersionNumber(int majorVersionNumber) const final;
+    bool    multiRotorCoaxialMotors             (Vehicle* vehicle) final;
+    bool    multiRotorXConfig                   (Vehicle* vehicle) final;
+    QString offlineEditingParamFile             (Vehicle* vehicle) final { Q_UNUSED(vehicle); return QStringLiteral(":/FirmwarePlugin/APM/Copter.OfflineEditing.params"); }
+    QString pauseFlightMode                     (void) const override { return QStringLiteral("Brake"); }
+    QString landFlightMode                      (void) const override { return QStringLiteral("Land"); }
+    QString takeControlFlightMode               (void) const override { return QStringLiteral("Loiter"); }
+    QString followFlightMode                    (void) const override { return QStringLiteral("Follow"); }
+    bool    vehicleYawsToNextWaypointInMission  (const Vehicle* vehicle) const override;
+    QString autoDisarmParameter                 (Vehicle* vehicle) override { Q_UNUSED(vehicle); return QStringLiteral("DISARM_DELAY"); }
+    bool    supportsSmartRTL                    (void) const override { return true; }
+    void    sendGCSMotionReport                 (Vehicle* vehicle, FollowMe::GCSMotionReport& motionReport, uint8_t estimatationCapabilities) override;
 
 private:
     static bool _remapParamNameIntialized;

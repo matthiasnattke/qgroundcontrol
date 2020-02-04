@@ -18,11 +18,10 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
-#ifndef OPENGLSURFACEPAINTER_H
-#define OPENGLSURFACEPAINTER_H
+#pragma once
 
 #ifndef GST_QT_VIDEO_SINK_NO_OPENGL
 
@@ -138,5 +137,3 @@ private:
 };
 
 #endif // GST_QT_VIDEO_SINK_NO_OPENGL
-
-#endif // OPENGLSURFACEPAINTER_H

@@ -1,25 +1,12 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
-
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
- This file is part of the QGROUNDCONTROL project
-
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
- ======================================================================*/
 
 #include "PX4TuningComponent.h"
 #include "PX4AutoPilotPlugin.h"
@@ -27,7 +14,7 @@
 
 PX4TuningComponent::PX4TuningComponent(Vehicle* vehicle, AutoPilotPlugin* autopilot, QObject* parent)
     : VehicleComponent(vehicle, autopilot, parent)
-    , _name("Tuning")
+    , _name(tr("Tuning"))
 {
 }
 
@@ -38,7 +25,7 @@ QString PX4TuningComponent::name(void) const
 
 QString PX4TuningComponent::description(void) const
 {
-    return tr("The Tuning Component is used to tune the flight characteristics of the Vehicle.");
+    return tr("Tuning Setup is used to tune the flight characteristics of the Vehicle.");
 }
 
 QString PX4TuningComponent::iconResource(void) const
@@ -77,6 +64,15 @@ QUrl PX4TuningComponent::setupSource(void) const
         case MAV_TYPE_TRICOPTER:
             qmlFile = "qrc:/qml/PX4TuningComponentCopter.qml";
             break;
+        case MAV_TYPE_VTOL_DUOROTOR:
+        case MAV_TYPE_VTOL_QUADROTOR:
+        case MAV_TYPE_VTOL_TILTROTOR:
+        case MAV_TYPE_VTOL_RESERVED2:
+        case MAV_TYPE_VTOL_RESERVED3:
+        case MAV_TYPE_VTOL_RESERVED4:
+        case MAV_TYPE_VTOL_RESERVED5:
+            qmlFile = "qrc:/qml/PX4TuningComponentVTOL.qml";
+            break;
         default:
             break;
     }
@@ -87,18 +83,4 @@ QUrl PX4TuningComponent::setupSource(void) const
 QUrl PX4TuningComponent::summaryQmlSource(void) const
 {
     return QUrl();
-}
-
-QString PX4TuningComponent::prerequisiteSetup(void) const
-{
-    PX4AutoPilotPlugin* plugin = dynamic_cast<PX4AutoPilotPlugin*>(_autopilot);
-    if (plugin) {
-        if (!plugin->airframeComponent()->setupComplete()) {
-            return plugin->airframeComponent()->name();
-        }
-    } else {
-        qWarning() << "Internal error: plugin cast failed";
-    }
-
-    return QString();
 }

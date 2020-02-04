@@ -1,31 +1,17 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 /// @file
 ///     @author Don Gagne <don@thegagnes.com>
 
-#ifndef MockLinkFileServer_H
-#define MockLinkFileServer_H
+#pragma once
 
 #include "FileManager.h"
 
@@ -83,6 +69,8 @@ public:
     /// @brief The set of files supported by the mock server for testing purposes. Each one represents a different edge case for testing.
     static const FileTestCase rgFileTestCases[cFileTestCases];
     
+    void enableRandromDrops(bool enable) { _randomDropsEnabled = enable; }
+
 signals:
     /// You can connect to this signal to be notified when the server receives a Terminate command.
     void terminateCommandReceived(void);
@@ -102,6 +90,9 @@ private:
     void _resetCommand(uint8_t senderSystemId, uint8_t senderComponentId, uint16_t seqNumber);
     uint16_t _nextSeqNumber(uint16_t seqNumber);
     
+    /// if request is a string, this ensures it's null-terminated
+    static void ensureNullTemination(FileManager::Request* request);
+
     QStringList _fileList;  ///< List of files returned by List command
     
     static const uint8_t    _sessionId;
@@ -110,6 +101,11 @@ private:
     const uint8_t           _systemIdServer;    ///< System ID for server
     const uint8_t           _componentIdServer; ///< Component ID for server
     MockLink*               _mockLink;          ///< MockLink to communicate through
+
+    bool _lastReplyValid;
+    uint16_t _lastReplySequence;
+    mavlink_message_t _lastReply;
+
+    bool _randomDropsEnabled;
 };
 
-#endif

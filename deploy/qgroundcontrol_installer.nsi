@@ -2,6 +2,7 @@
 !include LogicLib.nsh
 !include Win\COM.nsh
 !include Win\Propkey.nsh
+!include "FileFunc.nsh"
 
 !macro DemoteShortCut target
     !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
@@ -36,15 +37,18 @@
     ${EndIf}
 !macroend
 
-Name "QGroundcontrol"
+Name "${APPNAME}"
 Var StartMenuFolder
 
-InstallDir $PROGRAMFILES\qgroundcontrol
+InstallDir "$PROGRAMFILES64\${APPNAME}"
+
+SetCompressor /SOLID /FINAL lzma
 
 !define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "installheader.bmp";
+!define MUI_HEADERIMAGE_BITMAP "${HEADER_BITMAP}";
+!define MUI_ICON "${INSTALLER_ICON}";
+!define MUI_UNICON "${INSTALLER_ICON}";
 
-!insertmacro MUI_PAGE_LICENSE "license.txt"
 !insertmacro MUI_PAGE_STARTMENU Application $StartMenuFolder
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -55,71 +59,105 @@ InstallDir $PROGRAMFILES\qgroundcontrol
 !insertmacro MUI_LANGUAGE "English"
 
 Section
-  ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\QGroundControl" "UninstallString"
-  StrCmp $R0 "" doinstall
+  DetailPrint "Checking for 32 bit uninstaller"  
+  SetRegView 32
+  ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString"
+  StrCmp $R0 "" check64BitUninstall doUninstall
 
-  ExecWait "$R0 /S _?=$INSTDIR"
-  IntCmp $0 0 doinstall
+check64BitUninstall:
+  DetailPrint "Checking for 64 bit  uninstaller"  
+  SetRegView 64
+  ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString"
+  StrCmp $R0 "" doInstall
+
+doUninstall:
+  DetailPrint "Uninstalling previous version..."  
+  ExecWait "$R0 /S -LEAVE_DATA=1"
+  IntCmp $0 0 doInstall
 
   MessageBox MB_OK|MB_ICONEXCLAMATION \
-        "Could not remove a previously installed QGroundControl version.$\n$\nPlease remove it before continuing."
+        "Could not remove a previously installed ${APPNAME} version.$\n$\nPlease remove it before continuing."
   Abort
 
-doinstall:
+doInstall:
+  SetRegView 64
   SetOutPath $INSTDIR
-  File /r build_windows_install\release\*.*
-  File deploy\px4driver.msi
-  WriteUninstaller $INSTDIR\QGroundControl_uninstall.exe
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\QGroundControl" "DisplayName" "QGroundControl"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\QGroundControl" "UninstallString" "$\"$INSTDIR\QGroundControl_uninstall.exe$\""
+  File /r /x ${EXENAME}.pdb /x ${EXENAME}.lib /x ${EXENAME}.exp ${DESTDIR}\*.*
 
-  ; Only attempt to install the PX4 driver if the version isn't present
-  !define ROOTKEY "SYSTEM\CurrentControlSet\Control\Class\{4D36E978-E325-11CE-BFC1-08002BE10318}"
-  StrCpy $0 0
-loop:
-  EnumRegKey $1 HKLM ${ROOTKEY} $0
-  StrCmp $1 "" notfound cont1
+  ; Driver location is http://firmware.ardupilot.org/Tools/MissionPlanner/driver.msi
+  ; Whenever this driver is updated in the repo QGCCURRENTDRIVERVERSION must be bumped by 1
+  File deploy\driver.msi
 
-cont1:
-  StrCpy     $2 "${ROOTKEY}\$1"
-  ReadRegStr $3 HKLM $2 "ProviderName"
-  StrCmp     $3 "3D Robotics" found_provider
-mismatch:
-  IntOp      $0 $0 + 1
-  goto  loop
+  WriteUninstaller $INSTDIR\${EXENAME}-Uninstall.exe
+  WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayName" "${APPNAME}"
+  WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString" "$\"$INSTDIR\${EXENAME}-Uninstall.exe$\""
+  WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\${EXENAME}.exe" "DumpCount" 5 
+  WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\${EXENAME}.exe" "DumpType" 1
+  WriteRegExpandStr HKLM "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\${EXENAME}.exe" "DumpFolder" "%LOCALAPPDATA%\QGCCrashDumps"
 
-found_provider:
-  ReadRegStr $3 HKLM $2 "DriverVersion"
-  StrCmp     $3 "2.0.0.4" skip_driver
-  goto  mismatch
+  ; QGC stores its own driver version key to prevent installation if already up to date
+  ; This prevents running the driver install a second time which will start up in repair mode which is confusing
+  !define QGCDRIVERVERSIONKEY "SOFTWARE\QGroundControlUAVDrivers"
+  !define QGCCURRENTDRIVERVERSION 1
 
-notfound:
-  DetailPrint "USB Driver not found... installing"
-  ExecWait '"msiexec" /i "px4driver.msi"'
+  ; If the drivers are already installed the key "HKCU/SOFTWARE\MichaelOborne\driver\installed" will be present and set to 1
+  SetRegView 64
+  !define DRIVERKEY "SOFTWARE\MichaelOborne\driver"
+  ReadRegDWORD $0 HKCU "${DRIVERKEY}" "installed"
+  IntCmp $0 1 driversInstalled driversNotInstalled driversNotInstalled
+
+driversInstalled:
+  DetailPrint "UAV Drivers already installed. Checking version..."
+  ; Check if the installed drivers are out of date. 
+  ; Latest version is tagged as 1. Missing key also indicates out of date driver install.
+  ReadRegDWORD $0 HKCU "${QGCDRIVERVERSIONKEY}" "version"
+  IntCmp $0 ${QGCCURRENTDRIVERVERSION} done driversOutOfDate done
+
+driversOutOfDate:
+  DetailPrint "UAV Drivers out of date."
+  goto installDrivers
+  
+driversNotInstalled:
+  DetailPrint "UAV Drivers not installed."
+  ; Delete abandoned possibly out of date version key
+  DeleteRegKey HKCU "SOFTWARE\QGroundControlUAVDrivers"
+
+installDrivers:
+  DetailPrint "Installing UAV Drivers..."
+  ExecWait '"msiexec" /i "driver.msi"'
+  ; Set current driver version value
+  WriteRegDWORD HKCU "${QGCDRIVERVERSIONKEY}" "version" 1
   goto done
 
-skip_driver:
-  DetailPrint "USB Driver found... skipping install"
 done:
+  SetRegView lastused
 SectionEnd 
 
 Section "Uninstall"
+  SetRegView 64
+  ${GetParameters} $R0
+  ${GetOptions} $R0 "-LEAVE_DATA=" $R1
   !insertmacro MUI_STARTMENU_GETFOLDER Application $StartMenuFolder
   SetShellVarContext all
   RMDir /r /REBOOTOK $INSTDIR
   RMDir /r /REBOOTOK "$SMPROGRAMS\$StartMenuFolder\"
   SetShellVarContext current
-  RMDir /r /REBOOTOK "$APPDATA\QGROUNDCONTROL.ORG\"
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\QGroundControl"
+  ${If} $R1 != 1
+    RMDir /r /REBOOTOK "$APPDATA\${ORGNAME}\"
+  ${Endif}
+  DeleteRegKey HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
+  DeleteRegKey HKLM "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\${EXENAME}.exe"
+  ; NOTE: We specifically do not delete the driver version key since we need it to persist around uninstalls
 SectionEnd
 
 Section "create Start Menu Shortcuts"
+  SetRegView 64
   SetShellVarContext all
   CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
-  CreateShortCut "$SMPROGRAMS\$StartMenuFolder\QGroundControl.lnk" "$INSTDIR\qgroundcontrol.exe" "" "$INSTDIR\qgroundcontrol.exe" 0
-  CreateShortCut "$SMPROGRAMS\$StartMenuFolder\QGroundControl (GPU Compatibility Mode).lnk" "$INSTDIR\qgroundcontrol.exe" "-angle" "$INSTDIR\qgroundcontrol.exe" 0
-  !insertmacro DemoteShortCut "$SMPROGRAMS\$StartMenuFolder\QGroundControl (GPU Compatibility Mode).lnk"
-  CreateShortCut "$SMPROGRAMS\$StartMenuFolder\QGroundControl (GPU Safe Mode).lnk" "$INSTDIR\qgroundcontrol.exe" "-swrast" "$INSTDIR\qgroundcontrol.exe" 0
-  !insertmacro DemoteShortCut "$SMPROGRAMS\$StartMenuFolder\QGroundControl (GPU Safe Mode).lnk"
+  CreateShortCut "$SMPROGRAMS\$StartMenuFolder\${APPNAME}.lnk" "$INSTDIR\${EXENAME}.exe" "" "$INSTDIR\${EXENAME}.exe" 0
+  CreateShortCut "$SMPROGRAMS\$StartMenuFolder\${APPNAME} (GPU Compatibility Mode).lnk" "$INSTDIR\${EXENAME}.exe" "-angle" "$INSTDIR\${EXENAME}.exe" 0
+  !insertmacro DemoteShortCut "$SMPROGRAMS\$StartMenuFolder\${APPNAME} (GPU Compatibility Mode).lnk"
+  CreateShortCut "$SMPROGRAMS\$StartMenuFolder\${APPNAME} (GPU Safe Mode).lnk" "$INSTDIR\${EXENAME}.exe" "-swrast" "$INSTDIR\${EXENAME}.exe" 0
+  !insertmacro DemoteShortCut "$SMPROGRAMS\$StartMenuFolder\${APPNAME} (GPU Safe Mode).lnk"
 SectionEnd
 

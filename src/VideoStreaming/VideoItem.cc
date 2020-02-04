@@ -1,30 +1,17 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009, 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
 
 /**
  * @file
  *   @brief QGC Video Item
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
 #include <QtCore/QPointer>
@@ -70,7 +57,7 @@ VideoSurface *VideoItem::surface() const
 #if defined(QGC_GST_STREAMING)
     return _data->surface.data();
 #else
-    return NULL;
+    return nullptr;
 #endif
 }
 
@@ -91,18 +78,29 @@ void VideoItem::setSurface(VideoSurface *surface)
 }
 
 #if defined(QGC_GST_STREAMING)
+QSGGeometry* VideoItem::_createDefaultGeometry(QRectF& rectBound)
+{
+	QSGGeometry *geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), 4);
+	geometry->vertexDataAsPoint2D()[0].set(rectBound.x(), rectBound.y());
+	geometry->vertexDataAsPoint2D()[1].set(rectBound.x(), rectBound.height());
+	geometry->vertexDataAsPoint2D()[2].set(rectBound.width(), rectBound.y());
+	geometry->vertexDataAsPoint2D()[3].set(rectBound.width(), rectBound.height());
+
+	return geometry;
+}
+
 QSGNode* VideoItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData*)
 {
     QRectF r = boundingRect();
-    QSGNode* newNode = 0;
+    QSGNode* newNode = nullptr;
 
     if (_data->surfaceDirty) {
         delete oldNode;
-        oldNode = 0;
+        oldNode = nullptr;
         _data->surfaceDirty = false;
     }
 
-    if (!_data->surface || _data->surface.data()->_data->videoSink == NULL) {
+    if (!_data->surface || _data->surface.data()->_data->videoSink == nullptr) {
         if (!oldNode) {
             QSGFlatColorMaterial *material = new QSGFlatColorMaterial;
             material->setColor(Qt::black);
@@ -116,18 +114,21 @@ QSGNode* VideoItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData*)
             newNode = oldNode;
         }
         if (r != _data->targetArea) {
-            QSGGeometry *geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), 4);
-            geometry->vertexDataAsPoint2D()[0].set(r.x(), r.y());
-            geometry->vertexDataAsPoint2D()[1].set(r.x(), r.height());
-            geometry->vertexDataAsPoint2D()[2].set(r.width(), r.y());
-            geometry->vertexDataAsPoint2D()[3].set(r.width(), r.height());
             QSGGeometryNode *node = static_cast<QSGGeometryNode*>(newNode);
-            node->setGeometry(geometry);
+			node->setGeometry(_createDefaultGeometry(r));
             _data->targetArea = r;
         }
     } else {
         g_signal_emit_by_name(_data->surface.data()->_data->videoSink, "update-node", (void*)oldNode, r.x(), r.y(), r.width(), r.height(), (void**)&newNode);
     }
+
+	// Sometimes we can still end up here with no geometry when gstreamer fails to create it for whatever reason. If that happens it can
+	// cause crashes.
+	QSGGeometryNode *node = static_cast<QSGGeometryNode*>(newNode);
+	if (node->geometry() == nullptr) {
+		qDebug() << "Creating default geom";
+		node->setGeometry(_createDefaultGeometry(r));
+	}
 
     return newNode;
 }

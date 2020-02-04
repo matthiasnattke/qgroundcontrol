@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #pragma once
 
@@ -42,17 +29,36 @@ class GPSProvider : public QThread
 {
     Q_OBJECT
 public:
-    GPSProvider(const QString& device, bool enableSatInfo, const std::atomic_bool& requestStop);
+
+    enum class GPSType {
+        u_blox,
+        trimble,
+        septentrio
+    };
+
+    GPSProvider(const QString& device,
+                GPSType type,
+                bool    enableSatInfo,
+                double  surveyInAccMeters,
+                int     surveryInDurationSecs,
+                bool    useFixedBaseLocation,
+                double  fixedBaseLatitude,
+                double  fixedBaseLongitude,
+                float   fixedBaseAltitudeMeters,
+                float   fixedBaseAccuracyMeters,
+                const std::atomic_bool& requestStop);
     ~GPSProvider();
 
     /**
      * this is called by the callback method
      */
     void gotRTCMData(uint8_t *data, size_t len);
+
 signals:
     void positionUpdate(GPSPositionMessage message);
     void satelliteInfoUpdate(GPSSatelliteMessage message);
     void RTCMDataUpdate(QByteArray message);
+    void surveyInStatus(float duration, float accuracyMM, double latitude, double longitude, float altitude, bool valid, bool active);
 
 protected:
     void run();
@@ -69,7 +75,15 @@ private:
 	int callback(GPSCallbackType type, void *data1, int data2);
 
     QString _device;
+    GPSType _type;
     const std::atomic_bool& _requestStop;
+    double  _surveyInAccMeters;
+    int     _surveryInDurationSecs;
+    bool    _useFixedBaseLoction;
+    double  _fixedBaseLatitude;
+    double  _fixedBaseLongitude;
+    float   _fixedBaseAltitudeMeters;
+    float   _fixedBaseAccuracyMeters;
 
 	struct vehicle_gps_position_s	_reportGpsPos;
 	struct satellite_info_s		*_pReportSatInfo = nullptr;

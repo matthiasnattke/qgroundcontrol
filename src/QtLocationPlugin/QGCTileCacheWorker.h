@@ -1,31 +1,18 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009, 2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
 
 /**
  * @file
  *   @brief Map Tile Cache Worker Thread
  *
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  *
  */
 
@@ -39,6 +26,7 @@ This file is part of the QGROUNDCONTROL project
 #include <QWaitCondition>
 #include <QMutexLocker>
 #include <QtSql/QSqlDatabase>
+#include <QHostInfo>
 
 #include "QGCLoggingCategory.h"
 
@@ -62,6 +50,9 @@ public:
 protected:
     void    run             ();
 
+private slots:
+    void        _lookupReady            (QHostInfo info);
+
 private:
     void        _saveTile               (QGCMapTask* mtask);
     void        _getTile                (QGCMapTask* mtask);
@@ -70,19 +61,26 @@ private:
     void        _getTileDownloadList    (QGCMapTask* mtask);
     void        _updateTileDownloadState(QGCMapTask* mtask);
     void        _deleteTileSet          (QGCMapTask* mtask);
+    void        _renameTileSet          (QGCMapTask* mtask);
     void        _resetCacheDatabase     (QGCMapTask* mtask);
     void        _pruneCache             (QGCMapTask* mtask);
+    void        _exportSets             (QGCMapTask* mtask);
+    void        _importSets             (QGCMapTask* mtask);
+    bool        _testTask               (QGCMapTask* mtask);
+    void        _testInternet           ();
 
-    bool        _findTile               (const QString hash);
+    quint64     _findTile               (const QString hash);
     bool        _findTileSetID          (const QString name, quint64& setID);
     void        _updateSetTotals        (QGCCachedTileSet* set);
     bool        _init                   ();
-    void        _createDB               ();
+    bool        _createDB               (QSqlDatabase *db, bool createDefault = true);
     quint64     _getDefaultTileSet      ();
     void        _updateTotals           ();
+    void        _deleteTileSet          (qulonglong id);
 
 signals:
     void        updateTotals            (quint32 totaltiles, quint64 totalsize, quint32 defaulttiles, quint64 defaultsize);
+    void        internetStatus          (bool active);
 
 private:
     QQueue<QGCMapTask*>     _taskQueue;
@@ -100,6 +98,7 @@ private:
     quint32                 _defaultCount;
     time_t                  _lastUpdate;
     int                     _updateTimeout;
+    int                     _hostLookupID;
 };
 
 #endif // QGC_TILE_CACHE_WORKER_H

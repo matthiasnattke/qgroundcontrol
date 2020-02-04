@@ -1,36 +1,17 @@
-/*=====================================================================
-
-QGroundControl Open Source Ground Control Station
-
-(c) 2009, 2010 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
-
-/**
- * @file
- *   @brief Definition of Unmanned Aerial Vehicle object
+/****************************************************************************
  *
- *   @author Lorenz Meier <mavteam@student.ethz.ch>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
- */
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-#ifndef _UAS_H_
-#define _UAS_H_
+// NO NEW CODE HERE
+// UASInterface, UAS.h/cc are deprecated. All new functionality should go into Vehicle.h/cc
+//
+
+#pragma once
 
 #include "UASInterface.h"
 #include <MAVLinkProtocol.h>
@@ -42,7 +23,6 @@ This file is part of the QGROUNDCONTROL project
 #ifndef __mobile__
 #include "FileManager.h"
 #include "QGCHilLink.h"
-#include "QGCFlightGearLink.h"
 #include "QGCJSBSimLink.h"
 #include "QGCXPlaneLink.h"
 #endif
@@ -72,235 +52,12 @@ public:
 
     /** @brief Get the unique system id */
     int getUASID() const;
-    /** @brief Get the components */
-    QMap<int, QString> getComponents();
 
     /** @brief The time interval the robot is switched on */
     quint64 getUptime() const;
 
-    Q_PROPERTY(double   latitude                READ getLatitude            WRITE setLatitude           NOTIFY latitudeChanged)
-    Q_PROPERTY(double   longitude               READ getLongitude           WRITE setLongitude          NOTIFY longitudeChanged)
-    Q_PROPERTY(double   satelliteCount          READ getSatelliteCount      WRITE setSatelliteCount     NOTIFY satelliteCountChanged)
-    Q_PROPERTY(bool     isGlobalPositionKnown   READ globalPositionKnown)
-    Q_PROPERTY(double   roll                    READ getRoll                WRITE setRoll               NOTIFY rollChanged)
-    Q_PROPERTY(double   pitch                   READ getPitch               WRITE setPitch              NOTIFY pitchChanged)
-    Q_PROPERTY(double   yaw                     READ getYaw                 WRITE setYaw                NOTIFY yawChanged)
-    Q_PROPERTY(double   distToWaypoint          READ getDistToWaypoint      WRITE setDistToWaypoint     NOTIFY distToWaypointChanged)
-    Q_PROPERTY(double   airSpeed                READ getGroundSpeed         WRITE setGroundSpeed        NOTIFY airSpeedChanged)
-    Q_PROPERTY(double   groundSpeed             READ getGroundSpeed         WRITE setGroundSpeed        NOTIFY groundSpeedChanged)
-    Q_PROPERTY(double   bearingToWaypoint       READ getBearingToWaypoint   WRITE setBearingToWaypoint  NOTIFY bearingToWaypointChanged)
-    Q_PROPERTY(double   altitudeAMSL            READ getAltitudeAMSL        WRITE setAltitudeAMSL       NOTIFY altitudeAMSLChanged)
-    Q_PROPERTY(double   altitudeAMSLFT          READ getAltitudeAMSLFT                                  NOTIFY altitudeAMSLFTChanged)
-    Q_PROPERTY(double   altitudeRelative        READ getAltitudeRelative    WRITE setAltitudeRelative   NOTIFY altitudeRelativeChanged)
-    Q_PROPERTY(double   satRawHDOP              READ getSatRawHDOP                                      NOTIFY satRawHDOPChanged)
-    Q_PROPERTY(double   satRawVDOP              READ getSatRawVDOP                                      NOTIFY satRawVDOPChanged)
-    Q_PROPERTY(double   satRawCOG               READ getSatRawCOG                                       NOTIFY satRawCOGChanged)
-
     /// Vehicle is about to go away
     void shutdownVehicle(void);
-
-    void setGroundSpeed(double val)
-    {
-        groundSpeed = val;
-        emit groundSpeedChanged(val,"groundSpeed");
-        emit valueChanged(this->uasId,"groundSpeed","m/s",QVariant(val),getUnixTime());
-    }
-    double getGroundSpeed() const
-    {
-        return groundSpeed;
-    }
-
-    void setAirSpeed(double val)
-    {
-        airSpeed = val;
-        emit airSpeedChanged(val,"airSpeed");
-        emit valueChanged(this->uasId,"airSpeed","m/s",QVariant(val),getUnixTime());
-    }
-
-    double getAirSpeed() const
-    {
-        return airSpeed;
-    }
-
-    void setLocalX(double val)
-    {
-        localX = val;
-        emit localXChanged(val,"localX");
-        emit valueChanged(this->uasId,"localX","m",QVariant(val),getUnixTime());
-    }
-
-    double getLocalX() const
-    {
-        return localX;
-    }
-
-    void setLocalY(double val)
-    {
-        localY = val;
-        emit localYChanged(val,"localY");
-        emit valueChanged(this->uasId,"localY","m",QVariant(val),getUnixTime());
-    }
-    double getLocalY() const
-    {
-        return localY;
-    }
-
-    void setLocalZ(double val)
-    {
-        localZ = val;
-        emit localZChanged(val,"localZ");
-        emit valueChanged(this->uasId,"localZ","m",QVariant(val),getUnixTime());
-    }
-    double getLocalZ() const
-    {
-        return localZ;
-    }
-
-    void setLatitude(double val)
-    {
-        latitude = val;
-        emit latitudeChanged(val,"latitude");
-        emit valueChanged(this->uasId,"latitude","deg",QVariant(val),getUnixTime());
-    }
-
-    double getLatitude() const
-    {
-        return latitude;
-    }
-
-    void setLongitude(double val)
-    {
-        longitude = val;
-        emit longitudeChanged(val,"longitude");
-        emit valueChanged(this->uasId,"longitude","deg",QVariant(val),getUnixTime());
-    }
-
-    double getLongitude() const
-    {
-        return longitude;
-    }
-
-    void setAltitudeAMSL(double val)
-    {
-        altitudeAMSL = val;
-        emit altitudeAMSLChanged(val, "altitudeAMSL");
-        emit valueChanged(this->uasId,"altitudeAMSL","m",QVariant(altitudeAMSL),getUnixTime());
-        altitudeAMSLFT = 3.28084 * altitudeAMSL;
-        emit altitudeAMSLFTChanged(val, "altitudeAMSLFT");
-        emit valueChanged(this->uasId,"altitudeAMSLFT","m",QVariant(altitudeAMSLFT),getUnixTime());
-    }
-
-    double getAltitudeAMSL() const
-    {
-        return altitudeAMSL;
-    }
-
-    double getAltitudeAMSLFT() const
-    {
-        return altitudeAMSLFT;
-    }
-
-    void setAltitudeRelative(double val)
-    {
-        altitudeRelative = val;
-        emit altitudeRelativeChanged(val, "altitudeRelative");
-        emit valueChanged(this->uasId,"altitudeRelative","m",QVariant(val),getUnixTime());
-    }
-
-    double getAltitudeRelative() const
-    {
-        return altitudeRelative;
-    }
-
-    double getSatRawHDOP() const
-    {
-        return satRawHDOP;
-    }
-
-    double getSatRawVDOP() const
-    {
-        return satRawVDOP;
-    }
-
-    double getSatRawCOG() const
-    {
-        return satRawCOG;
-    }
-
-    void setSatelliteCount(double val)
-    {
-        satelliteCount = val;
-        emit satelliteCountChanged(val,"satelliteCount");
-        emit valueChanged(this->uasId,"satelliteCount","",QVariant(val),getUnixTime());
-    }
-
-    double getSatelliteCount() const
-    {
-        return satelliteCount;
-    }
-
-    virtual bool globalPositionKnown() const
-    {
-        return isGlobalPositionKnown;
-    }
-
-    void setDistToWaypoint(double val)
-    {
-        distToWaypoint = val;
-        emit distToWaypointChanged(val,"distToWaypoint");
-        emit valueChanged(this->uasId,"distToWaypoint","m",QVariant(val),getUnixTime());
-    }
-
-    double getDistToWaypoint() const
-    {
-        return distToWaypoint;
-    }
-
-    void setBearingToWaypoint(double val)
-    {
-        bearingToWaypoint = val;
-        emit bearingToWaypointChanged(val,"bearingToWaypoint");
-        emit valueChanged(this->uasId,"bearingToWaypoint","deg",QVariant(val),getUnixTime());
-    }
-
-    double getBearingToWaypoint() const
-    {
-        return bearingToWaypoint;
-    }
-
-
-    void setRoll(double val)
-    {
-        roll = val;
-        emit rollChanged(val,"roll");
-    }
-
-    double getRoll() const
-    {
-        return roll;
-    }
-
-    void setPitch(double val)
-    {
-        pitch = val;
-        emit pitchChanged(val,"pitch");
-    }
-
-    double getPitch() const
-    {
-        return pitch;
-    }
-
-    void setYaw(double val)
-    {
-        yaw = val;
-        emit yawChanged(val,"yaw");
-    }
-
-    double getYaw() const
-    {
-        return yaw;
-    }
 
     // Setters for HIL noise variance
     void setXaccVar(float var){
@@ -359,10 +116,9 @@ public:
     friend class FileManager;
 #endif
 
-protected: //COMMENTS FOR TEST UNIT
+protected:
     /// LINK ID AND STATUS
     int uasId;                    ///< Unique system ID
-    QMap<int, QString> components;///< IDs and names of all detected onboard components
 
     QList<int> unknownPackets;    ///< Packet IDs which are unknown and have been received
     MAVLinkProtocol* mavlink;     ///< Reference to the MAVLink instance
@@ -382,42 +138,9 @@ protected: //COMMENTS FOR TEST UNIT
     bool controlYawManual;      ///< status flag, true if yaw is controlled manually
     bool controlThrustManual;   ///< status flag, true if thrust is controlled manually
 
-    double manualRollAngle;     ///< Roll angle set by human pilot (radians)
-    double manualPitchAngle;    ///< Pitch angle set by human pilot (radians)
-    double manualYawAngle;      ///< Yaw angle set by human pilot (radians)
-    double manualThrust;        ///< Thrust set by human pilot (radians)
-
     /// POSITION
     bool isGlobalPositionKnown; ///< If the global position has been received for this MAV
 
-    double localX;
-    double localY;
-    double localZ;
-
-    double latitude;            ///< Global latitude as estimated by position estimator
-    double longitude;           ///< Global longitude as estimated by position estimator
-    double altitudeAMSL;        ///< Global altitude as estimated by position estimator, AMSL
-    double altitudeAMSLFT;      ///< Global altitude as estimated by position estimator, AMSL
-    double altitudeRelative;    ///< Altitude above home as estimated by position estimator
-
-    double satRawHDOP;
-    double satRawVDOP;
-    double satRawCOG;
-
-    double satelliteCount;      ///< Number of satellites visible to raw GPS
-    bool globalEstimatorActive; ///< Global position estimator present, do not fall back to GPS raw for position
-    double latitude_gps;        ///< Global latitude as estimated by raw GPS
-    double longitude_gps;       ///< Global longitude as estimated by raw GPS
-    double altitude_gps;        ///< Global altitude as estimated by raw GPS
-    double speedX;              ///< True speed in X axis
-    double speedY;              ///< True speed in Y axis
-    double speedZ;              ///< True speed in Z axis
-
-    /// WAYPOINT NAVIGATION
-    double distToWaypoint;       ///< Distance to next waypoint
-    double airSpeed;             ///< Airspeed
-    double groundSpeed;          ///< Groundspeed
-    double bearingToWaypoint;    ///< Bearing to next waypoint
 #ifndef __mobile__
     FileManager   fileManager;
 #endif
@@ -426,9 +149,6 @@ protected: //COMMENTS FOR TEST UNIT
     bool attitudeKnown;             ///< True if attitude was received, false else
     bool attitudeStamped;           ///< Should arriving data be timestamped with the last attitude? This helps with broken system time clocks on the MAV
     quint64 lastAttitude;           ///< Timestamp of last attitude measurement
-    double roll;
-    double pitch;
-    double yaw;
 
     // dongfang: This looks like a candidate for being moved off to a separate class.
     /// IMAGING
@@ -485,15 +205,11 @@ public:
     void requestImage();
 
 public slots:
-    /** @brief Executes a command with 7 params */
-    void executeCommand(MAV_CMD command, int confirmation, float param1, float param2, float param3, float param4, float param5, float param6, float param7, int component);
-
     /** @brief Order the robot to pair its receiver **/
     void pairRX(int rxType, int rxSubType);
 
     /** @brief Enable / disable HIL */
 #ifndef __mobile__
-    void enableHilFlightGear(bool enable, QString options, bool sensorHil, QObject * configuration);
     void enableHilJSBSim(bool enable, QString options);
     void enableHilXPlane(bool enable);
 
@@ -561,34 +277,16 @@ public slots:
     /** @brief Send command to disable all bindings/maps between RC and parameters */
     void unsetRCToParameterMap();
 signals:
-    void loadChanged(UASInterface* uas, double load);
     void imageStarted(quint64 timestamp);
     /** @brief A new camera image has arrived */
     void imageReady(UASInterface* uas);
     /** @brief HIL controls have changed */
     void hilControlsChanged(quint64 time, float rollAilerons, float pitchElevator, float yawRudder, float throttle, quint8 systemMode, quint8 navMode);
 
-    void localXChanged(double val,QString name);
-    void localYChanged(double val,QString name);
-    void localZChanged(double val,QString name);
-    void longitudeChanged(double val,QString name);
-    void latitudeChanged(double val,QString name);
-    void altitudeAMSLChanged(double val,QString name);
-    void altitudeAMSLFTChanged(double val,QString name);
-    void altitudeRelativeChanged(double val,QString name);
-
-    void satRawHDOPChanged  (double value);
-    void satRawVDOPChanged  (double value);
-    void satRawCOGChanged   (double value);
-
     void rollChanged(double val,QString name);
     void pitchChanged(double val,QString name);
     void yawChanged(double val,QString name);
-    void satelliteCountChanged(double val,QString name);
-    void distToWaypointChanged(double val,QString name);
-    void groundSpeedChanged(double val, QString name);
-    void airSpeedChanged(double val, QString name);
-    void bearingToWaypointChanged(double val,QString name);
+
 protected:
     /** @brief Get the UNIX timestamp in milliseconds, enter microseconds */
     quint64 getUnixTime(quint64 time=0);
@@ -599,11 +297,12 @@ protected:
 
     virtual void processParamValueMsg(mavlink_message_t& msg, const QString& paramName,const mavlink_param_value_t& rawValue, mavlink_param_union_t& paramValue);
 
-    int componentID[256];
-    bool componentMulti[256];
+    QMap<int, int>componentID;
+    QMap<int, bool>componentMulti;
+
     bool connectionLost; ///< Flag indicates a timed out connection
     quint64 connectionLossTime; ///< Time the connection was interrupted
-    quint64 lastVoltageWarning; ///< Time at which the last voltage warning occured
+    quint64 lastVoltageWarning; ///< Time at which the last voltage warning occurred
     quint64 lastNonNullTime;    ///< The last timestamp from the MAV that was not null
     unsigned int onboardTimeOffsetInvalidCount;     ///< Count when the offboard time offset estimation seemed wrong
     bool hilEnabled;
@@ -613,12 +312,8 @@ protected:
     quint64 lastSendTimeOpticalFlow; ///< Last HIL Optical Flow message sent
 
 private:
-    void _say(const QString& text, int severity = 6);
-
-private:
     Vehicle*                _vehicle;
     FirmwarePluginManager*  _firmwarePluginManager;
 };
 
 
-#endif // _UAS_H_

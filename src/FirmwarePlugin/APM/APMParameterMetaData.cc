@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #include "APMParameterMetaData.h"
 #include "QGCApplication.h"
@@ -30,6 +17,8 @@
 #include <QDir>
 #include <QDebug>
 #include <QStack>
+
+static const char* kInvalidConverstion = "Internal Error: No support for string parameters";
 
 QGC_LOGGING_CATEGORY(APMParameterMetaDataLog,           "APMParameterMetaDataLog")
 QGC_LOGGING_CATEGORY(APMParameterMetaDataVerboseLog,    "APMParameterMetaDataVerboseLog")
@@ -52,26 +41,41 @@ QVariant APMParameterMetaData::_stringToTypedVariant(const QString& string,
 
     int convertTo = QVariant::Int; // keep compiler warning happy
     switch (type) {
-        case FactMetaData::valueTypeUint8:
-        case FactMetaData::valueTypeUint16:
-        case FactMetaData::valueTypeUint32:
-            convertTo = QVariant::UInt;
-            break;
-        case FactMetaData::valueTypeInt8:
-        case FactMetaData::valueTypeInt16:
-        case FactMetaData::valueTypeInt32:
-            convertTo = QVariant::Int;
-            break;
-        case FactMetaData::valueTypeFloat:
-            convertTo = QMetaType::Float;
-            break;
-        case FactMetaData::valueTypeDouble:
-            convertTo = QVariant::Double;
-            break;
+    case FactMetaData::valueTypeUint8:
+    case FactMetaData::valueTypeUint16:
+    case FactMetaData::valueTypeUint32:
+    case FactMetaData::valueTypeUint64:
+        convertTo = QVariant::UInt;
+        break;
+    case FactMetaData::valueTypeInt8:
+    case FactMetaData::valueTypeInt16:
+    case FactMetaData::valueTypeInt32:
+    case FactMetaData::valueTypeInt64:
+        convertTo = QVariant::Int;
+        break;
+    case FactMetaData::valueTypeFloat:
+        convertTo = QMetaType::Float;
+        break;
+    case FactMetaData::valueTypeElapsedTimeInSeconds:
+    case FactMetaData::valueTypeDouble:
+        convertTo = QVariant::Double;
+        break;
+    case FactMetaData::valueTypeString:
+        qWarning() << kInvalidConverstion;
+        convertTo = QVariant::String;
+        break;
+    case FactMetaData::valueTypeBool:
+        qWarning() << kInvalidConverstion;
+        convertTo = QVariant::Bool;
+        break;
+    case FactMetaData::valueTypeCustom:
+        qWarning() << kInvalidConverstion;
+        convertTo = QVariant::ByteArray;
+        break;
     }
-    
+
     *convertOk = var.convert(convertTo);
-    
+
     return var;
 }
 
@@ -81,12 +85,18 @@ QString APMParameterMetaData::mavTypeToString(MAV_TYPE vehicleTypeEnum)
 
     switch(vehicleTypeEnum) {
         case MAV_TYPE_FIXED_WING:
+        case MAV_TYPE_VTOL_DUOROTOR:
+        case MAV_TYPE_VTOL_QUADROTOR:
+        case MAV_TYPE_VTOL_TILTROTOR:
+        case MAV_TYPE_VTOL_RESERVED2:
+        case MAV_TYPE_VTOL_RESERVED3:
+        case MAV_TYPE_VTOL_RESERVED4:
+        case MAV_TYPE_VTOL_RESERVED5:
             vehicleName = "ArduPlane";
             break;
         case MAV_TYPE_QUADROTOR:
         case MAV_TYPE_COAXIAL:
         case MAV_TYPE_HELICOPTER:
-        case MAV_TYPE_SUBMARINE:
         case MAV_TYPE_HEXAROTOR:
         case MAV_TYPE_OCTOROTOR:
         case MAV_TYPE_TRICOPTER:
@@ -94,6 +104,7 @@ QString APMParameterMetaData::mavTypeToString(MAV_TYPE vehicleTypeEnum)
             break;
         case MAV_TYPE_ANTENNA_TRACKER:
             vehicleName = "Antenna Tracker";
+            break;
         case MAV_TYPE_GENERIC:
         case MAV_TYPE_GCS:
         case MAV_TYPE_AIRSHIP:
@@ -102,18 +113,14 @@ QString APMParameterMetaData::mavTypeToString(MAV_TYPE vehicleTypeEnum)
             break;
         case MAV_TYPE_GROUND_ROVER:
         case MAV_TYPE_SURFACE_BOAT:
-            vehicleName = "ArduRover";
+            vehicleName = "APMrover2";
+            break;
+        case MAV_TYPE_SUBMARINE:
+            vehicleName = "ArduSub";
             break;
         case MAV_TYPE_FLAPPING_WING:
         case MAV_TYPE_KITE:
         case MAV_TYPE_ONBOARD_CONTROLLER:
-        case MAV_TYPE_VTOL_DUOROTOR:
-        case MAV_TYPE_VTOL_QUADROTOR:
-        case MAV_TYPE_VTOL_TILTROTOR:
-        case MAV_TYPE_VTOL_RESERVED2:
-        case MAV_TYPE_VTOL_RESERVED3:
-        case MAV_TYPE_VTOL_RESERVED4:
-        case MAV_TYPE_VTOL_RESERVED5:
         case MAV_TYPE_GIMBAL:
         case MAV_TYPE_ENUM_END:
         default:
@@ -122,6 +129,13 @@ QString APMParameterMetaData::mavTypeToString(MAV_TYPE vehicleTypeEnum)
     return vehicleName;
 }
 
+QString APMParameterMetaData::_groupFromParameterName(const QString& name)
+{
+    QString group = name.split('_').first();
+    return group.remove(QRegExp("[0-9]*$")); // remove any numbers from the end
+}
+
+
 void APMParameterMetaData::loadParameterFactMetaDataFile(const QString& metaDataFile)
 {
     if (_parameterMetaDataLoaded) {
@@ -129,7 +143,7 @@ void APMParameterMetaData::loadParameterFactMetaDataFile(const QString& metaData
     }
     _parameterMetaDataLoaded = true;
 
-    QRegExp parameterCategories = QRegExp("ArduCopter|ArduPlane|APMrover2|AntennaTracker");
+    QRegExp parameterCategories = QRegExp("ArduCopter|ArduPlane|APMrover2|ArduSub|AntennaTracker");
     QString currentCategory;
 
     qCDebug(APMParameterMetaDataLog) << "Loading parameter meta data:" << metaDataFile;
@@ -148,10 +162,9 @@ void APMParameterMetaData::loadParameterFactMetaDataFile(const QString& metaData
         return;
     }
 
-    QString             errorString;
     bool                badMetaData = true;
     QStack<int>         xmlState;
-    APMFactMetaDataRaw* rawMetaData = NULL;
+    APMFactMetaDataRaw* rawMetaData = nullptr;
 
     xmlState.push(XmlStateNone);
 
@@ -226,36 +239,37 @@ void APMParameterMetaData::loadParameterFactMetaDataFile(const QString& metaData
                 if (name.contains(':')) {
                     name = name.split(':').last();
                 }
-                QString group = name.split('_').first();
-                group = group.remove(QRegExp("[0-9]*$")); // remove any numbers from the end
+                QString group = _groupFromParameterName(name);
+
+                QString category = xml.attributes().value("user").toString();
+                if (category.isEmpty()) {
+                    category = QStringLiteral("Advanced");
+                }
 
                 QString shortDescription = xml.attributes().value("humanName").toString();
-                QString longDescription = xml.attributes().value("docmentation").toString();
-                QString userLevel = xml.attributes().value("user").toString();
+                QString longDescription = xml.attributes().value("documentation").toString();
 
                 qCDebug(APMParameterMetaDataVerboseLog) << "Found parameter name:" << name
                           << "short Desc:" << shortDescription
                           << "longDescription:" << longDescription
-                          << "user level: " << userLevel
+                          << "category: " << category
                           << "group: " << group;
 
                 Q_ASSERT(!rawMetaData);
-                rawMetaData = new APMFactMetaDataRaw();
                 if (_vehicleTypeToParametersMap[currentCategory].contains(name)) {
-                    // We can't trust the meta dafa since we have dups
-                    qCWarning(APMParameterMetaDataLog) << "Duplicate parameter found:" << name;
-                    badMetaData = true;
+                    qCDebug(APMParameterMetaDataLog) << "Duplicate parameter found:" << name;
+                    rawMetaData = _vehicleTypeToParametersMap[currentCategory][name];
                 } else {
-                    qCDebug(APMParameterMetaDataVerboseLog) << "inserting metadata for field" << name;
+                    rawMetaData = new APMFactMetaDataRaw();
                     _vehicleTypeToParametersMap[currentCategory][name] = rawMetaData;
-                    rawMetaData->name = name;
-                    rawMetaData->group = group;
-                    rawMetaData->shortDescription = shortDescription;
-                    rawMetaData->longDescription = longDescription;
-
                     groupMembers[group] << name;
                 }
-
+                qCDebug(APMParameterMetaDataVerboseLog) << "inserting metadata for field" << name;
+                rawMetaData->name = name;
+                rawMetaData->category = category;
+                rawMetaData->group = group;
+                rawMetaData->shortDescription = shortDescription;
+                rawMetaData->longDescription = longDescription;
             } else {
                 // We should be getting meta data now
                 if (xmlState.top() != XmlStateFoundParameter) {
@@ -277,7 +291,7 @@ void APMParameterMetaData::loadParameterFactMetaDataFile(const QString& metaData
                 // Done loading this parameter
                 // Reset for next parameter
                 qCDebug(APMParameterMetaDataVerboseLog) << "done loading parameter";
-                rawMetaData = NULL;
+                rawMetaData = nullptr;
                 badMetaData = false;
                 xmlState.pop();
             } else if (elementName == "parameters") {
@@ -300,7 +314,7 @@ void APMParameterMetaData::correctGroupMemberships(ParameterNametoFactMetaDataMa
     foreach(const QString& groupName, groupMembers.keys()) {
             if (groupMembers[groupName].count() == 1) {
                 foreach(const QString& parameter, groupMembers.value(groupName)) {
-                    parameterToFactMetaDataMap[parameter]->group = "others";
+                    parameterToFactMetaDataMap[parameter]->group = FactMetaData::defaultGroup();
                 }
             }
         }
@@ -323,7 +337,7 @@ bool APMParameterMetaData::parseParameterAttributes(QXmlStreamReader& xml, APMFa
     // as long as param doens't end
     while (!(elementName == "param" && xml.isEndElement())) {
         if (elementName.isEmpty()) {
-            // skip empty elements. Somehow I am getting lot of these. Dont know what to do with them.
+            // skip empty elements. Somehow I am getting lot of these. Don't know what to do with them.
         } else if (elementName == "field") {
             QString attributeName = xml.attributes().value("name").toString();
 
@@ -414,7 +428,7 @@ bool APMParameterMetaData::parseParameterAttributes(QXmlStreamReader& xml, APMFa
 void APMParameterMetaData::addMetaDataToFact(Fact* fact, MAV_TYPE vehicleType)
 {
     const QString mavTypeString = mavTypeToString(vehicleType);
-    APMFactMetaDataRaw* rawMetaData = NULL;
+    APMFactMetaDataRaw* rawMetaData = nullptr;
 
     // check if we have metadata for fact, use generic otherwise
     if (_vehicleTypeToParametersMap[mavTypeString].contains(fact->name())) {
@@ -427,14 +441,17 @@ void APMParameterMetaData::addMetaDataToFact(Fact* fact, MAV_TYPE vehicleType)
 
     // we don't have data for this fact
     if (!rawMetaData) {
+        metaData->setCategory(QStringLiteral("Advanced"));
+        metaData->setGroup(_groupFromParameterName(fact->name()));
         fact->setMetaData(metaData);
         qCDebug(APMParameterMetaDataLog) << "No metaData for " << fact->name() << "using generic metadata";
         return;
     }
 
     metaData->setName(rawMetaData->name);
+    metaData->setCategory(rawMetaData->category);
     metaData->setGroup(rawMetaData->group);
-    metaData->setRebootRequired(rawMetaData->rebootRequired);
+    metaData->setVehicleRebootRequired(rawMetaData->rebootRequired);
 
     if (!rawMetaData->shortDescription.isEmpty()) {
         metaData->setShortDescription(rawMetaData->shortDescription);
@@ -524,12 +541,14 @@ void APMParameterMetaData::addMetaDataToFact(Fact* fact, MAV_TYPE vehicleType)
                 break;
 
             case FactMetaData::valueTypeInt32:
+            case FactMetaData::valueTypeInt64:
                 typedBitSet = QVariant((int)bitSet);
                 break;
 
             case FactMetaData::valueTypeUint8:
             case FactMetaData::valueTypeUint16:
             case FactMetaData::valueTypeUint32:
+            case FactMetaData::valueTypeUint64:
                 typedBitSet = QVariant(bitSet);
                 break;
 
@@ -573,10 +592,19 @@ void APMParameterMetaData::addMetaDataToFact(Fact* fact, MAV_TYPE vehicleType)
         bool    ok;
         increment = rawMetaData->incrementSize.toDouble(&ok);
         if (ok) {
-            metaData->setIncrement(increment);
+            metaData->setRawIncrement(increment);
         } else {
             qCDebug(APMParameterMetaDataLog) << "Invalid value for increment, name:" << metaData->name() << " increment:" << rawMetaData->incrementSize;
         }
+    }
+
+    // ArduPilot does not yet support decimal places meta data. So for P/I/D parameters we force to 6 places
+    if ((fact->name().endsWith(QStringLiteral("_P")) ||
+         fact->name().endsWith(QStringLiteral("_I")) ||
+         fact->name().endsWith(QStringLiteral("_D"))) &&
+            (fact->type() == FactMetaData::valueTypeFloat ||
+             fact->type() == FactMetaData::valueTypeDouble)) {
+        metaData->setDecimalPlaces(6);
     }
 
     fact->setMetaData(metaData);
@@ -592,5 +620,7 @@ void APMParameterMetaData::getParameterMetaDataVersionInfo(const QString& metaDa
     if (regExp.exactMatch(metaDataFile) && regExp.captureCount() == 2) {
         majorVersion = regExp.cap(2).toInt();
         minorVersion = 0;
+    } else {
+        qWarning() << QStringLiteral("Unable to parse version from parameter meta data file name: '%1'").arg(metaDataFile);
     }
 }

@@ -19,11 +19,10 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
-#ifndef QWIDGET_VIDEO_SINK_DELEGATE_H
-#define QWIDGET_VIDEO_SINK_DELEGATE_H
+#pragma once
 
 #include "qtvideosinkdelegate.h"
 #include <QEvent>
@@ -53,4 +52,3 @@ private:
     bool m_opaquePaintEventAttribute;
 };
 
-#endif // QWIDGET_VIDEO_SINK_DELEGATE_H

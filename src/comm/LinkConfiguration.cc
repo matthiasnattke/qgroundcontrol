@@ -1,41 +1,26 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009, 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
 
 /*!
     @file
        @brief Link specific configuration base class
-       @author Gus Grubba <mavlink@grubba.com>
+       @author Gus Grubba <gus@auterion.com>
 */
 
 #include "LinkConfiguration.h"
-#ifndef __ios__
+#ifndef NO_SERIAL_LINK
 #include "SerialLink.h"
 #endif
 #include "UDPLink.h"
 #include "TCPLink.h"
-#ifndef __mobile__
 #include "LogReplayLink.h"
-#endif
 #ifdef QGC_ENABLE_BLUETOOTH
 #include "BluetoothLink.h"
 #endif
@@ -46,10 +31,11 @@ This file is part of the QGROUNDCONTROL project
 #define LINK_SETTING_ROOT "LinkConfigurations"
 
 LinkConfiguration::LinkConfiguration(const QString& name)
-    : _link(NULL)
+    : _link(nullptr)
     , _name(name)
     , _dynamic(false)
     , _autoConnect(false)
+    , _highLatency(false)
 {
     _name = name;
     if (_name.isEmpty()) {
@@ -63,16 +49,18 @@ LinkConfiguration::LinkConfiguration(LinkConfiguration* copy)
     _name       = copy->name();
     _dynamic    = copy->isDynamic();
     _autoConnect= copy->isAutoConnect();
+    _highLatency= copy->isHighLatency();
     Q_ASSERT(!_name.isEmpty());
 }
 
 void LinkConfiguration::copyFrom(LinkConfiguration* source)
 {
-    Q_ASSERT(source != NULL);
+    Q_ASSERT(source != nullptr);
     _link       = source->link();
     _name       = source->name();
     _dynamic    = source->isDynamic();
     _autoConnect= source->isAutoConnect();
+    _highLatency= source->isHighLatency();
 }
 
 /*!
@@ -90,9 +78,9 @@ const QString LinkConfiguration::settingsRoot()
 */
 LinkConfiguration* LinkConfiguration::createSettings(int type, const QString& name)
 {
-    LinkConfiguration* config = NULL;
+    LinkConfiguration* config = nullptr;
     switch(type) {
-#ifndef __ios__
+#ifndef NO_SERIAL_LINK
         case LinkConfiguration::TypeSerial:
             config = new SerialConfiguration(name);
             break;
@@ -108,11 +96,9 @@ LinkConfiguration* LinkConfiguration::createSettings(int type, const QString& na
         config = new BluetoothConfiguration(name);
         break;
 #endif
-#ifndef __mobile__
         case LinkConfiguration::TypeLogReplay:
             config = new LogReplayLinkConfiguration(name);
             break;
-#endif
 #ifdef QT_DEBUG
         case LinkConfiguration::TypeMock:
             config = new MockConfiguration(name);
@@ -128,36 +114,33 @@ LinkConfiguration* LinkConfiguration::createSettings(int type, const QString& na
 */
 LinkConfiguration* LinkConfiguration::duplicateSettings(LinkConfiguration* source)
 {
-    LinkConfiguration* dupe = NULL;
+    LinkConfiguration* dupe = nullptr;
     switch(source->type()) {
-#ifndef __ios__
+#ifndef NO_SERIAL_LINK
         case TypeSerial:
-            dupe = new SerialConfiguration(dynamic_cast<SerialConfiguration*>(source));
+            dupe = new SerialConfiguration(qobject_cast<SerialConfiguration*>(source));
             break;
 #endif
         case TypeUdp:
-            dupe = new UDPConfiguration(dynamic_cast<UDPConfiguration*>(source));
+            dupe = new UDPConfiguration(qobject_cast<UDPConfiguration*>(source));
             break;
         case TypeTcp:
-            dupe = new TCPConfiguration(dynamic_cast<TCPConfiguration*>(source));
+            dupe = new TCPConfiguration(qobject_cast<TCPConfiguration*>(source));
             break;
 #ifdef QGC_ENABLE_BLUETOOTH
         case TypeBluetooth:
-            dupe = new BluetoothConfiguration(dynamic_cast<BluetoothConfiguration*>(source));
+            dupe = new BluetoothConfiguration(qobject_cast<BluetoothConfiguration*>(source));
             break;
 #endif
-#ifndef __mobile__
         case TypeLogReplay:
-            dupe = new LogReplayLinkConfiguration(dynamic_cast<LogReplayLinkConfiguration*>(source));
+            dupe = new LogReplayLinkConfiguration(qobject_cast<LogReplayLinkConfiguration*>(source));
             break;
-#endif
 #ifdef QT_DEBUG
         case TypeMock:
-            dupe = new MockConfiguration(dynamic_cast<MockConfiguration*>(source));
+            dupe = new MockConfiguration(qobject_cast<MockConfiguration*>(source));
             break;
 #endif
         case TypeLast:
-        default:
             break;
     }
     return dupe;
@@ -171,6 +154,8 @@ void LinkConfiguration::setName(const QString name)
 
 void LinkConfiguration::setLink(LinkInterface* link)
 {
-    _link = link;
-    emit linkChanged(link);
+    if(_link != link) {
+        _link = link;
+        emit linkChanged(link);
+    }
 }

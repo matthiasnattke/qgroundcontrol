@@ -18,11 +18,10 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
-#ifndef GENERICSURFACEPAINTER_H
-#define GENERICSURFACEPAINTER_H
+#pragma once
 
 #include "abstractsurfacepainter.h"
 #include <QSet>
@@ -55,4 +54,3 @@ private:
     QImage::Format m_imageFormat;
 };
 
-#endif // GENERICSURFACEPAINTER_H

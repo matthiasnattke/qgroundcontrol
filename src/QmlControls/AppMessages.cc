@@ -1,31 +1,22 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009, 2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
 
 
 // Allows QGlobalStatic to work on this translation unit
 #define _LOG_CTOR_ACCESS_ public
+
 #include "AppMessages.h"
-#include <QFile>
+#include "QGCApplication.h"
+#include "SettingsManager.h"
+#include "AppSettings.h"
+
 #include <QStringListModel>
 #include <QtConcurrent>
 #include <QTextStream>
@@ -73,18 +64,20 @@ AppLogModel::AppLogModel() : QStringListModel()
     connect(this, &AppLogModel::emitLog, this, &AppLogModel::threadsafeLog, contype);
 }
 
-void AppLogModel::writeMessages(const QUrl dest_file)
+void AppLogModel::writeMessages(const QString dest_file)
 {
     const QString writebuffer(stringList().join('\n').append('\n'));
 
     QtConcurrent::run([dest_file, writebuffer] {
         emit debug_model->writeStarted();
         bool success = false;
-        QFile file(dest_file.toLocalFile());
+        QFile file(dest_file);
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream out(&file);
             out << writebuffer;
             success = out.status() == QTextStream::Ok;
+        } else {
+            qWarning() << "AppLogModel::writeMessages write failed:" << file.errorString();
         }
         emit debug_model->writeFinished(success);
     });
@@ -100,4 +93,26 @@ void AppLogModel::threadsafeLog(const QString message)
     const int line = rowCount();
     insertRows(line, 1);
     setData(index(line), message, Qt::DisplayRole);
+
+    if (qgcApp() && qgcApp()->logOutput() && _logFile.fileName().isEmpty()) {
+        qDebug() << _logFile.fileName().isEmpty() << qgcApp()->logOutput();
+        QGCToolbox* toolbox = qgcApp()->toolbox();
+        // Be careful of toolbox not being open yet
+        if (toolbox) {
+            QString saveDirPath = qgcApp()->toolbox()->settingsManager()->appSettings()->crashSavePath();
+            QDir saveDir(saveDirPath);
+            QString saveFilePath = saveDir.absoluteFilePath(QStringLiteral("QGCConsole.log"));
+
+            _logFile.setFileName(saveFilePath);
+            if (!_logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                qgcApp()->showMessage(tr("Open console log output file failed %1 : %2").arg(_logFile.fileName()).arg(_logFile.errorString()));
+            }
+        }
+    }
+
+    if (_logFile.isOpen()) {
+        QTextStream out(&_logFile);
+        out << message << "\n";
+        _logFile.flush();
+    }
 }

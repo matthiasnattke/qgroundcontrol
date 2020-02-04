@@ -40,7 +40,7 @@
 ** 2015.4.4
 ** Adapted for use with QGroundControl
 **
-** Gus Grubba <mavlink@grubba.com>
+** Gus Grubba <gus@auterion.com>
 **
 ****************************************************************************/
 
@@ -56,7 +56,7 @@
 #include <QSet>
 #include <QDebug>
 
-enum QGeoCodeTypeGoogle {
+enum QGCGeoCodeType {
     GeoCodeTypeUnknown,
     StreetAddress, // indicates a precise street address.
     Route, // indicates a named route (such as "US 101").
@@ -97,7 +97,7 @@ enum QGeoCodeTypeGoogle {
 class JasonMonger {
 public:
     JasonMonger();
-    QSet<int> json2QGeoCodeTypeGoogle(const QJsonArray &types);
+    QSet<int> json2QGCGeoCodeType(const QJsonArray &types);
 private:
     int _getCode(const QString &key);
     QMap<QString, int> _m;
@@ -145,7 +145,7 @@ int JasonMonger::_getCode(const QString &key) {
     return _m.value(key, GeoCodeTypeUnknown);
 }
 
-QSet<int> JasonMonger::json2QGeoCodeTypeGoogle(const QJsonArray &types) {
+QSet<int> JasonMonger::json2QGCGeoCodeType(const QJsonArray &types) {
     QSet<int> result;
     for (int i=0; i<types.size(); ++i) {
         result |= _getCode(types[i].toString());
@@ -158,7 +158,7 @@ JasonMonger kMonger;
 QGeoCodeReplyQGC::QGeoCodeReplyQGC(QNetworkReply *reply, QObject *parent)
 :   QGeoCodeReply(parent), m_reply(reply)
 {
-    connect(m_reply, SIGNAL(finished()), this, SLOT(networkReplyFinished()));
+    connect(m_reply, &QNetworkReply::finished, this, &QGeoCodeReplyQGC::networkReplyFinished);
     connect(m_reply, SIGNAL(error(QNetworkReply::NetworkError)),
             this, SLOT(networkReplyError(QNetworkReply::NetworkError)));
 
@@ -228,7 +228,7 @@ void QGeoCodeReplyQGC::networkReplyFinished()
                 if (!c.contains(QStringLiteral("types")))
                     continue;
 
-                QSet<int> types = kMonger.json2QGeoCodeTypeGoogle(c[QStringLiteral("types")].toArray());
+                QSet<int> types = kMonger.json2QGCGeoCodeType(c[QStringLiteral("types")].toArray());
                 QString long_name = c[QStringLiteral("long_name")].toString();
                 QString short_name = c[QStringLiteral("short_name")].toString();
                 if (types.contains(Country)) {

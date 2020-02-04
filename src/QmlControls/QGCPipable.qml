@@ -1,28 +1,15 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
 
-(c) 2009, 2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
-
-import QtQuick                      2.5
-import QtQuick.Controls             1.3
+import QtQuick                      2.3
+import QtQuick.Controls             1.2
 
 import QGroundControl               1.0
 import QGroundControl.ScreenTools   1.0
@@ -35,28 +22,137 @@ Item {
     property bool isHidden:  false
     property bool isDark:    false
 
+    // As a percentage of the window width
+    property real maxSize: 0.75
+    property real minSize: 0.10
+
+    property bool inPopup: false
+    property bool enablePopup: true
+
     signal  activated()
     signal  hideIt(bool state)
+    signal  newWidth(real newWidth)
+    signal  popup()
 
     MouseArea {
+        id: pipMouseArea
         anchors.fill: parent
         enabled:      !isHidden
+        hoverEnabled: true
         onClicked: {
             pip.activated()
+        }
+    }
+
+    // MouseArea to drag in order to resize the PiP area
+    MouseArea {
+        id: pipResize
+        anchors.top: parent.top
+        anchors.right: parent.right
+        height: ScreenTools.minTouchPixels
+        width: height
+        property real initialX: 0
+        property real initialWidth: 0
+
+        onClicked: {
+            // TODO propagate
+        }
+
+        // When we push the mouse button down, we un-anchor the mouse area to prevent a resizing loop
+        onPressed: {
+            pipResize.anchors.top = undefined // Top doesn't seem to 'detach'
+            pipResize.anchors.right = undefined // This one works right, which is what we really need
+            pipResize.initialX = mouse.x
+            pipResize.initialWidth = pip.width
+        }
+
+        // When we let go of the mouse button, we re-anchor the mouse area in the correct position
+        onReleased: {
+            pipResize.anchors.top = pip.top
+            pipResize.anchors.right = pip.right
+        }
+
+        // Drag
+        onPositionChanged: {
+            if (pipResize.pressed) {
+                var parentW = pip.parent.width // flightView
+                var newW = pipResize.initialWidth + mouse.x - pipResize.initialX
+                if (newW < parentW * maxSize && newW > parentW * minSize) {
+                    newWidth(newW)
+                }
+            }
+        }
+    }
+
+    // Resize icon
+    Image {
+        source:         "/qmlimages/pipResize.svg"
+        fillMode:       Image.PreserveAspectFit
+        mipmap: true
+        anchors.right:  parent.right
+        anchors.top:    parent.top
+        visible:        !isHidden && (ScreenTools.isMobile || pipMouseArea.containsMouse) && !inPopup
+        height:         ScreenTools.defaultFontPixelHeight * 2.5
+        width:          ScreenTools.defaultFontPixelHeight * 2.5
+        sourceSize.height:  height
+    }
+
+    // Resize pip window if necessary when main window is resized
+    property int pipLock: 2
+
+    Connections {
+        target: pip.parent
+        onWidthChanged: {
+            // hackity hack...
+            // don't fire this while app is loading/initializing (it happens twice)
+            if (pipLock) {
+                pipLock--
+                return
+            }
+
+            var parentW = pip.parent.width
+
+            if (pip.width > parentW * maxSize) {
+                newWidth(parentW * maxSize)
+            } else if (pip.width < parentW * minSize) {
+                newWidth(parentW * minSize)
+            }
+        }
+    }
+
+     //-- PIP Popup Indicator
+    Image {
+        id:             popupPIP
+        source:         "/qmlimages/PiP.svg"
+        mipmap:         true
+        fillMode:       Image.PreserveAspectFit
+        anchors.left:   parent.left
+        anchors.top:    parent.top
+        visible:        !isHidden && !inPopup && !ScreenTools.isMobile && enablePopup && pipMouseArea.containsMouse
+        height:         ScreenTools.defaultFontPixelHeight * 2.5
+        width:          ScreenTools.defaultFontPixelHeight * 2.5
+        sourceSize.height:  height
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                inPopup = true
+                pip.popup()
+            }
         }
     }
 
     //-- PIP Corner Indicator
     Image {
         id:             closePIP
-        source:         "/qmlimages/PiP.svg"
+        source:         "/qmlimages/pipHide.svg"
         mipmap:         true
         fillMode:       Image.PreserveAspectFit
         anchors.left:   parent.left
         anchors.bottom: parent.bottom
-        visible:        !isHidden
-        height:         ScreenTools.defaultFontPixelSize * 2.5
-        width:          ScreenTools.defaultFontPixelSize * 2.5
+        visible:        !isHidden && (ScreenTools.isMobile || pipMouseArea.containsMouse)
+        height:         ScreenTools.defaultFontPixelHeight * 2.5
+        width:          ScreenTools.defaultFontPixelHeight * 2.5
+        sourceSize.height:  height
         MouseArea {
             anchors.fill: parent
             onClicked: {
@@ -70,14 +166,15 @@ Item {
         id:                     openPIP
         anchors.left :          parent.left
         anchors.bottom:         parent.bottom
-        height:                 ScreenTools.defaultFontPixelSize * 2
-        width:                  ScreenTools.defaultFontPixelSize * 2
-        radius:                 ScreenTools.defaultFontPixelSize / 3
+        height:                 ScreenTools.defaultFontPixelHeight * 2
+        width:                  ScreenTools.defaultFontPixelHeight * 2
+        radius:                 ScreenTools.defaultFontPixelHeight / 3
         visible:                isHidden
         color:                  isDark ? Qt.rgba(0,0,0,0.75) : Qt.rgba(0,0,0,0.5)
         Image {
             width:              parent.width  * 0.75
             height:             parent.height * 0.75
+            sourceSize.height:  height
             source:             "/res/buttonRight.svg"
             mipmap:             true
             fillMode:           Image.PreserveAspectFit

@@ -1,39 +1,22 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009, 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
-
-#ifndef LINKCONFIGURATION_H
-#define LINKCONFIGURATION_H
+#pragma once
 
 #include <QSettings>
 
 class LinkInterface;
 
 /// Interface holding link specific settings.
-
 class LinkConfiguration : public QObject
 {
     Q_OBJECT
-    Q_ENUMS(LinkType)
 
 public:
     LinkConfiguration(const QString& name);
@@ -47,10 +30,13 @@ public:
     Q_PROPERTY(bool             autoConnect         READ isAutoConnect  WRITE setAutoConnect    NOTIFY autoConnectChanged)
     Q_PROPERTY(bool             autoConnectAllowed  READ isAutoConnectAllowed                   CONSTANT)
     Q_PROPERTY(QString          settingsURL         READ settingsURL                            CONSTANT)
+    Q_PROPERTY(QString          settingsTitle       READ settingsTitle                          CONSTANT)
+    Q_PROPERTY(bool             highLatency         READ isHighLatency  WRITE setHighLatency    NOTIFY highLatencyChanged)
+    Q_PROPERTY(bool             highLatencyAllowed  READ isHighLatencyAllowed                   CONSTANT)
 
     // Property accessors
 
-    const QString   name(void)  { return _name; }
+    QString         name(void) const { return _name; }
     LinkInterface*  link(void)  { return _link; }
 
     void            setName(const QString name);
@@ -59,7 +45,7 @@ public:
     ///  The link types supported by QGC
     ///  Any changes here MUST be reflected in LinkManager::linkTypeStrings()
     enum LinkType {
-#ifndef __ios__
+#ifndef NO_SERIAL_LINK
         TypeSerial,     ///< Serial Link
 #endif
         TypeUdp,        ///< UDP Link
@@ -67,20 +53,13 @@ public:
 #ifdef QGC_ENABLE_BLUETOOTH
         TypeBluetooth,  ///< Bluetooth Link
 #endif
-#if 0
-        // TODO Below is not yet implemented
-        TypeForwarding, ///< Forwarding Link
-        TypeXbee,       ///< XBee Proprietary Link
-        TypeOpal,       ///< Opal-RT Link
-#endif
 #ifdef QT_DEBUG
         TypeMock,       ///< Mock Link for Unitesting
 #endif
-#ifndef __mobile__
         TypeLogReplay,
-#endif
         TypeLast        // Last type value (type >= TypeLast == invalid)
     };
+    Q_ENUM(LinkType)
 
     /*!
      *
@@ -97,6 +76,13 @@ public:
     bool isAutoConnect() { return _autoConnect; }
 
     /*!
+     *
+     * Is this a High Latency configuration?
+     * @return True if this is an High Latency configuration (link with large delays).
+     */
+    bool isHighLatency() { return _highLatency; }
+
+    /*!
      * Set if this is this a dynamic configuration. (decided at runtime)
     */
     void setDynamic(bool dynamic = true) { _dynamic = dynamic; emit dynamicChanged(); }
@@ -106,6 +92,11 @@ public:
     */
     void setAutoConnect(bool autoc = true) { _autoConnect = autoc; emit autoConnectChanged(); }
 
+    /*!
+     * Set if this is this an High Latency configuration.
+    */
+    void setHighLatency(bool hl = false) { _highLatency = hl; emit highLatencyChanged(); }
+
     /// Virtual Methods
 
     /*!
@@ -113,7 +104,14 @@ public:
      * Is Auto Connect allowed for this type?
      * @return True if this type can be set as an Auto Connect configuration
      */
-    virtual bool isAutoConnectAllowed() { return true; }
+    virtual bool isAutoConnectAllowed() { return false; }
+
+    /*!
+     *
+     * Is High Latency allowed for this type?
+     * @return True if this type can be set as an High Latency configuration
+     */
+    virtual bool isHighLatencyAllowed() { return false; }
 
     /*!
      * @brief Connection type
@@ -146,7 +144,14 @@ public:
      *
      * Pure virtual method providing the URL for the (QML) settings dialog
      */
-    virtual QString settingsURL() = 0;
+    virtual QString settingsURL     () = 0;
+
+    /*!
+     * @brief Settings Title
+     *
+     * Pure virtual method providing the Title for the (QML) settings dialog
+     */
+    virtual QString settingsTitle   () = 0;
 
     /*!
      * @brief Update settings
@@ -191,9 +196,10 @@ public:
 
 signals:
     void nameChanged        (const QString& name);
-    void linkChanged        (LinkInterface* link);
     void dynamicChanged     ();
     void autoConnectChanged ();
+    void linkChanged        (LinkInterface* link);
+    void highLatencyChanged ();
 
 protected:
     LinkInterface* _link; ///< Link currently using this configuration (if any)
@@ -201,6 +207,8 @@ private:
     QString _name;
     bool    _dynamic;       ///< A connection added automatically and not persistent (unless it's edited).
     bool    _autoConnect;   ///< This connection is started automatically at boot
+    bool    _highLatency;
 };
 
-#endif // LINKCONFIGURATION_H
+typedef QSharedPointer<LinkConfiguration> SharedLinkConfigurationPointer;
+

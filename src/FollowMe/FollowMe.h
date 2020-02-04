@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #pragma once
 
@@ -30,9 +17,10 @@
 #include <QGeoPositionInfoSource>
 #include <QElapsedTimer>
 
-#include "QGCLoggingCategory.h"
 #include "QGCToolbox.h"
 #include "MAVLinkProtocol.h"
+
+class Vehicle;
 
 Q_DECLARE_LOGGING_CATEGORY(FollowMeLog)
 
@@ -41,67 +29,49 @@ class FollowMe : public QGCTool
     Q_OBJECT
 
 public:
-    FollowMe(QGCApplication* app);
-    ~FollowMe();
+    FollowMe(QGCApplication* app, QGCToolbox* toolbox);
 
-public slots:
-    void followMeHandleManager(const QString&);
-
-private slots:
-    void _setGPSLocation(QGeoPositionInfo geoPositionInfo);
-    void _sendGCSMotionReport(void);
-
-private:
-    QGeoPositionInfoSource * _locationInfo;
-    QElapsedTimer runTime;
-
-    struct motionReport_s {
-        uint32_t timestamp;     // time since boot
-        int32_t lat_int;        // X Position in WGS84 frame in 1e7 * meters
-        int32_t lon_int;        // Y Position in WGS84 frame in 1e7 * meters
-        float alt;              //	Altitude in meters in AMSL altitude, not WGS84 if absolute or relative, above terrain if GLOBAL_TERRAIN_ALT_INT
-        float vx;               //	X velocity in NED frame in meter / s
-        float vy;               //	Y velocity in NED frame in meter / s
-        float vz;               //	Z velocity in NED frame in meter / s
-        float afx;              //	X acceleration in NED frame in meter / s^2 or N
-        float afy;              //	Y acceleration in NED frame in meter / s^2 or N
-        float afz;              //	Z acceleration in NED frame in meter / s^2 or N
-        float pos_std_dev[3];   // -1 for unknown
-    } _motionReport;
-
-    QString _followMeStr;
-
-    QTimer _gcsMotionReportTimer;        ///< Timer to emit motion reports
-    double _degreesToRadian(double deg);
-
-    void disable();
-    void enable();
+    struct GCSMotionReport {
+        int     lat_int;            // X Position in WGS84 frame in 1e7 * meters
+        int     lon_int;            // Y Position in WGS84 frame in 1e7 * meters
+        double  altMetersAMSL;      //	Altitude in meters in AMSL altitude, not WGS84 if absolute or relative, above terrain if GLOBAL_TERRAIN_ALT_INT
+        double  headingDegrees;      // Heading in degrees
+        double  vxMetersPerSec;     //	X velocity in NED frame in meter / s
+        double  vyMetersPerSec;     //	Y velocity in NED frame in meter / s
+        double  vzMetersPerSec;     //	Z velocity in NED frame in meter / s
+        double  pos_std_dev[3];     // -1 for unknown
+    };
 
     // Mavlink defined motion reporting capabilities
-
     enum {
         POS = 0,
         VEL = 1,
         ACCEL = 2,
-        ATT_RATES = 3
+        ATT_RATES = 3,
+        HEADING = 4
     };
 
-#ifdef QT_QML_DEBUG
+    void setToolbox(QGCToolbox* toolbox) override;
 
-    // items for simulating QGC movment in jMAVSIM
+private slots:
+    void _sendGCSMotionReport       (void);
+    void _settingsChanged           (void);
+    void _vehicleAdded              (Vehicle* vehicle);
+    void _vehicleRemoved            (Vehicle* vehicle);
+    void _enableIfVehicleInFollow   (void);
 
-    struct simulated_motion_s {
-        int lon;
-        int lat;
+private:
+    enum {
+        MODE_NEVER,
+        MODE_ALWAYS,
+        MODE_FOLLOWME
     };
 
-    static simulated_motion_s _simulated_motion[4];
+    void    _disableFollowSend  (void);
+    void    _enableFollowSend   (void);
+    double  _degreesToRadian    (double deg);
+    bool    _isFollowFlightMode (Vehicle* vehicle, const QString& flightMode);
 
-    int _simulate_motion_timer;
-    int _simulate_motion_index;
-
-    bool _simulate_motion;
-
-    void _createSimulatedMotion(mavlink_follow_target_t & follow_target);
-#endif
+    QTimer      _gcsMotionReportTimer;
+    uint32_t    _currentMode;
 };

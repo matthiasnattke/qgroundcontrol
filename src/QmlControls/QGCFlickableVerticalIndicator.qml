@@ -1,4 +1,4 @@
-import QtQuick 2.5
+import QtQuick 2.3
 
 Rectangle {
     id:                    verticalIndicator
@@ -11,14 +11,14 @@ Rectangle {
     color:                 parent.indicatorColor
     visible:               showIndicator
 
-    property bool showIndicator: (parent.flickableDirection == Flickable.AutoFlickDirection ||
-                                  parent.flickableDirection == Flickable.VerticalFlick ||
-                                  parent.flickableDirection == Flickable.HorizontalAndVerticalFlick) &&
+    property bool showIndicator: (parent.flickableDirection === Flickable.AutoFlickDirection ||
+                                  parent.flickableDirection === Flickable.VerticalFlick ||
+                                  parent.flickableDirection === Flickable.HorizontalAndVerticalFlick) &&
                                  (parent.contentHeight > parent.height)
 
-    Component.onCompleted:  animateOpacity.restart()
-    onVisibleChanged:       animateOpacity.restart()
-    onHeightChanged:        animateOpacity.restart()
+    Component.onCompleted:  { if(animateOpacity) animateOpacity.restart() }
+    onVisibleChanged:       { if(animateOpacity) animateOpacity.restart() }
+    onHeightChanged:        { if(animateOpacity) animateOpacity.restart() }
 
     Connections {
         target:                    verticalIndicator.parent
@@ -33,7 +33,7 @@ Rectangle {
         properties:    "opacity"
         from:          1.0
         to:            0.0
-        duration:      1000
+        duration:      2000
         easing.type:   Easing.InQuint
     }
 }

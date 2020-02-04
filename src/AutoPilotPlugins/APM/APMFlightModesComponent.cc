@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #include "APMFlightModesComponent.h"
 #include "APMAutoPilotPlugin.h"
@@ -39,7 +26,7 @@ QString APMFlightModesComponent::name(void) const
 
 QString APMFlightModesComponent::description(void) const
 {
-    return QStringLiteral("The Flight Modes Component is used to assign FLight Modes to Channel 5.");
+    return tr("Flight Modes Setup is used to configure the transmitter switches associated with Flight Modes.");
 }
 
 QString APMFlightModesComponent::iconResource(void) const
@@ -70,18 +57,4 @@ QUrl APMFlightModesComponent::setupSource(void) const
 QUrl APMFlightModesComponent::summaryQmlSource(void) const
 {
     return QUrl::fromUserInput(QStringLiteral("qrc:/qml/APMFlightModesComponentSummary.qml"));
-}
-
-QString APMFlightModesComponent::prerequisiteSetup(void) const
-{
-    APMAutoPilotPlugin* plugin = dynamic_cast<APMAutoPilotPlugin*>(_autopilot);
-    Q_ASSERT(plugin);
-
-    if (!plugin->airframeComponent()->setupComplete()) {
-        return plugin->airframeComponent()->name();
-    } else if (!plugin->radioComponent()->setupComplete()) {
-        return plugin->radioComponent()->name();
-    }
-    
-    return QString();
 }

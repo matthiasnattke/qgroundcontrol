@@ -1,57 +1,84 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
-
-/// @file
-///     @author Pritam Ghanghas <pritam.ghanghas@gmail.com>
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
 #include "ArduRoverFirmwarePlugin.h"
+#include "QGCApplication.h"
+
+bool ArduRoverFirmwarePlugin::_remapParamNameIntialized = false;
+FirmwarePlugin::remapParamNameMajorVersionMap_t ArduRoverFirmwarePlugin::_remapParamName;
 
 APMRoverMode::APMRoverMode(uint32_t mode, bool settable)
     : APMCustomMode(mode, settable)
 {
-    QMap<uint32_t,QString> enumToString;
-    enumToString.insert(MANUAL,         "Manual");
-    enumToString.insert(LEARNING,       "Learning");
-    enumToString.insert(STEERING,       "Steering");
-    enumToString.insert(HOLD,           "Hold");
-    enumToString.insert(AUTO,           "Auto");
-    enumToString.insert(RTL,            "RTL");
-    enumToString.insert(GUIDED,         "Guided");
-    enumToString.insert(INITIALIZING,   "Initializing");
-
-    setEnumToStringMapping(enumToString);
+    setEnumToStringMapping({
+        {MANUAL,         "Manual"},
+        {ACRO,           "Acro"},
+        {STEERING,       "Steering"},
+        {HOLD,           "Hold"},
+        {LOITER,         "Loiter"},
+        {FOLLOW,         "Follow"},
+        {SIMPLE,         "Simple"},
+        {AUTO,           "Auto"},
+        {RTL,            "RTL"},
+        {SMART_RTL,      "Smart RTL"},
+        {GUIDED,         "Guided"},
+        {INITIALIZING,   "Initializing"},
+    });
 }
 
 ArduRoverFirmwarePlugin::ArduRoverFirmwarePlugin(void)
 {
-    QList<APMCustomMode> supportedFlightModes;
-    supportedFlightModes << APMRoverMode(APMRoverMode::MANUAL       ,true);
-    supportedFlightModes << APMRoverMode(APMRoverMode::LEARNING     ,true);
-    supportedFlightModes << APMRoverMode(APMRoverMode::STEERING     ,true);
-    supportedFlightModes << APMRoverMode(APMRoverMode::HOLD         ,true);
-    supportedFlightModes << APMRoverMode(APMRoverMode::AUTO         ,true);
-    supportedFlightModes << APMRoverMode(APMRoverMode::RTL          ,true);
-    supportedFlightModes << APMRoverMode(APMRoverMode::GUIDED       ,true);
-    supportedFlightModes << APMRoverMode(APMRoverMode::INITIALIZING ,false);
-    setSupportedModes(supportedFlightModes);
+    setSupportedModes({
+        APMRoverMode(APMRoverMode::MANUAL       ,true),
+        APMRoverMode(APMRoverMode::ACRO         ,true),
+        APMRoverMode(APMRoverMode::STEERING     ,true),
+        APMRoverMode(APMRoverMode::HOLD         ,true),
+        APMRoverMode(APMRoverMode::LOITER       ,true),
+        APMRoverMode(APMRoverMode::FOLLOW       ,true),
+        APMRoverMode(APMRoverMode::SIMPLE       ,true),
+        APMRoverMode(APMRoverMode::AUTO         ,true),
+        APMRoverMode(APMRoverMode::RTL          ,true),
+        APMRoverMode(APMRoverMode::SMART_RTL    ,true),
+        APMRoverMode(APMRoverMode::GUIDED       ,true),
+        APMRoverMode(APMRoverMode::INITIALIZING ,false),
+    });
+
+    if (!_remapParamNameIntialized) {
+        FirmwarePlugin::remapParamNameMap_t& remapV3_5 = _remapParamName[3][5];
+
+        remapV3_5["BATT_ARM_VOLT"] =    QStringLiteral("ARMING_VOLT_MIN");
+        remapV3_5["BATT2_ARM_VOLT"] =   QStringLiteral("ARMING_VOLT2_MIN");
+
+        _remapParamNameIntialized = true;
+    }
+}
+
+int ArduRoverFirmwarePlugin::remapParamNameHigestMinorVersionNumber(int majorVersionNumber) const
+{
+    // Remapping supports up to 3.5
+    return majorVersionNumber == 3 ? 5 : Vehicle::versionNotSetValue;
+}
+
+void ArduRoverFirmwarePlugin::guidedModeChangeAltitude(Vehicle* vehicle, double altitudeChange)
+{
+    Q_UNUSED(vehicle);
+    Q_UNUSED(altitudeChange);
+
+    qgcApp()->showMessage(QStringLiteral("Change altitude not supported."));
+}
+
+bool ArduRoverFirmwarePlugin::supportsNegativeThrust(Vehicle* /*vehicle*/)
+{
+    return true;
+}
+
+void ArduRoverFirmwarePlugin::sendGCSMotionReport(Vehicle* vehicle, FollowMe::GCSMotionReport& motionReport, uint8_t estimatationCapabilities)
+{
+    _sendGCSMotionReport(vehicle, motionReport, estimatationCapabilities);
 }

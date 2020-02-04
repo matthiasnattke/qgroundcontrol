@@ -1,25 +1,12 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
-
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
- This file is part of the QGROUNDCONTROL project
-
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
- ======================================================================*/
 
 #include <QTimer>
 #include <QList>
@@ -37,16 +24,14 @@
 ///
 ///     @author Don Gagne <don@thegagnes.com>
 
-TCPLink::TCPLink(TCPConfiguration *config)
-    : _config(config)
-    , _socket(NULL)
+TCPLink::TCPLink(SharedLinkConfigurationPointer& config)
+    : LinkInterface(config)
+    , _tcpConfig(qobject_cast<TCPConfiguration*>(config.data()))
+    , _socket(nullptr)
     , _socketIsConnected(false)
 {
-    Q_ASSERT(_config != NULL);
-    // We're doing it wrong - because the Qt folks got the API wrong:
-    // http://blog.qt.digia.com/blog/2010/06/17/youre-doing-it-wrong/
+    Q_ASSERT(_tcpConfig);
     moveToThread(this);
-    //qDebug() << "TCP Created " << _config->name();
 }
 
 TCPLink::~TCPLink()
@@ -82,7 +67,7 @@ void TCPLink::_writeDebugBytes(const QByteArray data)
             ascii.append(219);
         }
     }
-    qDebug() << "Sent" << size << "bytes to" << _config->address().toString() << ":" << _config->port() << "data:";
+    qDebug() << "Sent" << size << "bytes to" << _tcpConfig->address().toString() << ":" << _tcpConfig->port() << "data:";
     qDebug() << bytes;
     qDebug() << "ASCII:" << ascii;
 }
@@ -93,11 +78,12 @@ void TCPLink::_writeBytes(const QByteArray data)
 #ifdef TCPLINK_READWRITE_DEBUG
     _writeDebugBytes(data);
 #endif
-    if (!_socket)
-        return;
 
-    _socket->write(data);
-    _logOutputDataRate(data.size(), QDateTime::currentMSecsSinceEpoch());
+    if (_socket) {
+        _socket->write(data);
+        emit bytesSent(this, data);
+        _logOutputDataRate(data.size(), QDateTime::currentMSecsSinceEpoch());
+    }
 }
 
 /**
@@ -108,17 +94,19 @@ void TCPLink::_writeBytes(const QByteArray data)
  **/
 void TCPLink::readBytes()
 {
-    qint64 byteCount = _socket->bytesAvailable();
-    if (byteCount)
-    {
-        QByteArray buffer;
-        buffer.resize(byteCount);
-        _socket->read(buffer.data(), buffer.size());
-        emit bytesReceived(this, buffer);
-        _logInputDataRate(byteCount, QDateTime::currentMSecsSinceEpoch());
+    if (_socket) {
+        qint64 byteCount = _socket->bytesAvailable();
+        if (byteCount)
+        {
+            QByteArray buffer;
+            buffer.resize(byteCount);
+            _socket->read(buffer.data(), buffer.size());
+            emit bytesReceived(this, buffer);
+            _logInputDataRate(byteCount, QDateTime::currentMSecsSinceEpoch());
 #ifdef TCPLINK_READWRITE_DEBUG
-        writeDebugBytes(buffer.data(), buffer.size());
+            writeDebugBytes(buffer.data(), buffer.size());
 #endif
+        }
     }
 }
 
@@ -133,8 +121,10 @@ void TCPLink::_disconnect(void)
     wait();
     if (_socket) {
         _socketIsConnected = false;
+        _socket->disconnectFromHost(); // Disconnect tcp
+        _socket->waitForDisconnected();        
         _socket->deleteLater(); // Make sure delete happens on correct thread
-        _socket = NULL;
+        _socket = nullptr;
         emit disconnected();
     }
 }
@@ -157,11 +147,11 @@ bool TCPLink::_connect(void)
 
 bool TCPLink::_hardwareConnect()
 {
-    Q_ASSERT(_socket == NULL);
+    Q_ASSERT(_socket == nullptr);
     _socket = new QTcpSocket();
 
     QSignalSpy errorSpy(_socket, static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)>(&QTcpSocket::error));
-    _socket->connectToHost(_config->address(), _config->port());
+    _socket->connectToHost(_tcpConfig->address(), _tcpConfig->port());
     QObject::connect(_socket, &QTcpSocket::readyRead, this, &TCPLink::readBytes);
 
     QObject::connect(_socket,static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)>(&QTcpSocket::error),
@@ -173,10 +163,10 @@ bool TCPLink::_hardwareConnect()
         // Whether a failed connection emits an error signal or not is platform specific.
         // So in cases where it is not emitted, we emit one ourselves.
         if (errorSpy.count() == 0) {
-            emit communicationError(tr("Link Error"), QString("Error on link %1. Connection failed").arg(getName()));
+            emit communicationError(tr("Link Error"), tr("Error on link %1. Connection failed").arg(getName()));
         }
         delete _socket;
-        _socket = NULL;
+        _socket = nullptr;
         return false;
     }
     _socketIsConnected = true;
@@ -187,7 +177,7 @@ bool TCPLink::_hardwareConnect()
 void TCPLink::_socketError(QAbstractSocket::SocketError socketError)
 {
     Q_UNUSED(socketError);
-    emit communicationError(tr("Link Error"), QString("Error on link %1. Error on socket: %2.").arg(getName()).arg(_socket->errorString()));
+    emit communicationError(tr("Link Error"), tr("Error on link %1. Error on socket: %2.").arg(getName()).arg(_socket->errorString()));
 }
 
 /**
@@ -202,7 +192,7 @@ bool TCPLink::isConnected() const
 
 QString TCPLink::getName() const
 {
-    return _config->name();
+    return _tcpConfig->name();
 }
 
 qint64 TCPLink::getConnectionSpeed() const
@@ -264,7 +254,6 @@ static QString get_ip_address(const QString& address)
     if (info.error() == QHostInfo::NoError)
     {
         QList<QHostAddress> hostAddresses = info.addresses();
-        QHostAddress address;
         for (int i = 0; i < hostAddresses.size(); i++)
         {
             // Exclude all IPv6 addresses
@@ -274,7 +263,7 @@ static QString get_ip_address(const QString& address)
             }
         }
     }
-    return QString("");
+    return {};
 }
 
 TCPConfiguration::TCPConfiguration(const QString& name) : LinkConfiguration(name)
@@ -292,8 +281,8 @@ TCPConfiguration::TCPConfiguration(TCPConfiguration* source) : LinkConfiguration
 void TCPConfiguration::copyFrom(LinkConfiguration *source)
 {
     LinkConfiguration::copyFrom(source);
-    TCPConfiguration* usource = dynamic_cast<TCPConfiguration*>(source);
-    Q_ASSERT(usource != NULL);
+    auto* usource = qobject_cast<TCPConfiguration*>(source);
+    Q_ASSERT(usource != nullptr);
     _port    = usource->port();
     _address = usource->address();
 }
@@ -314,7 +303,7 @@ void TCPConfiguration::setHost(const QString host)
     if(ipAdd.isEmpty()) {
         qWarning() << "TCP:" << "Could not resolve host:" << host;
     } else {
-        _address = ipAdd;
+        _address = QHostAddress(ipAdd);
     }
 }
 
@@ -338,7 +327,7 @@ void TCPConfiguration::loadSettings(QSettings& settings, const QString& root)
 void TCPConfiguration::updateSettings()
 {
     if(_link) {
-        TCPLink* ulink = dynamic_cast<TCPLink*>(_link);
+        auto* ulink = qobject_cast<TCPLink*>(_link);
         if(ulink) {
             ulink->_restartConnection();
         }

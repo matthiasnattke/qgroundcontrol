@@ -1,4 +1,4 @@
-import QtQuick 2.2
+import QtQuick 2.3
 import QtQuick.Controls 1.2
 
 import QGroundControl.FactSystem 1.0
@@ -7,33 +7,33 @@ import QGroundControl.Controls 1.0
 import QGroundControl.Controllers 1.0
 import QGroundControl.Palette 1.0
 
-FactPanel {
-    id:             panel
-    anchors.fill:   parent
-    color:          qgcPal.windowShadeDark
+Item {
+    anchors.fill:       parent
 
-    QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
-    APMAirframeComponentController {
-        id:         controller
-        factPanel:  panel
-    }
+    APMAirframeComponentController {id: controller; }
 
-    property Fact sysIdFact:        controller.getParameterFact(-1, "FRAME")
-
+    property Fact _frameClass:          controller.getParameterFact(-1, "FRAME_CLASS")
+    property Fact _frameType:           controller.getParameterFact(-1, "FRAME_TYPE", false)
+    property bool _frameTypeAvailable:  controller.parameterExists(-1, "FRAME_TYPE")
 
     Column {
-        anchors.fill: parent
-        anchors.margins: 8
+        anchors.fill:       parent
 
         VehicleSummaryRow {
-            id: nameRow;
-            labelText: qsTr("Frame Type:")
-            valueText: sysIdFact.valueString === "0" ? "Plus"
-                     : sysIdFact.valueString === "1" ? "X"
-                     : sysIdFact.valueString === "2" ? "V"
-                     : sysIdFact.valueString == "3" ? "H"
-                     :/* Fact.value == 10 */ "New Y6";
+            labelText:  qsTr("Frame Class")
+            valueText:  _frameClass.enumStringValue
 
+        }
+
+        VehicleSummaryRow {
+            labelText:  qsTr("Frame Type")
+            valueText:  visible ? _frameType.enumStringValue : ""
+            visible:    _frameTypeAvailable
+        }
+
+        VehicleSummaryRow {
+            labelText: qsTr("Firmware Version")
+            valueText: activeVehicle.firmwareMajorVersion == -1 ? qsTr("Unknown") : activeVehicle.firmwareMajorVersion + "." + activeVehicle.firmwareMinorVersion + "." + activeVehicle.firmwarePatchVersion + activeVehicle.firmwareVersionTypeString
         }
     }
 }

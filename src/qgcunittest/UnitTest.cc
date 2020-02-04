@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 /// @file
 ///     @brief Base class for all unit tests
@@ -29,8 +16,10 @@
 #include "UnitTest.h"
 #include "QGCApplication.h"
 #include "MAVLinkProtocol.h"
-#include "MainWindow.h"
 #include "Vehicle.h"
+
+#include <QTemporaryFile>
+#include <QTime>
 
 bool UnitTest::_messageBoxRespondedTo = false;
 bool UnitTest::_badResponseButton = false;
@@ -44,10 +33,10 @@ enum UnitTest::FileDialogType UnitTest::_fileDialogExpectedType = getOpenFileNam
 int UnitTest::_missedFileDialogCount = 0;
 
 UnitTest::UnitTest(void)
-    : _linkManager(NULL)
-    , _mockLink(NULL)
-    , _mainWindow(NULL)
-    , _vehicle(NULL)
+    : _linkManager(nullptr)
+    , _mockLink(nullptr)
+    , _mainWindow(nullptr)
+    , _vehicle(nullptr)
     , _expectMissedFileDialog(false)
     , _expectMissedMessageBox(false)
     , _unitTestRun(false)
@@ -91,7 +80,7 @@ int UnitTest::run(QString& singleTest)
 {
     int ret = 0;
     
-    foreach (QObject* test, _testList()) {
+    for (QObject* test: _testList()) {
         if (singleTest.isEmpty() || singleTest == test->objectName()) {
             QStringList args;
             args << "*" << "-maxwarnings" << "0";
@@ -156,6 +145,8 @@ void UnitTest::cleanup(void)
 
 void UnitTest::setExpectedMessageBox(QMessageBox::StandardButton response)
 {
+    //-- TODO
+#if 0
     // This means that there was an expected message box but no call to checkExpectedMessageBox
     Q_ASSERT(!_messageBoxRespondedTo);
     
@@ -164,14 +155,16 @@ void UnitTest::setExpectedMessageBox(QMessageBox::StandardButton response)
     
     // Make sure we haven't missed any previous message boxes
     int missedMessageBoxCount = _missedMessageBoxCount;
-    _missedMessageBoxCount = 0;
     QCOMPARE(missedMessageBoxCount, 0);
-    
+#endif
+    _missedMessageBoxCount = 0;
     _messageBoxResponseButton = response;
 }
 
 void UnitTest::setExpectedFileDialog(enum FileDialogType type, QStringList response)
 {
+    //-- TODO
+#if 0
     // This means that there was an expected file dialog but no call to checkExpectedFileDialog
     Q_ASSERT(!_fileDialogRespondedTo);
     
@@ -182,7 +175,7 @@ void UnitTest::setExpectedFileDialog(enum FileDialogType type, QStringList respo
     int missedFileDialogCount = _missedFileDialogCount;
     _missedFileDialogCount = 0;
     QCOMPARE(missedFileDialogCount, 0);
-    
+#endif
     _fileDialogResponseSet = true;
     _fileDialogResponse = response;
     _fileDialogExpectedType = type;
@@ -205,10 +198,18 @@ void UnitTest::checkExpectedMessageBox(int expectFailFlags)
     }
     
     // Clear this flag before QCOMPARE since anything after QCOMPARE will be skipped on failure
-    bool messageBoxRespondedTo = _messageBoxRespondedTo;
-    _messageBoxRespondedTo = false;
     
-    QCOMPARE(messageBoxRespondedTo, true);
+    //-- TODO
+    // bool messageBoxRespondedTo = _messageBoxRespondedTo;
+    // QCOMPARE(messageBoxRespondedTo, true);
+    _messageBoxRespondedTo = false;
+}
+
+void UnitTest::checkMultipleExpectedMessageBox(int messageCount)
+{
+    int missedMessageBoxCount = _missedMessageBoxCount;
+    _missedMessageBoxCount = 0;
+    QCOMPARE(missedMessageBoxCount, messageCount);
 }
 
 void UnitTest::checkExpectedFileDialog(int expectFailFlags)
@@ -390,10 +391,16 @@ void UnitTest::_connectMockLink(MAV_AUTOPILOT autopilot)
 
     // Wait for the Vehicle to get created
     QSignalSpy spyVehicle(qgcApp()->toolbox()->multiVehicleManager(), SIGNAL(parameterReadyVehicleAvailableChanged(bool)));
-    QCOMPARE(spyVehicle.wait(5000), true);
+    QCOMPARE(spyVehicle.wait(10000), true);
     QVERIFY(qgcApp()->toolbox()->multiVehicleManager()->parameterReadyVehicleAvailable());
     _vehicle = qgcApp()->toolbox()->multiVehicleManager()->activeVehicle();
     QVERIFY(_vehicle);
+
+    // Wait for plan request to complete
+    if (!_vehicle->initialPlanRequestComplete()) {
+        QSignalSpy spyPlan(_vehicle, SIGNAL(initialPlanRequestCompleteChanged(bool)));
+        QCOMPARE(spyPlan.wait(10000), true);
+    }
 }
 
 void UnitTest::_disconnectMockLink(void)
@@ -407,25 +414,30 @@ void UnitTest::_disconnectMockLink(void)
         linkSpy.wait(1000);
         QCOMPARE(linkSpy.count(), 1);
 
-        _vehicle = NULL;
+        _vehicle = nullptr;
     }
 }
 
 void UnitTest::_linkDeleted(LinkInterface* link)
 {
     if (link == _mockLink) {
-        _mockLink = NULL;
+        _mockLink = nullptr;
     }
 }
 
 void UnitTest::_createMainWindow(void)
 {
+    //-- TODO
+#if 0
     _mainWindow = MainWindow::_create();
     Q_CHECK_PTR(_mainWindow);
+#endif
 }
 
 void UnitTest::_closeMainWindow(bool cancelExpected)
 {
+    //-- TODO
+#if 0
     if (_mainWindow) {
         QSignalSpy  mainWindowSpy(_mainWindow, SIGNAL(mainWindowClosed()));
 
@@ -438,4 +450,120 @@ void UnitTest::_closeMainWindow(bool cancelExpected)
         // This prevents qWarning from bad references in Qml
         QTest::qWait(1000);
     }
+#else
+    Q_UNUSED(cancelExpected);
+#endif
+}
+
+QString UnitTest::createRandomFile(uint32_t byteCount)
+{
+    QTemporaryFile tempFile;
+
+    QTime time = QTime::currentTime();
+    qsrand((uint)time.msec());
+
+    tempFile.setAutoRemove(false);
+    if (tempFile.open()) {
+        for (uint32_t bytesWritten=0; bytesWritten<byteCount; bytesWritten++) {
+            unsigned char byte = (qrand() * 0xFF) / RAND_MAX;
+            tempFile.write((char *)&byte, 1);
+        }
+        tempFile.close();
+        return tempFile.fileName();
+    } else {
+        qWarning() << "UnitTest::createRandomFile open failed" << tempFile.errorString();
+        return QString();
+    }
+}
+
+bool UnitTest::fileCompare(const QString& file1, const QString& file2)
+{
+    QFile f1(file1);
+    QFile f2(file2);
+
+    if (QFileInfo(file1).size() != QFileInfo(file2).size()) {
+        qWarning() << "UnitTest::fileCompare file sizes differ size1:size2" << QFileInfo(file1).size() << QFileInfo(file2).size();
+        return false;
+    }
+
+    if (!f1.open(QIODevice::ReadOnly)) {
+        qWarning() << "UnitTest::fileCompare unable to open file1:" << f1.errorString();
+        return false;
+    }
+    if (!f2.open(QIODevice::ReadOnly)) {
+        qWarning() << "UnitTest::fileCompare unable to open file1:" << f1.errorString();
+        return false;
+    }
+
+    qint64 bytesRemaining = QFileInfo(file1).size();
+    qint64 offset = 0;
+    while (bytesRemaining) {
+        uint8_t b1, b2;
+
+        qint64 bytesRead = f1.read((char*)&b1, 1);
+        if (bytesRead != 1) {
+            qWarning() << "UnitTest::fileCompare file1 read failed:" << f1.errorString();
+            return false;
+        }
+        bytesRead = f2.read((char*)&b2, 1);
+        if (bytesRead != 1) {
+            qWarning() << "UnitTest::fileCompare file2 read failed:" << f2.errorString();
+            return false;
+        }
+
+        if (b1 != b2) {
+            qWarning() << "UnitTest::fileCompare mismatch offset:b1:b2" << offset << b1 << b2;
+            return false;
+        }
+
+        offset++;
+        bytesRemaining--;
+    }
+
+    return true;
+}
+
+bool UnitTest::doubleNaNCompare(double value1, double value2)
+{
+    if (qIsNaN(value1) && qIsNaN(value2)) {
+        return true;
+    } else {
+        bool ret = qFuzzyCompare(value1, value2);
+        if (!ret) {
+            qDebug() << value1 << value2;
+        }
+        return ret;
+    }
+}
+
+void UnitTest::changeFactValue(Fact* fact,double increment)
+{
+    if (fact->typeIsBool()) {
+        fact->setRawValue(!fact->rawValue().toBool());
+    } else {
+        if (increment == 0) {
+            increment = 1;
+        }
+        fact->setRawValue(fact->rawValue().toDouble() + increment);
+    }
+}
+
+void UnitTest::_missionItemsEqual(MissionItem& actual, MissionItem& expected)
+{
+    QCOMPARE(static_cast<int>(actual.command()),    static_cast<int>(expected.command()));
+    QCOMPARE(static_cast<int>(actual.frame()),      static_cast<int>(expected.frame()));
+    QCOMPARE(actual.autoContinue(),                 expected.autoContinue());
+
+    QVERIFY(UnitTest::doubleNaNCompare(actual.param1(), expected.param1()));
+    QVERIFY(UnitTest::doubleNaNCompare(actual.param2(), expected.param2()));
+    QVERIFY(UnitTest::doubleNaNCompare(actual.param3(), expected.param3()));
+    QVERIFY(UnitTest::doubleNaNCompare(actual.param4(), expected.param4()));
+    QVERIFY(UnitTest::doubleNaNCompare(actual.param5(), expected.param5()));
+    QVERIFY(UnitTest::doubleNaNCompare(actual.param6(), expected.param6()));
+    QVERIFY(UnitTest::doubleNaNCompare(actual.param7(), expected.param7()));
+}
+
+bool UnitTest::fuzzyCompareLatLon(const QGeoCoordinate& coord1, const QGeoCoordinate& coord2)
+{
+    return coord1.distanceTo(coord2) < 1.0;
 }

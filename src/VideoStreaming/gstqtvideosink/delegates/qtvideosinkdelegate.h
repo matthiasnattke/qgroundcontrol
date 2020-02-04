@@ -18,11 +18,10 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
-#ifndef QT_VIDEO_SINK_DELEGATE_H
-#define QT_VIDEO_SINK_DELEGATE_H
+#pragma once
 
 #include "basedelegate.h"
 #include "../painters/abstractsurfacepainter.h"
@@ -72,4 +71,3 @@ private:
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QtVideoSinkDelegate::PainterTypes)
 
-#endif // QT_VIDEO_SINK_DELEGATE_H

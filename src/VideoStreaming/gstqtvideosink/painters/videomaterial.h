@@ -19,11 +19,10 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
-#ifndef VIDEOMATERIAL_H
-#define VIDEOMATERIAL_H
+#pragma once
 
 #include "../utils/bufferformat.h"
 #include <QSize>
@@ -51,14 +50,16 @@ public:
 protected:
     VideoMaterial();
     void initRgbTextureInfo(GLenum internalFormat, GLuint format,
-                            GLenum type, const QSize &size);
-    void initYuv420PTextureInfo(bool uvSwapped, const QSize &size);
+                            GLenum type, const GstVideoInfo& videoInfo);
+    void initYuv420PTextureInfo(const GstVideoInfo& videoInfo);
+    void updateYuv420PTextureInfo(const GstVideoInfo& videoInfo);
     void init(GstVideoColorMatrix colorMatrixType);
 
 private:
     void bindTexture(int i, const quint8 *data);
 
-
+    GstVideoInfo m_videoInfo;
+    GstBufferPool* m_bufferPool;
     GstBuffer *m_frame;
     QMutex m_frameMutex;
 
@@ -68,7 +69,8 @@ private:
     int m_textureWidths[Num_Texture_IDs];
     int m_textureHeights[Num_Texture_IDs];
     int m_textureOffsets[Num_Texture_IDs];
-    QSize m_textureSize;
+    int m_textureStrides[Num_Texture_IDs];
+    bool m_textureAllocated[Num_Texture_IDs];
 
     GLenum m_textureFormat;
     GLuint m_textureInternalFormat;
@@ -80,4 +82,3 @@ private:
     friend class VideoMaterialShader;
 };
 
-#endif // VIDEOMATERIAL_H

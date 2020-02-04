@@ -1,25 +1,12 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
 
 /*!
  * @file
@@ -28,8 +15,7 @@ This file is part of the QGROUNDCONTROL project
  *
  */
 
-#ifndef UDPLINK_H
-#define UDPLINK_H
+#pragma once
 
 #include <QString>
 #include <QList>
@@ -47,13 +33,23 @@ This file is part of the QGROUNDCONTROL project
 #include "QGCConfig.h"
 #include "LinkManager.h"
 
-#define QGC_UDP_LOCAL_PORT  14550
-#define QGC_UDP_TARGET_PORT 14555
+class UDPCLient {
+public:
+    UDPCLient(const QHostAddress& address_, quint16 port_)
+        : address(address_)
+        , port(port_)
+    {}
+    UDPCLient(const UDPCLient* other)
+        : address(other->address)
+        , port(other->port)
+    {}
+    QHostAddress    address;
+    quint16         port;
+};
 
 class UDPConfiguration : public LinkConfiguration
 {
     Q_OBJECT
-
 public:
 
     Q_PROPERTY(quint16      localPort   READ localPort  WRITE setLocalPort  NOTIFY localPortChanged)
@@ -77,30 +73,7 @@ public:
      */
     UDPConfiguration(UDPConfiguration* source);
 
-    /*!
-     * @brief Begin iteration through the list of target hosts
-     *
-     * @param[out] host Host name
-     * @param[out] port Port number
-     * @return Returns false if list is empty
-     */
-    bool firstHost      (QString& host, int& port);
-
-    /*!
-     * @brief Continues iteration through the list of target hosts
-     *
-     * @param[out] host Host name
-     * @param[out] port Port number
-     * @return Returns false if reached the end of the list (in which case, both host and port are unchanged)
-     */
-    bool nextHost       (QString& host, int& port);
-
-    /*!
-     * @brief Get the number of target hosts
-     *
-     * @return Number of hosts in list
-     */
-    int hostCount       () { return _hosts.count(); }
+    ~UDPConfiguration();
 
     /*!
      * @brief The UDP port we bind to
@@ -122,7 +95,7 @@ public:
      * @param[in] host Host name, e.g. localhost or 192.168.1.1
      * @param[in] port Port number
      */
-    void addHost        (const QString& host, int port);
+    void addHost        (const QString& host, quint16 port);
 
     /*!
      * @brief Remove a target host from the list
@@ -143,13 +116,18 @@ public:
      */
     QStringList hostList    () { return _hostList; }
 
+    const QList<UDPCLient*> targetHosts() { return _targetHosts; }
+
     /// From LinkConfiguration
-    LinkType    type            () { return LinkConfiguration::TypeUdp; }
-    void        copyFrom        (LinkConfiguration* source);
-    void        loadSettings    (QSettings& settings, const QString& root);
-    void        saveSettings    (QSettings& settings, const QString& root);
-    void        updateSettings  ();
-    QString     settingsURL     () { return "UdpSettings.qml"; }
+    LinkType    type                 () { return LinkConfiguration::TypeUdp; }
+    void        copyFrom             (LinkConfiguration* source);
+    void        loadSettings         (QSettings& settings, const QString& root);
+    void        saveSettings         (QSettings& settings, const QString& root);
+    void        updateSettings       ();
+    bool        isAutoConnectAllowed () { return true; }
+    bool        isHighLatencyAllowed () { return true; }
+    QString     settingsURL          () { return "UdpSettings.qml"; }
+    QString     settingsTitle        () { return tr("UDP Link Settings"); }
 
 signals:
     void localPortChanged   ();
@@ -157,13 +135,13 @@ signals:
 
 private:
     void _updateHostList    ();
+    void _clearTargetHosts  ();
+    void _copyFrom          (LinkConfiguration *source);
 
 private:
-    QMutex _confMutex;
-    QMap<QString, int>::iterator _it;
-    QMap<QString, int> _hosts;  ///< ("host", port)
-    QStringList _hostList;      ///< Exposed to QML
-    quint16 _localPort;
+    QList<UDPCLient*>   _targetHosts;
+    QStringList         _hostList;      ///< Exposed to QML
+    quint16             _localPort;
 };
 
 class UDPLink : public LinkInterface
@@ -174,68 +152,55 @@ class UDPLink : public LinkInterface
     friend class LinkManager;
 
 public:
-    void requestReset() { }
-    bool isConnected() const;
-    QString getName() const;
+    void    requestReset            () override { }
+    bool    isConnected             () const override;
+    QString getName                 () const override;
 
     // Extensive statistics for scientific purposes
-    qint64 getConnectionSpeed() const;
-    qint64 getCurrentInDataRate() const;
-    qint64 getCurrentOutDataRate() const;
+    qint64  getConnectionSpeed      () const override;
+    qint64  getCurrentInDataRate    () const;
+    qint64  getCurrentOutDataRate   () const;
 
-    void run();
+    // Thread
+    void    run                     () override;
 
     // These are left unimplemented in order to cause linker errors which indicate incorrect usage of
     // connect/disconnect on link directly. All connect/disconnect calls should be made through LinkManager.
-    bool connect(void);
-    bool disconnect(void);
-
-    LinkConfiguration* getLinkConfiguration() { return _config; }
+    bool    connect                 (void);
+    bool    disconnect              (void);
 
 public slots:
-
-    /*! @brief Add a new host to broadcast messages to */
-    void addHost    (const QString& host);
-    /*! @brief Remove a host from broadcasting messages to */
-    void removeHost (const QString& host);
-
-    void readBytes();
+    void    readBytes               ();
 
 private slots:
-    /*!
-     * @brief Write a number of bytes to the interface.
-     *
-     * @param data Pointer to the data byte array
-     * @param size The size of the bytes array
-     **/
-    void _writeBytes(const QByteArray data);
-
-protected:
-
-    QUdpSocket*         _socket;
-    UDPConfiguration*   _config;
-    bool                _connectState;
+    void    _writeBytes             (const QByteArray data) override;
 
 private:
     // Links are only created/destroyed by LinkManager so constructor/destructor is not public
-    UDPLink(UDPConfiguration* config);
+    UDPLink(SharedLinkConfigurationPointer& config);
     ~UDPLink();
 
     // From LinkInterface
-    virtual bool _connect(void);
-    virtual void _disconnect(void);
+    bool    _connect                (void) override;
+    void    _disconnect             (void) override;
 
-    bool _hardwareConnect();
-    void _restartConnection();
-
-    void _registerZeroconf(uint16_t port, const std::string& regType);
-    void _deregisterZeroconf();
+    bool    _isIpLocal              (const QHostAddress& add);
+    bool    _hardwareConnect        ();
+    void    _restartConnection      ();
+    void    _registerZeroconf       (uint16_t port, const std::string& regType);
+    void    _deregisterZeroconf     ();
+    void    _writeDataGram          (const QByteArray data, const UDPCLient* target);
 
 #if defined(QGC_ZEROCONF_ENABLED)
     DNSServiceRef  _dnssServiceRef;
 #endif
 
-    bool                _running;
+    bool                    _running;
+    QUdpSocket*             _socket;
+    UDPConfiguration*       _udpConfig;
+    bool                    _connectState;
+    QList<UDPCLient*>       _sessionTargets;
+    QList<QHostAddress>     _localAddress;
+
 };
 
-#endif // UDPLINK_H

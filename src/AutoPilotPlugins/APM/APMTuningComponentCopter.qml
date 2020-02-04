@@ -1,28 +1,16 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
 
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
- This file is part of the QGROUNDCONTROL project
-
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
- ======================================================================*/
-
-import QtQuick              2.5
-import QtQuick.Controls     1.4
+import QtQuick              2.3
+import QtQuick.Controls     1.2
+import QtQuick.Layouts      1.2
 
 import QGroundControl.FactSystem    1.0
 import QGroundControl.FactControls  1.0
@@ -30,315 +18,466 @@ import QGroundControl.Palette       1.0
 import QGroundControl.Controls      1.0
 import QGroundControl.ScreenTools   1.0
 
-QGCView {
-    id:                 _safetyView
-    viewPanel:          panel
-    anchors.fill:       parent
+SetupPage {
+    id:             tuningPage
+    pageComponent:  tuningPageComponent
 
-    FactPanelController { id: controller; factPanel: panel }
+    Component {
+        id: tuningPageComponent
 
-    QGCPalette { id: palette; colorGroupEnabled: enabled }
+        Column {
+            width: availableWidth
 
-    property Fact _throttleMid: controller.getParameterFact(-1, "THR_MID")
-    property Fact _rcFeel:      controller.getParameterFact(-1, "RC_FEEL_RP")
-    property Fact _rateRollP:   controller.getParameterFact(-1, "r.ATC_RAT_RLL_P")
-    property Fact _rateRollI:   controller.getParameterFact(-1, "r.ATC_RAT_RLL_I")
-    property Fact _ratePitchP:  controller.getParameterFact(-1, "r.ATC_RAT_PIT_P")
-    property Fact _ratePitchI:  controller.getParameterFact(-1, "r.ATC_RAT_PIT_I")
-    property Fact _rateClimbP:  controller.getParameterFact(-1, "ACCEL_Z_P")
-    property Fact _rateClimbI:  controller.getParameterFact(-1, "ACCEL_Z_I")
+            FactPanelController { id: controller; }
 
-    property Fact _ch7Opt:  controller.getParameterFact(-1, "CH7_OPT")
-    property Fact _ch8Opt:  controller.getParameterFact(-1, "CH8_OPT")
-    property Fact _ch9Opt:  controller.getParameterFact(-1, "CH9_OPT")
-    property Fact _ch10Opt: controller.getParameterFact(-1, "CH10_OPT")
-    property Fact _ch11Opt: controller.getParameterFact(-1, "CH11_OPT")
-    property Fact _ch12Opt: controller.getParameterFact(-1, "CH12_OPT")
+            property bool _atcInputTCAvailable: controller.parameterExists(-1, "ATC_INPUT_TC")
+            property Fact _atcInputTC:          controller.getParameterFact(-1, "ATC_INPUT_TC", false)
+            property Fact _rateRollP:           controller.getParameterFact(-1, "ATC_RAT_RLL_P")
+            property Fact _rateRollI:           controller.getParameterFact(-1, "ATC_RAT_RLL_I")
+            property Fact _ratePitchP:          controller.getParameterFact(-1, "ATC_RAT_PIT_P")
+            property Fact _ratePitchI:          controller.getParameterFact(-1, "ATC_RAT_PIT_I")
+            property Fact _rateClimbP:          controller.getParameterFact(-1, "PSC_ACCZ_P")
+            property Fact _rateClimbI:          controller.getParameterFact(-1, "PSC_ACCZ_I")
+            property Fact _motSpinArm:          controller.getParameterFact(-1, "MOT_SPIN_ARM")
+            property Fact _motSpinMin:          controller.getParameterFact(-1, "MOT_SPIN_MIN")
 
-    readonly property int   _firstOptionChannel:    7
-    readonly property int   _lastOptionChannel:     12
+            property Fact _ch7Opt:  controller.getParameterFact(-1, "r.RC7_OPTION")
+            property Fact _ch8Opt:  controller.getParameterFact(-1, "r.RC8_OPTION")
+            property Fact _ch9Opt:  controller.getParameterFact(-1, "r.RC9_OPTION")
+            property Fact _ch10Opt: controller.getParameterFact(-1, "r.RC10_OPTION")
+            property Fact _ch11Opt: controller.getParameterFact(-1, "r.RC11_OPTION")
+            property Fact _ch12Opt: controller.getParameterFact(-1, "r.RC12_OPTION")
 
-    property Fact   _autoTuneAxes:                  controller.getParameterFact(-1, "AUTOTUNE_AXES")
-    property int    _autoTuneSwitchChannelIndex:    0
-    readonly property int _autoTuneOption:          17
+            readonly property int   _firstOptionChannel:    7
+            readonly property int   _lastOptionChannel:     12
 
-    property real _margins: ScreenTools.defaultFontPixelHeight
+            property Fact   _autoTuneAxes:                  controller.getParameterFact(-1, "AUTOTUNE_AXES")
+            property int    _autoTuneSwitchChannelIndex:    0
+            readonly property int _autoTuneOption:          17
 
-    property bool _loadComplete: false
+            property real _margins: ScreenTools.defaultFontPixelHeight
 
-    ExclusiveGroup { id: fenceActionRadioGroup }
-    ExclusiveGroup { id: landLoiterRadioGroup }
-    ExclusiveGroup { id: returnAltRadioGroup }
+            property bool _loadComplete: false
 
-    Component.onCompleted: {
-        // Qml Sliders have a strange behavior in which they first set Slider::value to some internal
-        // setting and then set Slider::value to the bound properties value. If you have an onValueChanged
-        // handler which updates your property with the new value, this first value change will trash
-        // your bound values. In order to work around this we don't set the values into the Sliders until
-        // after Qml load is done. We also don't track value changes until Qml load completes.
-        throttleHover.value = _throttleMid.value
-        rollPitch.value = _rateRollP.value
-        climb.value = _rateClimbP.value
-        rcFeel.value = _rcFeel.value
-        _loadComplete = true
+            ExclusiveGroup { id: fenceActionRadioGroup }
+            ExclusiveGroup { id: landLoiterRadioGroup }
+            ExclusiveGroup { id: returnAltRadioGroup }
 
-        calcAutoTuneChannel()
-    }
+            Component.onCompleted: {
+                // We use QtCharts only on Desktop platforms
+                showAdvanced = !ScreenTools.isMobile
 
-    /// The AutoTune switch is stored in one of the RC#_FUNCTION parameters. We need to loop through those
-    /// to find them and setup the ui accordindly.
-    function calcAutoTuneChannel() {
-        _autoTuneSwitchChannelIndex = 0
-        for (var channel=_firstOptionChannel; channel<=_lastOptionChannel; channel++) {
-            var optionFact = controller.getParameterFact(-1, "CH" + channel + "_OPT")
-            if (optionFact.value == _autoTuneOption) {
-                _autoTuneSwitchChannelIndex = channel - _firstOptionChannel + 1
-                break
-            }
-        }
-    }
+                // Qml Sliders have a strange behavior in which they first set Slider::value to some internal
+                // setting and then set Slider::value to the bound properties value. If you have an onValueChanged
+                // handler which updates your property with the new value, this first value change will trash
+                // your bound values. In order to work around this we don't set the values into the Sliders until
+                // after Qml load is done. We also don't track value changes until Qml load completes.
+                rollPitch.value = _rateRollP.value
+                climb.value = _rateClimbP.value
+                if (_atcInputTCAvailable) {
+                    atcInputTC.value = _atcInputTC.value
+                }
+                _loadComplete = true
 
-    /// We need to clear AutoTune from any previous channel before setting it to a new one
-    function setChannelAutoTuneOption(channel) {
-        // First clear any previous settings for AutTune
-        for (var optionChannel=_firstOptionChannel; optionChannel<=_lastOptionChannel; optionChannel++) {
-            var optionFact = controller.getParameterFact(-1, "CH" + optionChannel + "_OPT")
-            if (optionFact.value == _autoTuneOption) {
-                optionFact.value = 0
-            }
-        }
-
-        // Now set the function into the new channel
-        if (channel != 0) {
-            var optionFact = controller.getParameterFact(-1, "CH" + channel + "_OPT")
-            optionFact.value = _autoTuneOption
-        }
-    }
-
-    Connections { target: _ch7Opt; onValueChanged: calcAutoTuneChannel() }
-    Connections { target: _ch8Opt; onValueChanged: calcAutoTuneChannel() }
-    Connections { target: _ch9Opt; onValueChanged: calcAutoTuneChannel() }
-    Connections { target: _ch10Opt; onValueChanged: calcAutoTuneChannel() }
-    Connections { target: _ch11Opt; onValueChanged: calcAutoTuneChannel() }
-    Connections { target: _ch12Opt; onValueChanged: calcAutoTuneChannel() }
-
-    QGCViewPanel {
-        id:             panel
-        anchors.fill:   parent
-
-        QGCFlickable {
-            clip:               true
-            anchors.fill:       parent
-            contentHeight:      autoTuneRect.y + autoTuneRect.height
-            flickableDirection: Flickable.VerticalFlick
-
-            QGCLabel {
-                id:         basicLabel
-                text:       qsTr("Basic Tuning")
-                font.weight: Font.DemiBold
+                calcAutoTuneChannel()
             }
 
-            Rectangle {
-                id:                 basicTuningRect
-                anchors.topMargin:  _margins / 2
+            /// The AutoTune switch is stored in one of the RC#_OPTION parameters. We need to loop through those
+            /// to find them and setup the ui accordindly.
+            function calcAutoTuneChannel() {
+                _autoTuneSwitchChannelIndex = 0
+                for (var channel=_firstOptionChannel; channel<=_lastOptionChannel; channel++) {
+                    var optionFact = controller.getParameterFact(-1, "r.RC" + channel + "_OPTION")
+                    if (optionFact.value == _autoTuneOption) {
+                        _autoTuneSwitchChannelIndex = channel - _firstOptionChannel + 1
+                        break
+                    }
+                }
+            }
+
+            /// We need to clear AutoTune from any previous channel before setting it to a new one
+            function setChannelAutoTuneOption(channel) {
+                // First clear any previous settings for AutTune
+                for (var optionChannel=_firstOptionChannel; optionChannel<=_lastOptionChannel; optionChannel++) {
+                    var optionFact = controller.getParameterFact(-1, "r.RC" + optionChannel + "_OPTION")
+                    if (optionFact.value == _autoTuneOption) {
+                        optionFact.value = 0
+                    }
+                }
+
+                // Now set the function into the new channel
+                if (channel != 0) {
+                    var optionFact = controller.getParameterFact(-1, "r.RC" + channel + "_OPTION")
+                    optionFact.value = _autoTuneOption
+                }
+            }
+
+            Connections { target: _ch7Opt; onValueChanged: calcAutoTuneChannel() }
+            Connections { target: _ch8Opt; onValueChanged: calcAutoTuneChannel() }
+            Connections { target: _ch9Opt; onValueChanged: calcAutoTuneChannel() }
+            Connections { target: _ch10Opt; onValueChanged: calcAutoTuneChannel() }
+            Connections { target: _ch11Opt; onValueChanged: calcAutoTuneChannel() }
+            Connections { target: _ch12Opt; onValueChanged: calcAutoTuneChannel() }
+
+            Column {
                 anchors.left:       parent.left
                 anchors.right:      parent.right
-                anchors.top:        basicLabel.bottom
-                height:             basicTuningColumn.y + basicTuningColumn.height + _margins
-                color:              palette.windowShade
+                spacing:            _margins
+                visible:            !advanced
 
-                Column {
-                    id:                 basicTuningColumn
-                    anchors.margins:    _margins
+                QGCLabel {
+                    text:       qsTr("Basic Tuning")
+                    font.family: ScreenTools.demiboldFontFamily
+                }
+
+                Rectangle {
+                    id:                 basicTuningRect
                     anchors.left:       parent.left
                     anchors.right:      parent.right
-                    anchors.top:        parent.top
+                    height:             basicTuningColumn.y + basicTuningColumn.height + _margins
+                    color:              qgcPal.windowShade
+
+                    Column {
+                        id:                 basicTuningColumn
+                        anchors.margins:    _margins
+                        anchors.left:       parent.left
+                        anchors.right:      parent.right
+                        anchors.top:        parent.top
+                        spacing:            _margins
+
+                        Column {
+                            anchors.left:       parent.left
+                            anchors.right:      parent.right
+
+                            QGCLabel {
+                                text:       qsTr("Roll/Pitch Sensitivity")
+                                font.family: ScreenTools.demiboldFontFamily
+                            }
+
+                            QGCLabel {
+                                text: qsTr("Slide to the right if the copter is sluggish or slide to the left if the copter is twitchy")
+                            }
+
+                            Slider {
+                                id:                 rollPitch
+                                anchors.left:       parent.left
+                                anchors.right:      parent.right
+                                minimumValue:       0.08
+                                maximumValue:       0.4
+                                stepSize:           0.01
+                                tickmarksEnabled:   true
+
+                                onValueChanged: {
+                                    if (_loadComplete) {
+                                        _rateRollP.value = value
+                                        _rateRollI.value = value
+                                        _ratePitchP.value = value
+                                        _ratePitchI.value = value
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            anchors.left:       parent.left
+                            anchors.right:      parent.right
+
+                            QGCLabel {
+                                text:       qsTr("Climb Sensitivity")
+                                font.family: ScreenTools.demiboldFontFamily
+                            }
+
+                            QGCLabel {
+                                text: qsTr("Slide to the right to climb more aggressively or slide to the left to climb more gently")
+                            }
+
+                            Slider {
+                                id:                 climb
+                                anchors.left:       parent.left
+                                anchors.right:      parent.right
+                                minimumValue:       0.3
+                                maximumValue:       1.0
+                                stepSize:           0.02
+                                tickmarksEnabled:   true
+                                value:              _rateClimbP.value
+
+                                onValueChanged: {
+                                    if (_loadComplete) {
+                                        _rateClimbP.value = value
+                                        _rateClimbI.value = value * 2
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            anchors.left:       parent.left
+                            anchors.right:      parent.right
+                            visible:            _atcInputTCAvailable
+
+                            QGCLabel {
+                                text:       qsTr("RC Roll/Pitch Feel")
+                                font.family: ScreenTools.demiboldFontFamily
+                            }
+
+                            QGCLabel {
+                                text: qsTr("Slide to the left for soft control, slide to the right for crisp control")
+                            }
+
+                            Slider {
+                                id:                 atcInputTC
+                                anchors.left:       parent.left
+                                anchors.right:      parent.right
+                                minimumValue:       _atcInputTC.min
+                                maximumValue:       _atcInputTC.max
+                                stepSize:           _atcInputTC.increment
+                                tickmarksEnabled:   true
+
+                                onValueChanged: {
+                                    if (_loadComplete) {
+                                        _atcInputTC.value = value
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            anchors.left:       parent.left
+                            anchors.right:      parent.right
+
+                            QGCLabel {
+                                text:       qsTr("Spin While Armed")
+                                font.family: ScreenTools.demiboldFontFamily
+                            }
+
+                            QGCLabel {
+                                text: qsTr("Adjust the amount the motors spin to indicate armed")
+                            }
+
+                            Slider {
+                                anchors.left:       parent.left
+                                anchors.right:      parent.right
+                                minimumValue:       0
+                                maximumValue:       Math.max(0.3, _motSpinArm.rawValue)
+                                stepSize:           0.01
+                                tickmarksEnabled:   true
+                                value:              _motSpinArm.rawValue
+
+                                onValueChanged: {
+                                    if (_loadComplete) {
+                                        _motSpinArm.rawValue = value
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            anchors.left:       parent.left
+                            anchors.right:      parent.right
+
+                            QGCLabel {
+                                text:       qsTr("Minimum Thrust")
+                                font.family: ScreenTools.demiboldFontFamily
+                            }
+
+                            QGCLabel {
+                                text: qsTr("Adjust the minimum amount of thrust require for the vehicle to move")
+                            }
+
+                            QGCLabel {
+                                text:       qsTr("Warning: This setting should be higher than 'Spin While Armed'")
+                                color:      qgcPal.warningText
+                                visible:    _motSpinMin.rawValue < _motSpinArm.rawValue
+                            }
+
+                            Slider {
+                                anchors.left:       parent.left
+                                anchors.right:      parent.right
+                                minimumValue:       0
+                                maximumValue:       Math.max(0.3, _motSpinMin.rawValue)
+                                stepSize:           0.01
+                                tickmarksEnabled:   true
+                                value:              _motSpinMin.rawValue
+
+                                onValueChanged: {
+                                    if (_loadComplete) {
+                                        _motSpinMin.rawValue = value
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } // Rectangle - Basic tuning
+
+                Flow {
+                    id:                 flowLayout
+                    Layout.fillWidth:   true
                     spacing:            _margins
 
-                    Column {
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
+                    Rectangle {
+                        height: autoTuneLabel.height + autoTuneRect.height
+                        width:  autoTuneRect.width
+                        color:  qgcPal.window
 
                         QGCLabel {
-                            text:       qsTr("Throttle Hover")
-                            font.weight: Font.DemiBold
+                            id:                 autoTuneLabel
+                            text:               qsTr("AutoTune")
+                            font.family:        ScreenTools.demiboldFontFamily
                         }
 
-                        QGCLabel {
-                            text: qsTr("How much throttle is needed to maintain a steady hover")
-                        }
+                        Rectangle {
+                            id:             autoTuneRect
+                            width:          autoTuneColumn.x + autoTuneColumn.width + _margins
+                            height:         autoTuneColumn.y + autoTuneColumn.height + _margins
+                            anchors.top:    autoTuneLabel.bottom
+                            color:          qgcPal.windowShade
 
-                        Slider {
-                            id:                 throttleHover
-                            anchors.left:       parent.left
-                            anchors.right:      parent.right
-                            minimumValue:       200
-                            maximumValue:       800
-                            stepSize:           10.0
-                            tickmarksEnabled:   true
+                            Column {
+                                id:                 autoTuneColumn
+                                anchors.margins:    _margins
+                                anchors.left:       parent.left
+                                anchors.top:        parent.top
+                                spacing:            _margins
 
-                            onValueChanged: {
-                                if (_loadComplete) {
-                                    _throttleMid.value = value
+                                Row {
+                                    spacing: _margins
+
+                                    QGCLabel { text: qsTr("Axes to AutoTune:") }
+                                    FactBitmask { fact: _autoTuneAxes }
+                                }
+
+                                Row {
+                                    spacing:    _margins
+
+                                    QGCLabel {
+                                        anchors.baseline:   autoTuneChannelCombo.baseline
+                                        text:               qsTr("Channel for AutoTune switch:")
+                                    }
+
+                                    QGCComboBox {
+                                        id:             autoTuneChannelCombo
+                                        width:          ScreenTools.defaultFontPixelWidth * 14
+                                        model:          [qsTr("None"), qsTr("Channel 7"), qsTr("Channel 8"), qsTr("Channel 9"), qsTr("Channel 10"), qsTr("Channel 11"), qsTr("Channel 12") ]
+                                        currentIndex:   _autoTuneSwitchChannelIndex
+
+                                        onActivated: {
+                                            var channel = index
+
+                                            if (channel > 0) {
+                                                channel += 6
+                                            }
+                                            setChannelAutoTuneOption(channel)
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }
+                        } // Rectangle - AutoTune
+                    } // Rectangle - AutoTuneWrap
 
-                    Column {
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
-
-                        QGCLabel {
-                            text:       qsTr("Roll/Pitch Sensitivity")
-                            font.weight: Font.DemiBold
-                        }
+                    Rectangle {
+                        height:     inFlightTuneLabel.height + channel6TuningOption.height
+                        width:      channel6TuningOption.width
+                        color:      qgcPal.window
 
                         QGCLabel {
-                            text: qsTr("Slide to the right if the copter is sluggish or slide to the left if the copter is twitchy")
+                            id:                 inFlightTuneLabel
+                            text:               qsTr("In Flight Tuning")
+                            font.family:        ScreenTools.demiboldFontFamily
                         }
 
-                        Slider {
-                            id:                 rollPitch
-                            anchors.left:       parent.left
-                            anchors.right:      parent.right
-                            minimumValue:       0.08
-                            maximumValue:       0.4
-                            stepSize:           0.01
-                            tickmarksEnabled:   true
+                        Rectangle {
+                            id:             channel6TuningOption
+                            width:          channel6TuningOptColumn.width + (_margins * 2)
+                            height:         channel6TuningOptColumn.height + ScreenTools.defaultFontPixelHeight
+                            anchors.top:    inFlightTuneLabel.bottom
+                            color:          qgcPal.windowShade
 
-                            onValueChanged: {
-                                if (_loadComplete) {
-                                    _rateRollP.value = value
-                                    _rateRollI.value = value
-                                    _ratePitchP.value = value
-                                    _ratePitchI.value = value
+                            Column {
+                                id:                 channel6TuningOptColumn
+                                anchors.margins:    ScreenTools.defaultFontPixelWidth
+                                anchors.left:       parent.left
+                                anchors.top:        parent.top
+                                spacing:            ScreenTools.defaultFontPixelHeight
+
+                                Row {
+                                    spacing: ScreenTools.defaultFontPixelWidth
+                                    property Fact nullFact: Fact { }
+
+                                    QGCLabel {
+                                        anchors.baseline:   optCombo.baseline
+                                        text:               qsTr("RC Channel 6 Option (Tuning):")
+                                        //color:            controller.channelOptionEnabled[modelData] ? "yellow" : qgcPal.text
+                                    }
+
+                                    FactComboBox {
+                                        id:         optCombo
+                                        width:      ScreenTools.defaultFontPixelWidth * 15
+                                        fact:       controller.getParameterFact(-1, "TUNE")
+                                        indexModel: false
+                                    }
                                 }
-                            }
-                        }
-                    }
 
-                    Column {
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
+                                Row {
+                                    spacing: ScreenTools.defaultFontPixelWidth
+                                    property Fact nullFact: Fact { }
 
-                        QGCLabel {
-                            text:       qsTr("Climb Sensitivity")
-                            font.weight: Font.DemiBold
-                        }
+                                    QGCLabel {
+                                        anchors.baseline:   tuneMinField.baseline
+                                        text:               qsTr("Min:")
+                                        //color:            controller.channelOptionEnabled[modelData] ? "yellow" : qgcPal.text
+                                    }
 
-                        QGCLabel {
-                            text: qsTr("Slide to the right to climb more aggressively or slide to the left to climb more gently")
-                        }
+                                    FactTextField {
+                                        id:                 tuneMinField
+                                        validator:          DoubleValidator {bottom: 0; top: 32767;}
+                                        fact:               controller.getParameterFact(-1, "r.TUNE_MAX")
+                                    }
 
-                        Slider {
-                            id:                 climb
-                            anchors.left:       parent.left
-                            anchors.right:      parent.right
-                            minimumValue:       0.3
-                            maximumValue:       1.0
-                            stepSize:           0.02
-                            tickmarksEnabled:   true
-                            value:              _rateClimbP.value
+                                    QGCLabel {
+                                        anchors.baseline:   tuneMaxField.baseline
+                                        text:               qsTr("Max:")
+                                        //color:            controller.channelOptionEnabled[modelData] ? "yellow" : qgcPal.text
+                                    }
 
-                            onValueChanged: {
-                                if (_loadComplete) {
-                                    _rateClimbP.value = value
-                                    _rateClimbI.value = value * 2
+                                    FactTextField {
+                                        id:                 tuneMaxField
+                                        validator:          DoubleValidator {bottom: 0; top: 32767;}
+                                        fact:               controller.getParameterFact(-1, "r.TUNE_MIN")
+                                    }
                                 }
-                            }
-                        }
-                    }
-
-                    Column {
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
-
-                        QGCLabel {
-                            text:       qsTr("RC Roll/Pitch Feel")
-                            font.weight: Font.DemiBold
-                        }
-
-                        QGCLabel {
-                            text: qsTr("Slide to the left for soft control, slide to the right for crisp control")
-                        }
-
-                        Slider {
-                            id:                 rcFeel
-                            anchors.left:       parent.left
-                            anchors.right:      parent.right
-                            minimumValue:       0
-                            maximumValue:       100
-                            stepSize:           5.0
-                            tickmarksEnabled:   true
-
-                            onValueChanged: {
-                                if (_loadComplete) {
-                                    _rcFeel.value = value
-                                }
-                            }
-                        }
-                    }
-                }
-            } // Rectangle - Basic tuning
-
-            QGCLabel {
-                id:                 autoTuneLabel
-                anchors.topMargin:  _margins
-                anchors.top:        basicTuningRect.bottom
-                text:               qsTr("AutoTune")
-                font.weight:        Font.DemiBold
+                            } // Column - Channel 6 Tuning option
+                        } // Rectangle - Channel 6 Tuning options
+                    } // Rectangle - Channel 6 Tuning options wrap
+                } // Flow - Tune
             }
 
-            Rectangle {
-                id:                 autoTuneRect
-                anchors.topMargin:  _margins / 2
+            Loader {
                 anchors.left:       parent.left
-                anchors.top:        autoTuneLabel.bottom
-                width:              autoTuneColumn.x + autoTuneColumn.width + _margins
-                height:             autoTuneColumn.y + autoTuneColumn.height + _margins
-                color:              palette.windowShade
+                anchors.right:      parent.right
+                sourceComponent:    advanced ? advancePageComponent : undefined
+            }
 
-                Column {
-                    id:                 autoTuneColumn
-                    anchors.margins:    _margins
-                    anchors.left:       parent.left
-                    anchors.top:        parent.top
-                    spacing:            _margins
+            Component {
+                id: advancePageComponent
 
-                    Row {
-                        spacing: _margins
-
-                        QGCLabel { text: qsTr("Axes to AutoTune:") }
-                        FactBitmask { fact: _autoTuneAxes }
-                    }
-
-                    Row {
-                        spacing:    _margins
-
-                        QGCLabel {
-                            anchors.baseline:   autoTuneChannelCombo.baseline
-                            text:               qsTr("Channel for AutoTune switch:")
-                        }
-
-                        QGCComboBox {
-                            id:             autoTuneChannelCombo
-                            width:          ScreenTools.defaultFontPixelWidth * 14
-                            model:          [qsTr("None"), qsTr("Channel 7"), qsTr("Channel 8"), qsTr("Channel 9"), qsTr("Channel 10"), qsTr("Channel 11"), qsTr("Channel 12") ]
-                            currentIndex:   _autoTuneSwitchChannelIndex
-
-                            onActivated: {
-                                var channel = index
-
-                                if (channel > 0) {
-                                    channel += 6
-                                }
-                                setChannelAutoTuneOption(channel)
-                            }
-                        }
-                    }
+                PIDTuning {
+                    anchors.left:   parent.left
+                    anchors.right:  parent.right
+                    tuneList:            [ qsTr("Roll"), qsTr("Pitch"), qsTr("Yaw") ]
+                    params:              [
+                        [ controller.getParameterFact(-1, "ATC_ANG_RLL_P"),
+                         controller.getParameterFact(-1, "ATC_RAT_RLL_P"),
+                         controller.getParameterFact(-1, "ATC_RAT_RLL_I"),
+                         controller.getParameterFact(-1, "ATC_RAT_RLL_D") ],
+                        [ controller.getParameterFact(-1, "ATC_ANG_PIT_P"),
+                         controller.getParameterFact(-1, "ATC_RAT_PIT_P"),
+                         controller.getParameterFact(-1, "ATC_RAT_PIT_I"),
+                         controller.getParameterFact(-1, "ATC_RAT_PIT_D") ],
+                        [ controller.getParameterFact(-1, "ATC_ANG_YAW_P"),
+                         controller.getParameterFact(-1, "ATC_RAT_YAW_P"),
+                         controller.getParameterFact(-1, "ATC_RAT_YAW_I") ] ]
                 }
-            } // Rectangle - AutoTune
-        } // QGCFlickable
-    } // QGCViewPanel
-} // QGCView
+            } // Component - Advanced Page
+        } // Column
+    } // Component
+} // SetupView

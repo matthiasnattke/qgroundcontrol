@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #include "MultiSignalSpy.h"
 #include <QEventLoop>
@@ -35,8 +22,8 @@
 
 MultiSignalSpy::MultiSignalSpy(QObject* parent) :
     QObject(parent),
-    _signalEmitter(NULL),
-    _rgSignals(NULL),
+    _signalEmitter(nullptr),
+    _rgSignals(nullptr),
     _cSignals(0)
 {
 }
@@ -68,10 +55,10 @@ bool MultiSignalSpy::init(QObject*        signalEmitter,    ///< [in] object whi
 
     // Allocate and connect QSignalSpy's
     _rgSpys = new QSignalSpy*[_cSignals];
-    Q_ASSERT(_rgSpys != NULL);
+    Q_ASSERT(_rgSpys != nullptr);
     for (size_t i=0; i<_cSignals; i++) {
         _rgSpys[i] = new QSignalSpy(_signalEmitter, _rgSignals[i]);
-        if (_rgSpys[i] == NULL) {
+        if (_rgSpys[i] == nullptr) {
             qDebug() << "Unabled to allocated QSignalSpy";
             return false;
         }
@@ -89,7 +76,7 @@ bool MultiSignalSpy::_checkSignalByMaskWorker(quint32 mask, bool multipleSignals
     for (size_t i=0; i<_cSignals; i++) {
         if ((1 << i) & mask) {
             QSignalSpy* spy = _rgSpys[i];
-            Q_ASSERT(spy != NULL);
+            Q_ASSERT(spy != nullptr);
             
             if ((multipleSignalsAllowed && spy->count() ==  0) || (!multipleSignalsAllowed && spy->count() != 1)) {
                 qDebug() << "Failed index:" << i;
@@ -106,7 +93,7 @@ bool MultiSignalSpy::_checkOnlySignalByMaskWorker(quint32 mask, bool multipleSig
 {
     for (size_t i=0; i<_cSignals; i++) {
         QSignalSpy* spy = _rgSpys[i];
-        Q_ASSERT(spy != NULL);
+        Q_ASSERT(spy != nullptr);
 
         if ((1 << i) & mask) {
             if ((multipleSignalsAllowed && spy->count() ==  0) || (!multipleSignalsAllowed && spy->count() != 1)) {
@@ -150,7 +137,7 @@ bool MultiSignalSpy::checkNoSignalByMask(quint32 mask)
     for (size_t i=0; i<_cSignals; i++) {
         if ((1 << i) & mask) {
             QSignalSpy* spy = _rgSpys[i];
-            Q_ASSERT(spy != NULL);
+            Q_ASSERT(spy != nullptr);
 
             if (spy->count() != 0) {
                 _printSignalState(mask);
@@ -172,7 +159,7 @@ bool MultiSignalSpy::checkNoSignals(void)
 QSignalSpy* MultiSignalSpy::getSpyByIndex(quint32 index)
 {
     Q_ASSERT(index < _cSignals);
-    Q_ASSERT(_rgSpys[index] != NULL);
+    Q_ASSERT(_rgSpys[index] != nullptr);
 
     return _rgSpys[index];
 }
@@ -181,7 +168,7 @@ QSignalSpy* MultiSignalSpy::getSpyByIndex(quint32 index)
 void MultiSignalSpy::clearSignalByIndex(quint32 index)
 {
     Q_ASSERT(index < _cSignals);
-    Q_ASSERT(_rgSpys[index] != NULL);
+    Q_ASSERT(_rgSpys[index] != nullptr);
     
     _rgSpys[index]->clear();
 }
@@ -192,7 +179,7 @@ void MultiSignalSpy::clearSignalsByMask(quint32 mask)
     for (size_t i=0; i<_cSignals; i++) {
         if ((1 << i) & mask) {
             QSignalSpy* spy = _rgSpys[i];
-            Q_ASSERT(spy != NULL);
+            Q_ASSERT(spy != nullptr);
 
             spy->clear();
         }
@@ -255,7 +242,7 @@ void MultiSignalSpy::_printSignalState(quint32 mask)
         bool expected = (1 << i) & mask;
 
         QSignalSpy* spy = _rgSpys[i];
-        Q_ASSERT(spy != NULL);
+        Q_ASSERT(spy != nullptr);
         qDebug() << "Signal index:" << i << "count:" << spy->count() << "expected:" << expected << _rgSignals[i];
     }
 }

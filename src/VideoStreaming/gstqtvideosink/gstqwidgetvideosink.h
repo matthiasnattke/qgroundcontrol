@@ -19,11 +19,10 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
-#ifndef GST_QWIDGET_VIDEO_SINK_H
-#define GST_QWIDGET_VIDEO_SINK_H
+#pragma once
 
 #include "gstqtvideosinkbase.h"
 
@@ -58,4 +57,3 @@ struct GstQWidgetVideoSinkClass
     GstQtVideoSinkBaseClass parent_class;
 };
 
-#endif

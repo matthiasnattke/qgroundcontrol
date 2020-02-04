@@ -1,25 +1,12 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009 - 2011 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
 
 /**
  * @file
@@ -28,9 +15,12 @@ This file is part of the QGROUNDCONTROL project
  *
  */
 
+#include "QGC.h"
 #include <QtGlobal>
 #include <QApplication>
+#include <QIcon>
 #include <QSslSocket>
+#include <QMessageBox>
 #include <QProcessEnvironment>
 #include <QHostAddress>
 #include <QUdpSocket>
@@ -39,16 +29,16 @@ This file is part of the QGROUNDCONTROL project
 #include "QGCApplication.h"
 #include "AppMessages.h"
 
-#define  SINGLE_INSTANCE_PORT   14499
-
 #ifndef __mobile__
     #include "QGCSerialPortInfo.h"
+    #include "RunGuard.h"
+#endif
+
+#ifdef UNITTEST_BUILD
+    #include "UnitTest.h"
 #endif
 
 #ifdef QT_DEBUG
-    #ifndef __mobile__
-        #include "UnitTest.h"
-    #endif
     #include "CmdLineOptParser.h"
     #ifdef Q_OS_WIN
         #include <crtdbg.h>
@@ -68,10 +58,15 @@ This file is part of the QGROUNDCONTROL project
 #endif
 
 #ifndef __mobile__
+#ifndef NO_SERIAL_LINK
     Q_DECLARE_METATYPE(QGCSerialPortInfo)
+#endif
 #endif
 
 #ifdef Q_OS_WIN
+
+#include <windows.h>
+
 /// @brief CRT Report Hook installed using _CrtSetReportHook. We install this hook when
 /// we don't want asserts to pop a dialog on windows.
 int WindowsCrtReportHook(int reportType, char* message, int* returnValue)
@@ -85,10 +80,94 @@ int WindowsCrtReportHook(int reportType, char* message, int* returnValue)
 
 #endif
 
-#ifdef __android__
+#if defined(__android__)
 #include <jni.h>
+#include "JoystickAndroid.h"
+#if defined(QGC_ENABLE_PAIRING)
+#include "PairingManager.h"
+#endif
+#if !defined(NO_SERIAL_LINK)
 #include "qserialport.h"
+#endif
 
+static jobject _class_loader = nullptr;
+static jobject _context = nullptr;
+
+//-----------------------------------------------------------------------------
+extern "C" {
+    void gst_amc_jni_set_java_vm(JavaVM *java_vm);
+
+    jobject gst_android_get_application_class_loader(void)
+    {
+        return _class_loader;
+    }
+}
+
+//-----------------------------------------------------------------------------
+static void
+gst_android_init(JNIEnv* env, jobject context)
+{
+    jobject class_loader = nullptr;
+
+    jclass context_cls = env->GetObjectClass(context);
+    if (!context_cls) {
+        return;
+    }
+
+    jmethodID get_class_loader_id = env->GetMethodID(context_cls, "getClassLoader", "()Ljava/lang/ClassLoader;");
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        return;
+    }
+
+    class_loader = env->CallObjectMethod(context, get_class_loader_id);
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        return;
+    }
+
+    _context = env->NewGlobalRef(context);
+    _class_loader = env->NewGlobalRef (class_loader);
+}
+
+//-----------------------------------------------------------------------------
+static const char kJniClassName[] {"org/mavlink/qgroundcontrol/QGCActivity"};
+
+void setNativeMethods(void)
+{
+    JNINativeMethod javaMethods[] {
+        {"nativeInit", "(Landroid/content/Context;)V", reinterpret_cast<void *>(gst_android_init)}
+    };
+
+    QAndroidJniEnvironment jniEnv;
+    if (jniEnv->ExceptionCheck()) {
+        jniEnv->ExceptionDescribe();
+        jniEnv->ExceptionClear();
+    }
+
+    jclass objectClass = jniEnv->FindClass(kJniClassName);
+    if(!objectClass) {
+        qWarning() << "Couldn't find class:" << kJniClassName;
+        return;
+    }
+
+    jint val = jniEnv->RegisterNatives(objectClass, javaMethods, sizeof(javaMethods) / sizeof(javaMethods[0]));
+
+    if (val < 0) {
+        qWarning() << "Error registering methods: " << val;
+    } else {
+        qDebug() << "Main Native Functions Registered";
+    }
+
+    if (jniEnv->ExceptionCheck()) {
+        jniEnv->ExceptionDescribe();
+        jniEnv->ExceptionClear();
+    }
+}
+
+//-----------------------------------------------------------------------------
 jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     Q_UNUSED(reserved);
@@ -97,13 +176,47 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
         return -1;
     }
+    setNativeMethods();
 
+    QAndroidJniObject resultL = QAndroidJniObject::callStaticObjectMethod(
+        kJniClassName,
+        "jniOnLoad",
+        "();");
+
+#if defined(QGC_GST_STREAMING)
+    // Tell the androidmedia plugin about the Java VM
+    gst_amc_jni_set_java_vm(vm);
+#endif
+
+ #if !defined(NO_SERIAL_LINK)
     QSerialPort::setNativeMethods();
+ #endif
+    JoystickAndroid::setNativeMethods();
+#if defined(QGC_ENABLE_PAIRING)
+    PairingManager::setNativeMethods();
+#endif
 
     return JNI_VERSION_1_6;
 }
 #endif
 
+//-----------------------------------------------------------------------------
+#ifdef __android__
+#include <QtAndroid>
+bool checkAndroidWritePermission() {
+    QtAndroid::PermissionResult r = QtAndroid::checkPermission("android.permission.WRITE_EXTERNAL_STORAGE");
+    if(r == QtAndroid::PermissionResult::Denied) {
+        QtAndroid::requestPermissionsSync( QStringList() << "android.permission.WRITE_EXTERNAL_STORAGE" );
+        r = QtAndroid::checkPermission("android.permission.WRITE_EXTERNAL_STORAGE");
+        if(r == QtAndroid::PermissionResult::Denied) {
+             return false;
+        }
+   }
+   return true;
+}
+#endif
+
+//-----------------------------------------------------------------------------
 /**
  * @brief Starts the application
  *
@@ -114,6 +227,21 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
 
 int main(int argc, char *argv[])
 {
+#ifndef __mobile__
+    RunGuard guard("QGroundControlRunGuardKey");
+    if (!guard.tryToRun()) {
+        // QApplication is necessary to use QMessageBox
+        QApplication errorApp(argc, argv);
+        QMessageBox::critical(nullptr, QObject::tr("Error"),
+            QObject::tr("A second instance of %1 is already running. Please close the other instance and try again.").arg(QGC_APPLICATION_NAME)
+        );
+        return -1;
+    }
+#endif
+
+    //-- Record boot time
+    QGC::initTimer();
+
 #ifdef Q_OS_UNIX
     //Force writing to the console on UNIX/BSD devices
     if (!qEnvironmentVariableIsSet("QT_LOGGING_TO_CONSOLE"))
@@ -122,16 +250,6 @@ int main(int argc, char *argv[])
 
     // install the message handler
     AppMessages::installHandler();
-
-#ifndef __mobile__
-    //-- Test for another instance already running. If that's the case, we simply exit.
-    QHostAddress host("127.0.0.1");
-    QUdpSocket socket;
-    if(!socket.bind(host, SINGLE_INSTANCE_PORT, QAbstractSocket::DontShareAddress)) {
-        qWarning() << "Another instance already running. Exiting.";
-        exit(-1);
-    }
-#endif
 
 #ifdef Q_OS_MAC
 #ifndef __ios__
@@ -162,7 +280,7 @@ int main(int argc, char *argv[])
     // that we use these types in signals, and without calling qRegisterMetaType we can't queue
     // these signals. In general we don't queue these signals, but we do what the warning says
     // anyway to silence the debug output.
-#ifndef __ios__
+#ifndef NO_SERIAL_LINK
     qRegisterMetaType<QSerialPort::SerialPortError>();
 #endif
 #ifdef QGC_ENABLE_BLUETOOTH
@@ -171,7 +289,9 @@ int main(int argc, char *argv[])
 #endif
     qRegisterMetaType<QAbstractSocket::SocketError>();
 #ifndef __mobile__
+#ifndef NO_SERIAL_LINK
     qRegisterMetaType<QGCSerialPortInfo>();
+#endif
 #endif
 
     // We statically link our own QtLocation plugin
@@ -196,7 +316,7 @@ int main(int argc, char *argv[])
     CmdLineOpt_t rgCmdLineOptions[] = {
         { "--unittest",             &runUnitTests,          &unitTestOptions },
         { "--unittest-stress",      &stressUnitTests,       &unitTestOptions },
-        { "--no-windows-assert-ui", &quietWindowsAsserts,   NULL },
+        { "--no-windows-assert-ui", &quietWindowsAsserts,   nullptr },
         // Add additional command line option flags here
     };
 
@@ -221,8 +341,17 @@ int main(int argc, char *argv[])
 #endif
 #endif // QT_DEBUG
 
+    QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
     QGCApplication* app = new QGCApplication(argc, argv, runUnitTests);
     Q_CHECK_PTR(app);
+    if(app->isErrorState()) {
+        app->exec();
+        return -1;
+    }
+
+#ifdef Q_OS_LINUX
+    QApplication::setWindowIcon(QIcon(":/res/resources/icons/qgroundcontrol.ico"));
+#endif /* Q_OS_LINUX */
 
     // There appears to be a threading issue in qRegisterMetaType which can cause it to throw a qWarning
     // about duplicate type converters. This is caused by a race condition in the Qt code. Still working
@@ -237,8 +366,7 @@ int main(int argc, char *argv[])
 
     int exitCode = 0;
 
-#ifndef __mobile__
-#ifdef QT_DEBUG
+#ifdef UNITTEST_BUILD
     if (runUnitTests) {
         for (int i=0; i < (stressUnitTests ? 20 : 1); i++) {
             if (!app->_initForUnitTests()) {
@@ -258,14 +386,18 @@ int main(int argc, char *argv[])
         }
     } else
 #endif
-#endif
     {
+
+#ifdef __android__
+        checkAndroidWritePermission();
+#endif
         if (!app->_initForNormalAppBoot()) {
             return -1;
         }
         exitCode = app->exec();
     }
 
+    app->_shutdown();
     delete app;
     //-- Shutdown Cache System
     destroyMapEngine();

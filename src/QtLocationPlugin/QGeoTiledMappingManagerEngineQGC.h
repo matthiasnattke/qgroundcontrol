@@ -40,7 +40,7 @@
 ** 2015.4.4
 ** Adapted for use with QGroundControl
 **
-** Gus Grubba <mavlink@grubba.com>
+** Gus Grubba <gus@auterion.com>
 **
 ****************************************************************************/
 
@@ -48,12 +48,12 @@
 #define QGEOTILEDMAPPINGMANAGERENGINEQGC_H
 
 #include <QtLocation/QGeoServiceProvider>
-#if QT_VERSION >= 0x050500
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
 #include <QtLocation/private/qgeotiledmap_p.h>
 #endif
 #include <QtLocation/private/qgeotiledmappingmanagerengine_p.h>
 
-#if QT_VERSION >= 0x050500
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
 class QGeoTiledMapQGC : public QGeoTiledMap
 {
     Q_OBJECT
@@ -70,15 +70,13 @@ class QGeoTiledMappingManagerEngineQGC : public QGeoTiledMappingManagerEngine
 public:
     QGeoTiledMappingManagerEngineQGC(const QVariantMap &parameters, QGeoServiceProvider::Error *error, QString *errorString);
     ~QGeoTiledMappingManagerEngineQGC();
-#if QT_VERSION < 0x050500
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
     QGeoMapData *createMapData();
 #else
     QGeoMap *createMap();
-    QString customCopyright() const;
 #endif
 private:
-#if QT_VERSION >= 0x050500
-    QString m_customCopyright;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
     void _setCache(const QVariantMap &parameters);
 #endif
 };

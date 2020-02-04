@@ -1,6 +1,6 @@
 import QtQuick 2.3
 import QtQuick.Controls 1.2
-import QtQuick.Controls.Styles 1.2
+import QtQuick.Controls.Styles 1.4
 import QtGraphicalEffects 1.0
 
 import QGroundControl.Palette 1.0
@@ -27,18 +27,19 @@ Item {
     height: image.height
 
     Image {
-        id:             image
-        smooth:         true
-        mipmap:         true
-        antialiasing:   true
-        visible:        false
-        fillMode:       Image.PreserveAspectFit
-        anchors.fill:   parent
+        id:                 image
+        smooth:             true
+        mipmap:             true
+        antialiasing:       true
+        visible:            false
+        fillMode:           Image.PreserveAspectFit
+        anchors.fill:       parent
+        sourceSize.height:  height
     }
 
     ColorOverlay {
-        anchors.fill:   image
-        source:         image
-        color:          parent.color
+        anchors.fill:       image
+        source:             image
+        color:              parent.color
     }
 }

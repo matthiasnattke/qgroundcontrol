@@ -1,49 +1,64 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-#ifndef SimpleMissionItemTest_H
-#define SimpleMissionItemTest_H
+#pragma once
 
-#include "UnitTest.h"
-#include "TCPLink.h"
-#include "MultiSignalSpy.h"
-
-#include <QGeoCoordinate>
+#include "VisualMissionItemTest.h"
+#include "SimpleMissionItem.h"
 
 /// Unit test for SimpleMissionItem
-class SimpleMissionItemTest : public UnitTest
+class SimpleMissionItemTest : public VisualMissionItemTest
 {
     Q_OBJECT
     
 public:
     SimpleMissionItemTest(void);
-    
+
+    void init(void) override;
+    void cleanup(void) override;
+
 private slots:
     void _testSignals(void);
     void _testEditorFacts(void);
     void _testDefaultValues(void);
-    
+    void _testCameraSectionDirty(void);
+    void _testSpeedSectionDirty(void);
+    void _testCameraSection(void);
+    void _testSpeedSection(void);
+    void _testAltitudePropogation(void);
+
 private:
+    enum {
+        commandChangedIndex = 0,
+        altitudeModeChangedIndex,
+        friendlyEditAllowedChangedIndex,
+        headingDegreesChangedIndex,
+        rawEditChangedIndex,
+        cameraSectionChangedIndex,
+        speedSectionChangedIndex,
+        coordinateHasRelativeAltitudeChangedIndex,
+        maxSignalIndex,
+    };
+
+    enum {
+        commandChangedMask =                        1 << commandChangedIndex,
+        altitudeModeChangedMask =                  1 << altitudeModeChangedIndex,
+        friendlyEditAllowedChangedMask =            1 << friendlyEditAllowedChangedIndex,
+        headingDegreesChangedMask =                 1 << headingDegreesChangedIndex,
+        rawEditChangedMask =                        1 << rawEditChangedIndex,
+        cameraSectionChangedMask =                  1 << cameraSectionChangedIndex,
+        speedSectionChangedMask =                   1 << speedSectionChangedIndex,
+        coordinateHasRelativeAltitudeChangedMask =  1 << coordinateHasRelativeAltitudeChangedIndex,
+    };
+
+    static const size_t cSimpleItemSignals = maxSignalIndex;
+    const char*         rgSimpleItemSignals[cSimpleItemSignals];
 
     typedef struct {
         MAV_CMD        command;
@@ -56,10 +71,15 @@ private:
     } FactValue_t;
     
     typedef struct {
-        size_t              cFactValues;
-        const FactValue_t*  rgFactValues;
-        bool                relativeAltCheckbox;
+        size_t                          cFactValues;
+        const FactValue_t*              rgFactValues;
+        double                          altValue;
+        QGroundControlQmlGlobal::AltitudeMode altMode;
     } ItemExpected_t;
+
+    SimpleMissionItem*  _simpleItem;
+    MultiSignalSpy*     _spySimpleItem;
+    MultiSignalSpy*     _spyVisualItem;
 
     static const ItemInfo_t     _rgItemInfo[];
     static const ItemExpected_t _rgItemExpected[];
@@ -72,5 +92,3 @@ private:
     static const FactValue_t    _rgFactValuesConditionDelay[];
     static const FactValue_t    _rgFactValuesDoJump[];
 };
-
-#endif

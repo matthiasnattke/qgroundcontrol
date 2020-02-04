@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #include "MockLinkFileServer.h"
 #include "MockLink.h"
@@ -49,9 +36,22 @@ MockLinkFileServer::MockLinkFileServer(uint8_t systemIdServer, uint8_t component
     _errMode(errModeNone),
     _systemIdServer(systemIdServer),
     _componentIdServer(componentIdServer),
-    _mockLink(mockLink)
+    _mockLink(mockLink),
+    _lastReplyValid(false),
+    _lastReplySequence(0),
+    _randomDropsEnabled(false)
 {
+    srand(0); // make sure unit tests are deterministic
+}
 
+void MockLinkFileServer::ensureNullTemination(FileManager::Request* request)
+{
+    if (request->hdr.size < sizeof(request->data)) {
+        request->data[request->hdr.size] = '\0';
+
+    } else {
+        request->data[sizeof(request->data)-1] = '\0';
+    }
 }
 
 /// @brief Handles List command requests. Only supports root folder paths.
@@ -63,6 +63,8 @@ void MockLinkFileServer::_listCommand(uint8_t senderSystemId, uint8_t senderComp
     FileManager::Request  ackResponse;
     QString                     path;
     uint16_t                    outgoingSeqNumber = _nextSeqNumber(seqNumber);
+
+    ensureNullTemination(request);
 
     // We only support root path
     path = (char *)&request->data[0];
@@ -116,6 +118,8 @@ void MockLinkFileServer::_openCommand(uint8_t senderSystemId, uint8_t senderComp
     QString                     path;
     uint16_t                    outgoingSeqNumber = _nextSeqNumber(seqNumber);
     
+    ensureNullTemination(request);
+
     size_t cchPath = strnlen((char *)request->data, sizeof(request->data));
     Q_ASSERT(cchPath != sizeof(request->data));
     Q_UNUSED(cchPath); // Fix initialized-but-not-referenced warning on release builds
@@ -283,8 +287,23 @@ void MockLinkFileServer::handleFTPMessage(const mavlink_message_t& message)
     if (requestFTP.target_system != _systemIdServer) {
         return;
     }
-    
+
     FileManager::Request* request = (FileManager::Request*)&requestFTP.payload[0];
+
+	if (_randomDropsEnabled) {
+	    if (rand() % 3 == 0) {
+	        qDebug() << "FileServer: Random drop of incoming packet";
+	        return;
+	    }
+	}
+
+	if (_lastReplyValid && request->hdr.seqNumber + 1 == _lastReplySequence) {
+	    // this is the same request as the one we replied to last. It means the (n)ack got lost, and the GCS
+	    // resent the request
+	    qDebug() << "FileServer: resending response";
+	    _mockLink->respondWithMavlinkMessage(_lastReply);
+	    return;
+	}
 
     uint16_t incomingSeqNumber = request->hdr.seqNumber;
     uint16_t outgoingSeqNumber = _nextSeqNumber(incomingSeqNumber);
@@ -374,19 +393,27 @@ void MockLinkFileServer::_sendNak(uint8_t targetSystemId, uint8_t targetComponen
 /// @brief Emits a Request through the messageReceived signal.
 void MockLinkFileServer::_sendResponse(uint8_t targetSystemId, uint8_t targetComponentId, FileManager::Request* request, uint16_t seqNumber)
 {
-    mavlink_message_t   mavlinkMessage;
-    
     request->hdr.seqNumber = seqNumber;
+    _lastReplySequence = seqNumber;
+    _lastReplyValid = true;
     
-    mavlink_msg_file_transfer_protocol_pack(_systemIdServer,    // System ID
-                                            0,                  // Component ID
-                                            &mavlinkMessage,    // Mavlink Message to pack into
-                                            0,                  // Target network
-                                            targetSystemId,
-                                            targetComponentId,
-                                            (uint8_t*)request); // Payload
+    mavlink_msg_file_transfer_protocol_pack_chan(_systemIdServer,    // System ID
+                                                 0,                  // Component ID
+                                                 _mockLink->mavlinkChannel(),
+                                                 &_lastReply,    // Mavlink Message to pack into
+                                                 0,                  // Target network
+                                                 targetSystemId,
+                                                 targetComponentId,
+                                                 (uint8_t*)request); // Payload
+
+	if (_randomDropsEnabled) {
+	    if (rand() % 3 == 0) {
+	        qDebug() << "FileServer: Random drop of outgoing packet";
+	        return;
+	    }
+	}
     
-    _mockLink->respondWithMavlinkMessage(mavlinkMessage);
+    _mockLink->respondWithMavlinkMessage(_lastReply);
 }
 
 /// @brief Generates the next sequence number given an incoming sequence number. Handles generating

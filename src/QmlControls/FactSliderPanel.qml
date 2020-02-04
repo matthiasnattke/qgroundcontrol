@@ -1,39 +1,23 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
 
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
- This file is part of the QGROUNDCONTROL project
-
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
- ======================================================================*/
-
-import QtQuick              2.5
-import QtQuick.Controls     1.4
+import QtQuick              2.3
+import QtQuick.Controls     1.2
 
 import QGroundControl.FactSystem    1.0
+import QGroundControl.FactControls  1.0
 import QGroundControl.Palette       1.0
 import QGroundControl.Controls      1.0
 import QGroundControl.ScreenTools   1.0
 
-QGCView {
-    viewPanel: panel
-
-    property string panelTitle: "Title" ///< Title for panel
-
+Column {
     /// ListModel must contains elements which look like this:
     ///     ListElement {
     ///         title:          "Roll sensitivity"
@@ -45,103 +29,73 @@ QGCView {
     ///     }
     property ListModel sliderModel
 
-    FactPanelController { id: controller; factPanel: panel }
+    property real _margins:         ScreenTools.defaultFontPixelHeight
+    property bool _loadComplete:    false
 
-    QGCPalette { id: palette; colorGroupEnabled: enabled }
-    property real _margins: ScreenTools.defaultFontPixelHeight
+    Component.onCompleted: _loadComplete = true
 
-    property bool _loadComplete: false
-
-    Component.onCompleted: {
-        // Qml Sliders have a strange behavior in which they first set Slider::value to some internal
-        // setting and then set Slider::value to the bound properties value. If you have an onValueChanged
-        // handler which updates your property with the new value, this first value change will trash
-        // your bound values. In order to work around this we don't set the values into the Sliders until
-        // after Qml load is done. We also don't track value changes until Qml load completes.
-        for (var i=0; i<sliderModel.count; i++) {
-            sliderRepeater.itemAt(i).sliderValue = controller.getParameterFact(-1, sliderModel.get(i).param).value
-        }
-        _loadComplete = true
+    FactPanelController {
+        id: controller
     }
 
-    QGCViewPanel {
-        id:             panel
-        anchors.fill:   parent
+    QGCPalette { id: palette; colorGroupEnabled: enabled }
 
-        QGCFlickable {
-            clip:               true
-            anchors.fill:       parent
-            contentHeight:      sliderOuterColumn.y + sliderOuterColumn.height
-            flickableDirection: Flickable.VerticalFlick
+    Column {
+        id:                 sliderOuterColumn
+        anchors.left:       parent.left
+        anchors.right:      parent.right
+        spacing:            _margins
 
-            QGCLabel {
-                id:             panelLabel
-                text:           panelTitle
-                font.weight:    Font.DemiBold
-            }
+        Repeater {
+            id:     sliderRepeater
+            model:  sliderModel
 
-
-            Column {
-                id:                 sliderOuterColumn
-                anchors.margins:    _margins
+            Rectangle {
+                id:                 sliderRect
                 anchors.left:       parent.left
                 anchors.right:      parent.right
-                anchors.top:        panelLabel.bottom
-                spacing:            _margins
+                height:             sliderColumn.y + sliderColumn.height + _margins
+                color:              palette.windowShade
 
-                Repeater {
-                    id:     sliderRepeater
-                    model:  sliderModel
+                Column {
+                    id:                 sliderColumn
+                    anchors.margins:    _margins
+                    anchors.left:       parent.left
+                    anchors.right:      parent.right
+                    anchors.top:        sliderRect.top
+                    spacing:            _margins
 
-                    Rectangle {
-                        id:                 sliderRect
+                    QGCLabel {
+                        text:           title
+                        font.family:    ScreenTools.demiboldFontFamily
+                    }
+
+                    Slider {
                         anchors.left:       parent.left
                         anchors.right:      parent.right
-                        height:             sliderColumn.y + sliderColumn.height + _margins
-                        color:              palette.windowShade
+                        minimumValue:       min
+                        maximumValue:       max
+                        stepSize:           step
+                        tickmarksEnabled:   true
+                        value:              _fact.value
 
-                        property alias sliderValue: slider.value
+                        property Fact _fact: controller.getParameterFact(-1, param)
 
-                        Column {
-                            id:                 sliderColumn
-                            anchors.margins:    _margins
-                            anchors.left:       parent.left
-                            anchors.right:      parent.right
-                            anchors.top:        sliderRect.top
-
-                            QGCLabel {
-                                text:           title
-                                font.weight:    Font.DemiBold
+                        onValueChanged: {
+                            if (_loadComplete) {
+                                _fact.value = value
                             }
+                        }
+                    }
 
-                            QGCLabel {
-                                text:           description
-                                anchors.left:   parent.left
-                                anchors.right:  parent.right
-                                wrapMode:       Text.WordWrap
-                            }
-
-                            Slider {
-                                id:                 slider
-                                anchors.left:       parent.left
-                                anchors.right:      parent.right
-                                minimumValue:       min
-                                maximumValue:       max
-                                stepSize:           isNaN(fact.increment) ? step : fact.increment
-                                tickmarksEnabled:   true
-
-                                property Fact fact: controller.getParameterFact(-1, param)
-
-                                onValueChanged: {
-                                    if (_loadComplete) {
-                                        fact.value = value
-                                    }
-                                }
-                            } // Slider
-                        } // Column
-                    } // Rectangle
-                } // Repeater
-            } // Column
-        } // QGCFlickable
-    } // QGCViewPanel
-} // QGCView
+                    QGCLabel {
+                        text:           description
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        wrapMode:       Text.WordWrap
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #include "TCPLoopBackServer.h"
 
@@ -31,7 +18,7 @@
 TCPLoopBackServer::TCPLoopBackServer(QHostAddress hostAddress, quint16 port) :
     _hostAddress(hostAddress),
     _port(port),
-    _tcpSocket(NULL)
+    _tcpSocket(nullptr)
 {
     moveToThread(this);
     start(HighPriority);
@@ -43,7 +30,7 @@ void TCPLoopBackServer::run(void)
     _tcpServer = new QTcpServer(this);
     Q_CHECK_PTR(_tcpServer);
 
-    bool connected = QObject::connect(_tcpServer, SIGNAL(newConnection()), this, SLOT(_newConnection()));
+    bool connected = QObject::connect(_tcpServer, &QTcpServer::newConnection, this, &TCPLoopBackServer::_newConnection);
     Q_ASSERT(connected);
     Q_UNUSED(connected); // Fix initialized-but-not-referenced warning on release builds
 
@@ -58,7 +45,7 @@ void TCPLoopBackServer::_newConnection(void)
     Q_ASSERT(_tcpServer);
     _tcpSocket = _tcpServer->nextPendingConnection();
     Q_ASSERT(_tcpSocket);
-    bool connected = QObject::connect(_tcpSocket, SIGNAL(readyRead()), this, SLOT(_readBytes()));
+    bool connected = QObject::connect(_tcpSocket, &QIODevice::readyRead, this, &TCPLoopBackServer::_readBytes);
     Q_ASSERT(connected);
     Q_UNUSED(connected); // Fix initialized-but-not-referenced warning on release builds
 }

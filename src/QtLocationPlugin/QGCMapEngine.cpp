@@ -1,33 +1,23 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009, 2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
 
 /**
  * @file
  *   @brief Map Tile Cache
  *
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  *
  */
+#include "QGCApplication.h"
+#include "AppSettings.h"
+#include "SettingsManager.h"
 
 #include <math.h>
 #include <QSettings>
@@ -45,58 +35,19 @@ Q_DECLARE_METATYPE(QList<QGCTile*>)
 static const char* kDbFileName = "qgcMapCache.db";
 static QLocale kLocale;
 
-#define CACHE_PATH_VERSION  "100"
+#define CACHE_PATH_VERSION  "300"
 
 struct stQGeoTileCacheQGCMapTypes {
     const char* name;
-    UrlFactory::MapType type;
+    QString type;
 };
 
-//-- IMPORTANT
-//   Changes here must reflect those in QGeoTiledMappingManagerEngineQGC.cpp
-
-stQGeoTileCacheQGCMapTypes kMapTypes[] = {
-    {"Google Street Map",       UrlFactory::GoogleMap},
-    {"Google Satellite Map",    UrlFactory::GoogleSatellite},
-    {"Google Terrain Map",      UrlFactory::GoogleTerrain},
-    {"Bing Street Map",         UrlFactory::BingMap},
-    {"Bing Satellite Map",      UrlFactory::BingSatellite},
-    {"Bing Hybrid Map",         UrlFactory::BingHybrid},
-    {"MapQuest Street Map",     UrlFactory::MapQuestMap},
-    {"MapQuest Satellite Map",  UrlFactory::MapQuestSat}
-    /*
-    {"Open Street Map",         UrlFactory::OpenStreetMap}
-     */
-};
-
-#define NUM_MAPS (sizeof(kMapTypes) / sizeof(stQGeoTileCacheQGCMapTypes))
-
-stQGeoTileCacheQGCMapTypes kMapBoxTypes[] = {
-    {"MapBox Street Map",       UrlFactory::MapBoxStreets},
-    {"MapBox Satellite Map",    UrlFactory::MapBoxSatellite},
-    {"MapBox High Contrast Map",UrlFactory::MapBoxHighContrast},
-    {"MapBox Light Map",        UrlFactory::MapBoxLight},
-    {"MapBox Dark Map",         UrlFactory::MapBoxDark},
-    {"MapBox Hybrid Map",       UrlFactory::MapBoxHybrid},
-    {"MapBox Wheat Paste Map",  UrlFactory::MapBoxWheatPaste},
-    {"MapBox Streets Basic Map",UrlFactory::MapBoxStreetsBasic},
-    {"MapBox Comic Map",        UrlFactory::MapBoxComic},
-    {"MapBox Outdoors Map",     UrlFactory::MapBoxOutdoors},
-    {"MapBox Run, Byke and Hike Map",   UrlFactory::MapBoxRunBikeHike},
-    {"MapBox Pencil Map",       UrlFactory::MapBoxPencil},
-    {"MapBox Pirates Map",      UrlFactory::MapBoxPirates},
-    {"MapBox Emerald Map",      UrlFactory::MapBoxEmerald}
-};
-
-#define NUM_MAPBOXMAPS (sizeof(kMapBoxTypes) / sizeof(stQGeoTileCacheQGCMapTypes))
-
-static const char* kMapBoxTokenKey  = "MapBoxToken";
 static const char* kMaxDiskCacheKey = "MaxDiskCache";
 static const char* kMaxMemCacheKey  = "MaxMemoryCache";
 
 //-----------------------------------------------------------------------------
 // Singleton
-static QGCMapEngine* kMapEngine = NULL;
+static QGCMapEngine* kMapEngine = nullptr;
 QGCMapEngine*
 getQGCMapEngine()
 {
@@ -111,7 +62,7 @@ destroyMapEngine()
 {
     if(kMapEngine) {
         delete kMapEngine;
-        kMapEngine = NULL;
+        kMapEngine = nullptr;
     }
 }
 
@@ -139,11 +90,14 @@ QGCMapEngine::QGCMapEngine()
     , _maxDiskCache(0)
     , _maxMemCache(0)
     , _prunning(false)
+    , _cacheWasReset(false)
+    , _isInternetActive(false)
 {
     qRegisterMetaType<QGCMapTask::TaskType>();
     qRegisterMetaType<QGCTile>();
     qRegisterMetaType<QList<QGCTile*>>();
-    connect(&_worker, &QGCCacheWorker::updateTotals, this, &QGCMapEngine::_updateTotals);
+    connect(&_worker, &QGCCacheWorker::updateTotals,   this, &QGCMapEngine::_updateTotals);
+    connect(&_worker, &QGCCacheWorker::internetStatus, this, &QGCMapEngine::_internetStatus);
 }
 
 //-----------------------------------------------------------------------------
@@ -157,24 +111,49 @@ QGCMapEngine::~QGCMapEngine()
 
 //-----------------------------------------------------------------------------
 void
+QGCMapEngine::_checkWipeDirectory(const QString& dirPath)
+{
+    QDir dir(dirPath);
+    if (dir.exists(dirPath)) {
+        _cacheWasReset = true;
+        _wipeDirectory(dirPath);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void
+QGCMapEngine::_wipeOldCaches()
+{
+    QString oldCacheDir;
+#ifdef __mobile__
+    oldCacheDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)      + QLatin1String("/QGCMapCache55");
+#else
+    oldCacheDir = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + QStringLiteral("/QGCMapCache55");
+#endif
+    _checkWipeDirectory(oldCacheDir);
+#ifdef __mobile__
+    oldCacheDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)      + QLatin1String("/QGCMapCache100");
+#else
+    oldCacheDir = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + QStringLiteral("/QGCMapCache100");
+#endif
+    _checkWipeDirectory(oldCacheDir);
+}
+
+//-----------------------------------------------------------------------------
+void
 QGCMapEngine::init()
 {
-    //-- Delete old style cache (if present)
-#ifdef __mobile__
-    QString oldCacheDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)      + QLatin1String("/QGCMapCache55");
-#else
-    QString oldCacheDir = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + QLatin1String("/QGCMapCache55");
-#endif
-    _wipeDirectory(oldCacheDir);
+    //-- Delete old style caches (if present)
+    _wipeOldCaches();
     //-- Figure out cache path
 #ifdef __mobile__
     QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)      + QLatin1String("/QGCMapCache" CACHE_PATH_VERSION);
 #else
-    QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + QLatin1String("/QGCMapCache" CACHE_PATH_VERSION);
+    QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + QStringLiteral("/QGCMapCache" CACHE_PATH_VERSION);
 #endif
     if(!QDir::root().mkpath(cacheDir)) {
         qWarning() << "Could not create mapping disk cache directory: " << cacheDir;
-        cacheDir = QDir::homePath() + QLatin1String("/.qgcmapscache/");
+        cacheDir = QDir::homePath() + QStringLiteral("/.qgcmapscache/");
         if(!QDir::root().mkpath(cacheDir)) {
             qWarning() << "Could not create mapping disk cache directory: " << cacheDir;
             cacheDir.clear();
@@ -223,7 +202,7 @@ QGCMapEngine::addTask(QGCMapTask* task)
 
 //-----------------------------------------------------------------------------
 void
-QGCMapEngine::cacheTile(UrlFactory::MapType type, int x, int y, int z, const QByteArray& image, const QString &format, qulonglong set)
+QGCMapEngine::cacheTile(QString type, int x, int y, int z, const QByteArray& image, const QString &format, qulonglong set)
 {
     QString hash = getTileHash(type, x, y, z);
     cacheTile(type, hash, image, format, set);
@@ -231,116 +210,56 @@ QGCMapEngine::cacheTile(UrlFactory::MapType type, int x, int y, int z, const QBy
 
 //-----------------------------------------------------------------------------
 void
-QGCMapEngine::cacheTile(UrlFactory::MapType type, const QString& hash, const QByteArray& image, const QString& format, qulonglong set)
+QGCMapEngine::cacheTile(QString type, const QString& hash, const QByteArray& image, const QString& format, qulonglong set)
 {
-    QGCSaveTileTask* task = new QGCSaveTileTask(new QGCCacheTile(hash, image, format, type, set));
-    _worker.enqueueTask(task);
+    AppSettings* appSettings = qgcApp()->toolbox()->settingsManager()->appSettings();
+    //-- If we are allowed to persist data, save tile to cache
+    if(!appSettings->disableAllPersistence()->rawValue().toBool()) {
+        QGCSaveTileTask* task = new QGCSaveTileTask(new QGCCacheTile(hash, image, format, type, set));
+        _worker.enqueueTask(task);
+    }
 }
 
 //-----------------------------------------------------------------------------
 QString
-QGCMapEngine::getTileHash(UrlFactory::MapType type, int x, int y, int z)
+QGCMapEngine::getTileHash(QString type, int x, int y, int z)
 {
-    return QString().sprintf("%04d%08d%08d%03d", (int)type, x, y, z);
+    return QString().sprintf("%010d%08d%08d%03d", getQGCMapEngine()->urlFactory()->getIdFromType(type), x, y, z);
 }
 
 //-----------------------------------------------------------------------------
-UrlFactory::MapType
+QString
 QGCMapEngine::hashToType(const QString& hash)
 {
-    QString type = hash.mid(0,4);
-    return (UrlFactory::MapType)type.toInt();
+    QString type = hash.mid(0,10);
+    return urlFactory()->getTypeFromId(type.toInt());
 }
 
 //-----------------------------------------------------------------------------
-QGCFetchTileTask*
-QGCMapEngine::createFetchTileTask(UrlFactory::MapType type, int x, int y, int z)
+	QGCFetchTileTask*
+QGCMapEngine::createFetchTileTask(QString type, int x, int y, int z)
 {
-    QString hash = getTileHash(type, x, y, z);
-    QGCFetchTileTask* task = new QGCFetchTileTask(hash);
-    return task;
+	QString hash = getTileHash(type, x, y, z);
+	QGCFetchTileTask* task = new QGCFetchTileTask(hash);
+	return task;
 }
 
 //-----------------------------------------------------------------------------
-QGCTileSet
-QGCMapEngine::getTileCount(int zoom, double topleftLon, double topleftLat, double bottomRightLon, double bottomRightLat, UrlFactory::MapType mapType)
+	QGCTileSet
+QGCMapEngine::getTileCount(int zoom, double topleftLon, double topleftLat, double bottomRightLon, double bottomRightLat, QString mapType)
 {
-    if(zoom <  1) zoom = 1;
-    if(zoom > MAX_MAP_ZOOM) zoom = MAX_MAP_ZOOM;
-    QGCTileSet set;
-    set.tileX0 = long2tileX(topleftLon,     zoom);
-    set.tileY0 = lat2tileY(topleftLat,      zoom);
-    set.tileX1 = long2tileX(bottomRightLon, zoom);
-    set.tileY1 = lat2tileY(bottomRightLat,  zoom);
-    set.tileCount = (quint64)((quint64)set.tileX1 - (quint64)set.tileX0 + 1) * (quint64)((quint64)set.tileY1 - (quint64)set.tileY0 + 1);
-    set.tileSize  = UrlFactory::averageSizeForType(mapType) * set.tileCount;
-    return set;
+	if(zoom <  1) zoom = 1;
+	if(zoom > MAX_MAP_ZOOM) zoom = MAX_MAP_ZOOM;
+
+    return getQGCMapEngine()->urlFactory()->getTileCount(zoom, topleftLon, topleftLat, bottomRightLon, bottomRightLat, mapType);
 }
 
-//-----------------------------------------------------------------------------
-int
-QGCMapEngine::long2tileX(double lon, int z)
-{
-    return (int)(floor((lon + 180.0) / 360.0 * pow(2.0, z)));
-}
-
-//-----------------------------------------------------------------------------
-int
-QGCMapEngine::lat2tileY(double lat, int z)
-{
-    return (int)(floor((1.0 - log( tan(lat * M_PI/180.0) + 1.0 / cos(lat * M_PI/180.0)) / M_PI) / 2.0 * pow(2.0, z)));
-}
-
-//-----------------------------------------------------------------------------
-UrlFactory::MapType
-QGCMapEngine::getTypeFromName(const QString& name)
-{
-    size_t i;
-    for(i = 0; i < NUM_MAPS; i++) {
-        if(name.compare(kMapTypes[i].name, Qt::CaseInsensitive) == 0)
-            return kMapTypes[i].type;
-    }
-    for(i = 0; i < NUM_MAPBOXMAPS; i++) {
-        if(name.compare(kMapBoxTypes[i].name, Qt::CaseInsensitive) == 0)
-            return kMapBoxTypes[i].type;
-    }
-    return UrlFactory::Invalid;
-}
 
 //-----------------------------------------------------------------------------
 QStringList
 QGCMapEngine::getMapNameList()
 {
-    QStringList mapList;
-    for(size_t i = 0; i < NUM_MAPS; i++) {
-        mapList << kMapTypes[i].name;
-    }
-    if(!getMapBoxToken().isEmpty()) {
-        for(size_t i = 0; i < NUM_MAPBOXMAPS; i++) {
-            mapList << kMapBoxTypes[i].name;
-        }
-    }
-    return mapList;
-}
-
-//-----------------------------------------------------------------------------
-void
-QGCMapEngine::setMapBoxToken(const QString& token)
-{
-    QSettings settings;
-    settings.setValue(kMapBoxTokenKey, token);
-    _mapBoxToken = token;
-}
-
-//-----------------------------------------------------------------------------
-QString
-QGCMapEngine::getMapBoxToken()
-{
-    if(_mapBoxToken.isEmpty()) {
-        QSettings settings;
-        _mapBoxToken = settings.value(kMapBoxTokenKey).toString();
-    }
-    return _mapBoxToken;
+    return QStringList(getQGCMapEngine()->urlFactory()->getProviderTable().keys());
 }
 
 //-----------------------------------------------------------------------------
@@ -375,6 +294,9 @@ QGCMapEngine::getMaxMemCache()
         _maxMemCache = settings.value(kMaxMemCacheKey, 128).toUInt();
 #endif
     }
+    //-- Size in MB
+    if(_maxMemCache > 1024)
+        _maxMemCache = 1024;
     return _maxMemCache;
 }
 
@@ -382,6 +304,9 @@ QGCMapEngine::getMaxMemCache()
 void
 QGCMapEngine::setMaxMemCache(quint32 size)
 {
+    //-- Size in MB
+    if(size > 1024)
+        size = 1024;
     QSettings settings;
     settings.setValue(kMaxMemCacheKey, size);
     _maxMemCache = size;
@@ -394,18 +319,30 @@ QGCMapEngine::bigSizeToString(quint64 size)
     if(size < 1024)
         return kLocale.toString(size);
     else if(size < 1024 * 1024)
-        return kLocale.toString((double)size / 1024.0, 'f', 1) + "kB";
+        return kLocale.toString(static_cast<double>(size) / 1024.0, 'f', 1) + "kB";
     else if(size < 1024 * 1024 * 1024)
-        return kLocale.toString((double)size / (1024.0 * 1024.0), 'f', 1) + "MB";
+        return kLocale.toString(static_cast<double>(size) / (1024.0 * 1024.0), 'f', 1) + "MB";
     else if(size < 1024.0 * 1024.0 * 1024.0 * 1024.0)
-        return kLocale.toString((double)size / (1024.0 * 1024.0 * 1024.0), 'f', 1) + "GB";
+        return kLocale.toString(static_cast<double>(size) / (1024.0 * 1024.0 * 1024.0), 'f', 1) + "GB";
     else
-        return kLocale.toString((double)size / (1024.0 * 1024.0 * 1024.0 * 1024), 'f', 1) + "TB";
+        return kLocale.toString(static_cast<double>(size) / (1024.0 * 1024.0 * 1024.0 * 1024), 'f', 1) + "TB";
 }
 
 //-----------------------------------------------------------------------------
 QString
-QGCMapEngine::numberToString(quint32 number)
+QGCMapEngine::storageFreeSizeToString(quint64 size_MB)
+{
+    if(size_MB < 1024)
+        return kLocale.toString(static_cast<double>(size_MB) , 'f', 0) + " MB";
+    else if(size_MB < 1024.0 * 1024.0)
+        return kLocale.toString(static_cast<double>(size_MB) / (1024.0), 'f', 2) + " GB";
+    else
+        return kLocale.toString(static_cast<double>(size_MB) / (1024.0 * 1024), 'f', 2) + " TB";
+}
+
+//-----------------------------------------------------------------------------
+QString
+QGCMapEngine::numberToString(quint64 number)
 {
     return kLocale.toString(number);
 }
@@ -415,7 +352,7 @@ void
 QGCMapEngine::_updateTotals(quint32 totaltiles, quint64 totalsize, quint32 defaulttiles, quint64 defaultsize)
 {
     emit updateTotals(totaltiles, totalsize, defaulttiles, defaultsize);
-    quint64 maxSize = getMaxDiskCache() * 1024 * 1024;
+    quint64 maxSize = static_cast<quint64>(getMaxDiskCache()) * 1024L * 1024L;
     if(!_prunning && defaultsize > maxSize) {
         //-- Prune Disk Cache
         _prunning = true;
@@ -433,23 +370,13 @@ QGCMapEngine::_pruned()
 
 //-----------------------------------------------------------------------------
 int
-QGCMapEngine::concurrentDownloads(UrlFactory::MapType type)
+QGCMapEngine::concurrentDownloads(QString type)
 {
-    switch(type) {
-    case UrlFactory::GoogleMap:
-    case UrlFactory::GoogleSatellite:
-    case UrlFactory::GoogleTerrain:
-    case UrlFactory::BingMap:
-    case UrlFactory::BingSatellite:
-    case UrlFactory::BingHybrid:
-        return 12;
-    case UrlFactory::MapQuestMap:
-    case UrlFactory::MapQuestSat:
-        return 8;
-    default:
-        break;
-    }
-    return 6;
+    Q_UNUSED(type);
+    // TODO : We may want different values depending on 
+    // the provider here, let it like this as all provider are set to 12 
+    // at the moment
+    return 12;
 }
 
 //-----------------------------------------------------------------------------
@@ -458,6 +385,26 @@ QGCCreateTileSetTask::~QGCCreateTileSetTask()
     //-- If not sent out, delete it
     if(!_saved && _tileSet)
         delete _tileSet;
+}
+
+//-----------------------------------------------------------------------------
+void
+QGCMapEngine::testInternet()
+{
+    if(qgcApp()->toolbox()->settingsManager()->appSettings()->checkInternet()->rawValue().toBool())
+        getQGCMapEngine()->addTask(new QGCTestInternetTask());
+    else
+        _internetStatus(true);
+}
+
+//-----------------------------------------------------------------------------
+void
+QGCMapEngine::_internetStatus(bool active)
+{
+    if(_isInternetActive != active) {
+        _isInternetActive = active;
+        emit internetUpdated();
+    }
 }
 
 // Resolution math: https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Resolution_and_Scale

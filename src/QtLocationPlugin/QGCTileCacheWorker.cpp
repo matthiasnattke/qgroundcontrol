@@ -1,31 +1,18 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-QGroundControl Open Source Ground Control Station
-
-(c) 2009, 2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
-This file is part of the QGROUNDCONTROL project
-
-    QGROUNDCONTROL is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    QGROUNDCONTROL is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
 
 /**
  * @file
  *   @brief Map Tile Cache Worker Thread
  *
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  *
  */
 
@@ -42,8 +29,9 @@ This file is part of the QGROUNDCONTROL project
 
 #include "time.h"
 
-const char* kDefaultSet = "Default Tile Set";
-const QString kSession  = QLatin1String("QGeoTileWorkerSession");
+static const char*      kDefaultSet     = "Default Tile Set";
+static const QString    kSession        = QStringLiteral("QGeoTileWorkerSession");
+static const QString    kExportSession  = QStringLiteral("QGeoTileExportSession");
 
 QGC_LOGGING_CATEGORY(QGCTileCacheLog, "QGCTileCacheLog")
 
@@ -54,7 +42,7 @@ QGC_LOGGING_CATEGORY(QGCTileCacheLog, "QGCTileCacheLog")
 
 //-----------------------------------------------------------------------------
 QGCCacheWorker::QGCCacheWorker()
-    : _db(NULL)
+    : _db(nullptr)
     , _valid(false)
     , _failed(false)
     , _defaultSet(UINT64_MAX)
@@ -64,14 +52,13 @@ QGCCacheWorker::QGCCacheWorker()
     , _defaultCount(0)
     , _lastUpdate(0)
     , _updateTimeout(SHORT_TIMEOUT)
+    , _hostLookupID(0)
 {
-
 }
 
 //-----------------------------------------------------------------------------
 QGCCacheWorker::~QGCCacheWorker()
 {
-
 }
 
 //-----------------------------------------------------------------------------
@@ -85,6 +72,9 @@ QGCCacheWorker::setDatabaseFile(const QString& path)
 void
 QGCCacheWorker::quit()
 {
+    if(_hostLookupID) {
+        QHostInfo::abortHostLookup(_hostLookupID);
+    }
     _mutex.lock();
     while(_taskQueue.count()) {
         QGCMapTask* task = _taskQueue.dequeue();
@@ -106,20 +96,15 @@ QGCCacheWorker::enqueueTask(QGCMapTask* task)
         task->deleteLater();
         return false;
     }
-    if(!_taskQueue.contains(task))
-    {
-        _mutex.lock();
-        _taskQueue.enqueue(task);
-        _mutex.unlock();
-        if(this->isRunning()) {
-            _waitc.wakeAll();
-        } else {
-            this->start(QThread::NormalPriority);
-        }
-        return true;
+    _mutex.lock();
+    _taskQueue.enqueue(task);
+    _mutex.unlock();
+    if(this->isRunning()) {
+        _waitc.wakeAll();
+    } else {
+        this->start(QThread::HighPriority);
     }
-    //-- Should never happen
-    return false;
+    return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -165,45 +150,56 @@ QGCCacheWorker::run()
                 case QGCMapTask::taskDeleteTileSet:
                     _deleteTileSet(task);
                     break;
+                case QGCMapTask::taskRenameTileSet:
+                    _renameTileSet(task);
+                    break;
                 case QGCMapTask::taskPruneCache:
                     _pruneCache(task);
                     break;
                 case QGCMapTask::taskReset:
                     _resetCacheDatabase(task);
                     break;
+                case QGCMapTask::taskExport:
+                    _exportSets(task);
+                    break;
+                case QGCMapTask::taskImport:
+                    _importSets(task);
+                    break;
+                case QGCMapTask::taskTestInternet:
+                    _testInternet();
+                    break;
             }
             task->deleteLater();
             //-- Check for update timeout
-            size_t count = _taskQueue.count();
+            size_t count = static_cast<size_t>(_taskQueue.count());
             if(count > 100) {
                 _updateTimeout = LONG_TIMEOUT;
             } else if(count < 25) {
                 _updateTimeout = SHORT_TIMEOUT;
             }
-            if(!count || (time(0) - _lastUpdate > _updateTimeout)) {
-                _updateTotals();
+            if(!count || (time(nullptr) - _lastUpdate > _updateTimeout)) {
+                if(_valid) {
+                    _updateTotals();
+                }
             }
         } else {
             //-- Wait a bit before shutting things down
             _waitmutex.lock();
-            int timeout = 5000;
-            if(!_waitc.wait(&_waitmutex, timeout))
-            {
-                _waitmutex.unlock();
-                _mutex.lock();
-                //-- If nothing to do, close db and leave thread
-                if(!_taskQueue.count()) {
-                    _mutex.unlock();
-                    break;
-                }
-                _mutex.unlock();
-            }
+            unsigned long timeout = 5000;
+            _waitc.wait(&_waitmutex, timeout);
             _waitmutex.unlock();
+            _mutex.lock();
+            //-- If nothing to do, close db and leave thread
+            if(!_taskQueue.count()) {
+                _mutex.unlock();
+                break;
+            }
+            _mutex.unlock();
         }
     }
     if(_db) {
         delete _db;
-        _db = NULL;
+        _db = nullptr;
         QSqlDatabase::removeDatabase(kSession);
     }
 }
@@ -275,8 +271,7 @@ QGCCacheWorker::_saveTile(QGCMapTask *mtask)
 void
 QGCCacheWorker::_getTile(QGCMapTask* mtask)
 {
-    if(!_valid) {
-        mtask->setError("No Cache Database");
+    if(!_testTask(mtask)) {
         return;
     }
     bool found = false;
@@ -287,7 +282,7 @@ QGCCacheWorker::_getTile(QGCMapTask* mtask)
         if(query.next()) {
             QByteArray ar   = query.value(0).toByteArray();
             QString format  = query.value(1).toString();
-            UrlFactory::MapType type = (UrlFactory::MapType)query.value(2).toInt();
+            QString type = getQGCMapEngine()->urlFactory()->getTypeFromId(query.value(2).toInt());
             qCDebug(QGCTileCacheLog) << "_getTile() (Found in DB) HASH:" << task->hash();
             QGCCacheTile* tile = new QGCCacheTile(task->hash(), ar, format, type);
             task->setTileFetched(tile);
@@ -304,18 +299,17 @@ QGCCacheWorker::_getTile(QGCMapTask* mtask)
 void
 QGCCacheWorker::_getTileSets(QGCMapTask* mtask)
 {
-    if(!_valid) {
-        mtask->setError("No Cache Database");
+    if(!_testTask(mtask)) {
         return;
     }
     QGCFetchTileSetTask* task = static_cast<QGCFetchTileSetTask*>(mtask);
     QSqlQuery query(*_db);
     QString s = QString("SELECT * FROM TileSets ORDER BY defaultSet DESC, name ASC");
+    qCDebug(QGCTileCacheLog) << "_getTileSets(): " << s;
     if(query.exec(s)) {
         while(query.next()) {
             QString name = query.value("name").toString();
-            QString desc = query.value("description").toString();
-            QGCCachedTileSet* set = new QGCCachedTileSet(name, desc);
+            QGCCachedTileSet* set = new QGCCachedTileSet(name);
             set->setId(query.value("setID").toULongLong());
             set->setMapTypeStr(query.value("typeStr").toString());
             set->setTopleftLat(query.value("topleftLat").toDouble());
@@ -324,20 +318,10 @@ QGCCacheWorker::_getTileSets(QGCMapTask* mtask)
             set->setBottomRightLon(query.value("bottomRightLon").toDouble());
             set->setMinZoom(query.value("minZoom").toInt());
             set->setMaxZoom(query.value("maxZoom").toInt());
-            set->setType((UrlFactory::MapType)query.value("type").toInt());
-            set->setNumTiles(query.value("numTiles").toUInt());
-            set->setTilesSize(query.value("tilesSize").toULongLong());
+            set->setType(getQGCMapEngine()->urlFactory()->getTypeFromId(query.value("type").toInt()));
+            set->setTotalTileCount(query.value("numTiles").toUInt());
             set->setDefaultSet(query.value("defaultSet").toInt() != 0);
             set->setCreationDate(QDateTime::fromTime_t(query.value("date").toUInt()));
-            //-- Load thumbnail (if not default set)
-            if(!set->defaultSet()) {
-                int w = query.value("thumbW").toInt();
-                int h = query.value("thumbH").toInt();
-                if(w && h) {
-                    QByteArray ba = query.value("thumbNail").toByteArray();
-                    set->setThumbNail(QImage((uchar*)(void*)ba.data(), w, h, QImage::Format_RGB32));
-                }
-            }
             _updateSetTotals(set);
             //-- Object created here must be moved to app thread to be used there
             set->moveToThread(QApplication::instance()->thread());
@@ -354,23 +338,52 @@ QGCCacheWorker::_updateSetTotals(QGCCachedTileSet* set)
 {
     if(set->defaultSet()) {
         _updateTotals();
-        set->setSavedTiles(_totalCount);
-        set->setSavedSize(_totalSize);
-        set->setNumTiles(_defaultCount);
-        set->setTilesSize(_defaultSize);
+        set->setSavedTileCount(_totalCount);
+        set->setSavedTileSize(_totalSize);
+        set->setTotalTileCount(_defaultCount);
+        set->setTotalTileSize(_defaultSize);
         return;
     }
     QSqlQuery subquery(*_db);
     QString sq = QString("SELECT COUNT(size), SUM(size) FROM Tiles A INNER JOIN SetTiles B on A.tileID = B.tileID WHERE B.setID = %1").arg(set->id());
+    qCDebug(QGCTileCacheLog) << "_updateSetTotals(): " << sq;
     if(subquery.exec(sq)) {
         if(subquery.next()) {
-            set->setSavedTiles(subquery.value(0).toUInt());
-            set->setSavedSize(subquery.value(1).toULongLong());
-            //-- Update estimated size
-            if(set->savedTiles() > 10 && set->savedSize()) {
-                quint32 avg = set->savedSize() / set->savedTiles();
-                set->setTilesSize(avg * set->numTiles());
+            set->setSavedTileCount(subquery.value(0).toUInt());
+            set->setSavedTileSize(subquery.value(1).toULongLong());
+            qCDebug(QGCTileCacheLog) << "Set" << set->id() << "Totals:" << set->savedTileCount() << " " << set->savedTileSize() << "Expected: " << set->totalTileCount() << " " << set->totalTilesSize();
+            //-- Update (estimated) size
+            quint64 avg = getQGCMapEngine()->urlFactory()->averageSizeForType(set->type());
+            if(set->totalTileCount() <= set->savedTileCount()) {
+                //-- We're done so the saved size is the total size
+                set->setTotalTileSize(set->savedTileSize());
+            } else {
+                //-- Otherwise we need to estimate it.
+                if(set->savedTileCount() > 10 && set->savedTileSize()) {
+                    avg = set->savedTileSize() / set->savedTileCount();
+                }
+                set->setTotalTileSize(avg * set->totalTileCount());
             }
+            //-- Now figure out the count for tiles unique to this set
+            quint32 ucount = 0;
+            quint64 usize  = 0;
+            sq = QString("SELECT COUNT(size), SUM(size) FROM Tiles WHERE tileID IN (SELECT A.tileID FROM SetTiles A join SetTiles B on A.tileID = B.tileID WHERE B.setID = %1 GROUP by A.tileID HAVING COUNT(A.tileID) = 1)").arg(set->id());
+            if(subquery.exec(sq)) {
+                if(subquery.next()) {
+                    //-- This is only accurate when all tiles are downloaded
+                    ucount = subquery.value(0).toUInt();
+                    usize  = subquery.value(1).toULongLong();
+                }
+            }
+            //-- If we haven't downloaded it all, estimate size of unique tiles
+            quint32 expectedUcount = set->totalTileCount() - set->savedTileCount();
+            if(!ucount) {
+                usize = expectedUcount * avg;
+            } else {
+                expectedUcount = ucount;
+            }
+            set->setUniqueTileCount(expectedUcount);
+            set->setUniqueTileSize(usize);
         }
     }
 }
@@ -382,13 +395,15 @@ QGCCacheWorker::_updateTotals()
     QSqlQuery query(*_db);
     QString s;
     s = QString("SELECT COUNT(size), SUM(size) FROM Tiles");
+    qCDebug(QGCTileCacheLog) << "_updateTotals(): " << s;
     if(query.exec(s)) {
         if(query.next()) {
             _totalCount = query.value(0).toUInt();
             _totalSize  = query.value(1).toULongLong();
         }
     }
-    s = QString("SELECT COUNT(size), SUM(size) FROM Tiles A INNER JOIN SetTiles B on A.tileID = B.tileID WHERE B.setID = %1").arg(_getDefaultTileSet());
+    s = QString("SELECT COUNT(size), SUM(size) FROM Tiles WHERE tileID IN (SELECT A.tileID FROM SetTiles A join SetTiles B on A.tileID = B.tileID WHERE B.setID = %1 GROUP by A.tileID HAVING COUNT(A.tileID) = 1)").arg(_getDefaultTileSet());
+    qCDebug(QGCTileCacheLog) << "_updateTotals(): " << s;
     if(query.exec(s)) {
         if(query.next()) {
             _defaultCount = query.value(0).toUInt();
@@ -396,21 +411,21 @@ QGCCacheWorker::_updateTotals()
         }
     }
     emit updateTotals(_totalCount, _totalSize, _defaultCount, _defaultSize);
-    _lastUpdate = time(0);
+    _lastUpdate = time(nullptr);
 }
 
 //-----------------------------------------------------------------------------
-bool
-QGCCacheWorker::_findTile(const QString hash)
+quint64 QGCCacheWorker::_findTile(const QString hash)
 {
+    quint64 tileID = 0;
     QSqlQuery query(*_db);
-    QString s = QString("SELECT type FROM Tiles WHERE hash = \"%1\"").arg(hash);
+    QString s = QString("SELECT tileID FROM Tiles WHERE hash = \"%1\"").arg(hash);
     if(query.exec(s)) {
         if(query.next()) {
-            return true;
+            tileID = query.value(0).toULongLong();
         }
     }
-    return false;
+    return tileID;
 }
 
 //-----------------------------------------------------------------------------
@@ -423,10 +438,9 @@ QGCCacheWorker::_createTileSet(QGCMapTask *mtask)
         QGCCreateTileSetTask* task = static_cast<QGCCreateTileSetTask*>(mtask);
         QSqlQuery query(*_db);
         query.prepare("INSERT INTO TileSets("
-            "name, description, typeStr, topleftLat, topleftLon, bottomRightLat, bottomRightLon, minZoom, maxZoom, type, numTiles, tilesSize, thumbNail, thumbW, thumbH, date"
-            ") VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            "name, typeStr, topleftLat, topleftLon, bottomRightLat, bottomRightLon, minZoom, maxZoom, type, numTiles, date"
+            ") VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         query.addBindValue(task->tileSet()->name());
-        query.addBindValue(task->tileSet()->description());
         query.addBindValue(task->tileSet()->mapTypeStr());
         query.addBindValue(task->tileSet()->topleftLat());
         query.addBindValue(task->tileSet()->topleftLon());
@@ -434,41 +448,35 @@ QGCCacheWorker::_createTileSet(QGCMapTask *mtask)
         query.addBindValue(task->tileSet()->bottomRightLon());
         query.addBindValue(task->tileSet()->minZoom());
         query.addBindValue(task->tileSet()->maxZoom());
-        query.addBindValue(task->tileSet()->type());
-        query.addBindValue(task->tileSet()->numTiles());
-        query.addBindValue(task->tileSet()->tilesSize());
-        if(task->tileSet()->thumbNail().isNull()) {
-            query.addBindValue(QByteArray(1,'\0'));
-            query.addBindValue(0);
-            query.addBindValue(0);
-        } else {
-            query.addBindValue(QByteArray((const char *)(void*)task->tileSet()->thumbNail().convertToFormat(QImage::Format_RGB32).bits(), task->tileSet()->thumbNail().byteCount()));
-            query.addBindValue(task->tileSet()->thumbNail().width());
-            query.addBindValue(task->tileSet()->thumbNail().height());
-        }
+        query.addBindValue(getQGCMapEngine()->urlFactory()->getIdFromType(task->tileSet()->type()));
+        query.addBindValue(task->tileSet()->totalTileCount());
         query.addBindValue(QDateTime::currentDateTime().toTime_t());
         if(!query.exec()) {
             qWarning() << "Map Cache SQL error (add tileSet into TileSets):" << query.lastError().text();
         } else {
-            //-- Get just creted (auto-incremented) setID
+            //-- Get just created (auto-incremented) setID
             quint64 setID = query.lastInsertId().toULongLong();
             task->tileSet()->setId(setID);
             //-- Prepare Download List
+            quint64 tileCount = 0;
+            _db->transaction();
             for(int z = task->tileSet()->minZoom(); z <= task->tileSet()->maxZoom(); z++) {
                 QGCTileSet set = QGCMapEngine::getTileCount(z,
                     task->tileSet()->topleftLon(), task->tileSet()->topleftLat(),
                     task->tileSet()->bottomRightLon(), task->tileSet()->bottomRightLat(), task->tileSet()->type());
-                UrlFactory::MapType type = task->tileSet()->type();
+                tileCount += set.tileCount;
+                QString type = task->tileSet()->type();
                 for(int x = set.tileX0; x <= set.tileX1; x++) {
                     for(int y = set.tileY0; y <= set.tileY1; y++) {
                         //-- See if tile is already downloaded
                         QString hash = QGCMapEngine::getTileHash(type, x, y, z);
-                        if(!_findTile(hash)) {
+                        quint64 tileID = _findTile(hash);
+                        if(!tileID) {
                             //-- Set to download
                             query.prepare("INSERT OR IGNORE INTO TilesDownload(setID, hash, type, x, y, z, state) VALUES(?, ?, ?, ?, ? ,? ,?)");
                             query.addBindValue(setID);
                             query.addBindValue(hash);
-                            query.addBindValue(type);
+                            query.addBindValue(getQGCMapEngine()->urlFactory()->getIdFromType(type));
                             query.addBindValue(x);
                             query.addBindValue(y);
                             query.addBindValue(z);
@@ -479,16 +487,19 @@ QGCCacheWorker::_createTileSet(QGCMapTask *mtask)
                                 return;
                             } else
                                 actual_count++;
+                        } else {
+                            //-- Tile already in the database. No need to dowload.
+                            QString s = QString("INSERT OR IGNORE INTO SetTiles(tileID, setID) VALUES(%1, %2)").arg(tileID).arg(setID);
+                            query.prepare(s);
+                            if(!query.exec()) {
+                                qWarning() << "Map Cache SQL error (add tile into SetTiles):" << query.lastError().text();
+                            }
+                            qCDebug(QGCTileCacheLog) << "_createTileSet() Already Cached HASH:" << hash;
                         }
                     }
                 }
             }
-            //-- Now update how many tiles we actually have to download
-            quint64 actual_size = actual_count * UrlFactory::averageSizeForType(task->tileSet()->type());
-            QString s = QString("UPDATE TileSets SET numTiles = %1, tilesSize = %2 WHERE setID = %3").arg(actual_count).arg(actual_size).arg(task->tileSet()->setID());
-            if(!query.exec(s)) {
-                qWarning() << "Map Cache SQL error (set TilesDownload state):" << query.lastError().text();
-            }
+            _db->commit();
             //-- Done
             _updateSetTotals(task->tileSet());
             task->setTileSetSaved();
@@ -502,8 +513,7 @@ QGCCacheWorker::_createTileSet(QGCMapTask *mtask)
 void
 QGCCacheWorker::_getTileDownloadList(QGCMapTask* mtask)
 {
-    if(!_valid) {
-        mtask->setError("No Cache Database");
+    if(!_testTask(mtask)) {
         return;
     }
     QList<QGCTile*> tiles;
@@ -514,14 +524,14 @@ QGCCacheWorker::_getTileDownloadList(QGCMapTask* mtask)
         while(query.next()) {
             QGCTile* tile = new QGCTile;
             tile->setHash(query.value("hash").toString());
-            tile->setType((UrlFactory::MapType)query.value("type").toInt());
+            tile->setType(getQGCMapEngine()->urlFactory()->getTypeFromId(query.value("type").toInt()));
             tile->setX(query.value("x").toInt());
             tile->setY(query.value("y").toInt());
             tile->setZ(query.value("z").toInt());
             tiles.append(tile);
         }
         for(int i = 0; i < tiles.size(); i++) {
-            s = QString("UPDATE TilesDownload SET state = %1 WHERE setID = %2 and hash = \"%3\"").arg((int)QGCTile::StateDownloading).arg(task->setID()).arg(tiles[i]->hash());
+            s = QString("UPDATE TilesDownload SET state = %1 WHERE setID = %2 and hash = \"%3\"").arg(static_cast<int>(QGCTile::StateDownloading)).arg(task->setID()).arg(tiles[i]->hash());
             if(!query.exec(s)) {
                 qWarning() << "Map Cache SQL error (set TilesDownload state):" << query.lastError().text();
             }
@@ -534,8 +544,7 @@ QGCCacheWorker::_getTileDownloadList(QGCMapTask* mtask)
 void
 QGCCacheWorker::_updateTileDownloadState(QGCMapTask* mtask)
 {
-    if(!_valid) {
-        mtask->setError("No Cache Database");
+    if(!_testTask(mtask)) {
         return;
     }
     QGCUpdateTileDownloadStateTask* task = static_cast<QGCUpdateTileDownloadStateTask*>(mtask);
@@ -545,9 +554,9 @@ QGCCacheWorker::_updateTileDownloadState(QGCMapTask* mtask)
         s = QString("DELETE FROM TilesDownload WHERE setID = %1 AND hash = \"%2\"").arg(task->setID()).arg(task->hash());
     } else {
         if(task->hash() == "*") {
-            s = QString("UPDATE TilesDownload SET state = %1 WHERE setID = %2").arg((int)task->state()).arg(task->setID());
+            s = QString("UPDATE TilesDownload SET state = %1 WHERE setID = %2").arg(static_cast<int>(task->state())).arg(task->setID());
         } else {
-            s = QString("UPDATE TilesDownload SET state = %1 WHERE setID = %2 AND hash = \"%3\"").arg((int)task->state()).arg(task->setID()).arg(task->hash());
+            s = QString("UPDATE TilesDownload SET state = %1 WHERE setID = %2 AND hash = \"%3\"").arg(static_cast<int>(task->state())).arg(task->setID()).arg(task->hash());
         }
     }
     if(!query.exec(s)) {
@@ -559,14 +568,14 @@ QGCCacheWorker::_updateTileDownloadState(QGCMapTask* mtask)
 void
 QGCCacheWorker::_pruneCache(QGCMapTask* mtask)
 {
-    if(!_valid) {
-        mtask->setError("No Cache Database");
+    if(!_testTask(mtask)) {
         return;
     }
     QGCPruneCacheTask* task = static_cast<QGCPruneCacheTask*>(mtask);
     QSqlQuery query(*_db);
     QString s;
-    s = QString("SELECT tileID, size, hash FROM Tiles WHERE tileID IN (SELECT tileID FROM SetTiles WHERE setID = %1) ORDER BY DATE ASC LIMIT 128").arg(_getDefaultTileSet());
+    //-- Select tiles in default set only, sorted by oldest.
+    s = QString("SELECT tileID, size, hash FROM Tiles WHERE tileID IN (SELECT A.tileID FROM SetTiles A join SetTiles B on A.tileID = B.tileID WHERE B.setID = %1 GROUP by A.tileID HAVING COUNT(A.tileID) = 1) ORDER BY DATE ASC LIMIT 128").arg(_getDefaultTileSet());
     qint64 amount = (qint64)task->amount();
     QList<quint64> tlist;
     if(query.exec(s)) {
@@ -589,30 +598,53 @@ QGCCacheWorker::_pruneCache(QGCMapTask* mtask)
 void
 QGCCacheWorker::_deleteTileSet(QGCMapTask* mtask)
 {
-    if(!_valid) {
-        mtask->setError("No Cache Database");
+    if(!_testTask(mtask)) {
         return;
     }
     QGCDeleteTileSetTask* task = static_cast<QGCDeleteTileSetTask*>(mtask);
-    QSqlQuery query(*_db);
-    QString s;
-    s = QString("DELETE FROM Tiles WHERE tileID IN (SELECT tileID FROM SetTiles WHERE setID = %1)").arg(task->setID());
-    query.exec(s);
-    s = QString("DELETE FROM TilesDownload WHERE setID = %1").arg(task->setID());
-    query.exec(s);
-    s = QString("DELETE FROM TileSets WHERE setID = %1").arg(task->setID());
-    query.exec(s);
-    s = QString("DELETE FROM SetTiles WHERE setID = %1").arg(task->setID());
-    query.exec(s);
-    _updateTotals();
+    _deleteTileSet(task->setID());
     task->setTileSetDeleted();
 }
+
+//-----------------------------------------------------------------------------
+void
+QGCCacheWorker::_deleteTileSet(qulonglong id)
+{
+    QSqlQuery query(*_db);
+    QString s;
+    //-- Only delete tiles unique to this set
+    s = QString("DELETE FROM Tiles WHERE tileID IN (SELECT A.tileID FROM SetTiles A JOIN SetTiles B ON A.tileID = B.tileID WHERE B.setID = %1 GROUP BY A.tileID HAVING COUNT(A.tileID) = 1)").arg(id);
+    query.exec(s);
+    s = QString("DELETE FROM TilesDownload WHERE setID = %1").arg(id);
+    query.exec(s);
+    s = QString("DELETE FROM TileSets WHERE setID = %1").arg(id);
+    query.exec(s);
+    s = QString("DELETE FROM SetTiles WHERE setID = %1").arg(id);
+    query.exec(s);
+    _updateTotals();
+}
+
+//-----------------------------------------------------------------------------
+void
+QGCCacheWorker::_renameTileSet(QGCMapTask* mtask)
+{
+    if(!_testTask(mtask)) {
+        return;
+    }
+    QGCRenameTileSetTask* task = static_cast<QGCRenameTileSetTask*>(mtask);
+    QSqlQuery query(*_db);
+    QString s;
+    s = QString("UPDATE TileSets SET name = \"%1\" WHERE setID = %2").arg(task->newName()).arg(task->setID());
+    if(!query.exec(s)) {
+        task->setError("Error renaming tile set");
+    }
+}
+
 //-----------------------------------------------------------------------------
 void
 QGCCacheWorker::_resetCacheDatabase(QGCMapTask* mtask)
 {
-    if(!_valid) {
-        mtask->setError("No Cache Database");
+    if(!_testTask(mtask)) {
         return;
     }
     QGCResetTask* task = static_cast<QGCResetTask*>(mtask);
@@ -626,8 +658,314 @@ QGCCacheWorker::_resetCacheDatabase(QGCMapTask* mtask)
     query.exec(s);
     s = QString("DROP TABLE TilesDownload");
     query.exec(s);
-    _createDB();
+    _valid = _createDB(_db);
     task->setResetCompleted();
+}
+
+//-----------------------------------------------------------------------------
+void
+QGCCacheWorker::_importSets(QGCMapTask* mtask)
+{
+    if(!_testTask(mtask)) {
+        return;
+    }
+    QGCImportTileTask* task = static_cast<QGCImportTileTask*>(mtask);
+    //-- If replacing, simply copy over it
+    if(task->replace()) {
+        //-- Close and delete old database
+        if(_db) {
+            delete _db;
+            _db = nullptr;
+            QSqlDatabase::removeDatabase(kSession);
+        }
+        QFile file(_databasePath);
+        file.remove();
+        //-- Copy given database
+        QFile::copy(task->path(), _databasePath);
+        task->setProgress(25);
+        _init();
+        if(_valid) {
+            task->setProgress(50);
+            _db = new QSqlDatabase(QSqlDatabase::addDatabase("QSQLITE", kSession));
+            _db->setDatabaseName(_databasePath);
+            _db->setConnectOptions("QSQLITE_ENABLE_SHARED_CACHE");
+            _valid = _db->open();
+        }
+        task->setProgress(100);
+    } else {
+        //-- Open imported set
+        QSqlDatabase* dbImport = new QSqlDatabase(QSqlDatabase::addDatabase("QSQLITE", kExportSession));
+        dbImport->setDatabaseName(task->path());
+        dbImport->setConnectOptions("QSQLITE_ENABLE_SHARED_CACHE");
+        if (dbImport->open()) {
+            QSqlQuery query(*dbImport);
+            //-- Prepare progress report
+            quint64 tileCount = 0;
+            quint64 currentCount = 0;
+            int lastProgress = -1;
+            QString s;
+            s = QString("SELECT COUNT(tileID) FROM Tiles");
+            if(query.exec(s)) {
+                if(query.next()) {
+                    //-- Total number of tiles in imported database
+                    tileCount  = query.value(0).toULongLong();
+                }
+            }
+            if(tileCount) {
+                //-- Iterate Tile Sets
+                s = QString("SELECT * FROM TileSets ORDER BY defaultSet DESC, name ASC");
+                if(query.exec(s)) {
+                    while(query.next()) {
+                        QString name            = query.value("name").toString();
+                        quint64 setID           = query.value("setID").toULongLong();
+                        QString mapType         = query.value("typeStr").toString();
+                        double  topleftLat      = query.value("topleftLat").toDouble();
+                        double  topleftLon      = query.value("topleftLon").toDouble();
+                        double  bottomRightLat  = query.value("bottomRightLat").toDouble();
+                        double  bottomRightLon  = query.value("bottomRightLon").toDouble();
+                        int     minZoom         = query.value("minZoom").toInt();
+                        int     maxZoom         = query.value("maxZoom").toInt();
+                        int     type            = query.value("type").toInt();
+                        quint32 numTiles        = query.value("numTiles").toUInt();
+                        int     defaultSet      = query.value("defaultSet").toInt();
+                        quint64 insertSetID     = _getDefaultTileSet();
+                        //-- If not default set, create new one
+                        if(!defaultSet) {
+                            //-- Check if we have this tile set already
+                            if(_findTileSetID(name, insertSetID)) {
+                                int testCount = 0;
+                                //-- Set with this name already exists. Make name unique.
+                                while (true) {
+                                    QString testName;
+                                    testName.sprintf("%s %02d", name.toLatin1().data(), ++testCount);
+                                    if(!_findTileSetID(testName, insertSetID) || testCount > 99) {
+                                        name = testName;
+                                        break;
+                                    }
+                                }
+                            }
+                            //-- Create new set
+                            QSqlQuery cQuery(*_db);
+                            cQuery.prepare("INSERT INTO TileSets("
+                                "name, typeStr, topleftLat, topleftLon, bottomRightLat, bottomRightLon, minZoom, maxZoom, type, numTiles, defaultSet, date"
+                                ") VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                            cQuery.addBindValue(name);
+                            cQuery.addBindValue(mapType);
+                            cQuery.addBindValue(topleftLat);
+                            cQuery.addBindValue(topleftLon);
+                            cQuery.addBindValue(bottomRightLat);
+                            cQuery.addBindValue(bottomRightLon);
+                            cQuery.addBindValue(minZoom);
+                            cQuery.addBindValue(maxZoom);
+                            cQuery.addBindValue(type);
+                            cQuery.addBindValue(numTiles);
+                            cQuery.addBindValue(defaultSet);
+                            cQuery.addBindValue(QDateTime::currentDateTime().toTime_t());
+                            if(!cQuery.exec()) {
+                                task->setError("Error adding imported tile set to database");
+                                break;
+                            } else {
+                                //-- Get just created (auto-incremented) setID
+                                insertSetID = cQuery.lastInsertId().toULongLong();
+                            }
+                        }
+                        //-- Find set tiles
+                        QSqlQuery cQuery(*_db);
+                        QSqlQuery subQuery(*dbImport);
+                        QString sb = QString("SELECT * FROM Tiles WHERE tileID IN (SELECT A.tileID FROM SetTiles A JOIN SetTiles B ON A.tileID = B.tileID WHERE B.setID = %1 GROUP BY A.tileID HAVING COUNT(A.tileID) = 1)").arg(setID);
+                        if(subQuery.exec(sb)) {
+                            quint64 tilesFound = 0;
+                            quint64 tilesSaved = 0;
+                            _db->transaction();
+                            while(subQuery.next()) {
+                                tilesFound++;
+                                QString hash    = subQuery.value("hash").toString();
+                                QString format  = subQuery.value("format").toString();
+                                QByteArray img  = subQuery.value("tile").toByteArray();
+                                int type        = subQuery.value("type").toInt();
+                                //-- Save tile
+                                cQuery.prepare("INSERT INTO Tiles(hash, format, tile, size, type, date) VALUES(?, ?, ?, ?, ?, ?)");
+                                cQuery.addBindValue(hash);
+                                cQuery.addBindValue(format);
+                                cQuery.addBindValue(img);
+                                cQuery.addBindValue(img.size());
+                                cQuery.addBindValue(type);
+                                cQuery.addBindValue(QDateTime::currentDateTime().toTime_t());
+                                if(cQuery.exec()) {
+                                    tilesSaved++;
+                                    quint64 importTileID = cQuery.lastInsertId().toULongLong();
+                                    QString s = QString("INSERT INTO SetTiles(tileID, setID) VALUES(%1, %2)").arg(importTileID).arg(insertSetID);
+                                    cQuery.prepare(s);
+                                    cQuery.exec();
+                                    currentCount++;
+                                    if(tileCount) {
+                                        int progress = (int)((double)currentCount / (double)tileCount * 100.0);
+                                        //-- Avoid calling this if (int) progress hasn't changed.
+                                        if(lastProgress != progress) {
+                                            lastProgress = progress;
+                                            task->setProgress(progress);
+                                        }
+                                    }
+                                }
+                            }
+                            _db->commit();
+                            if(tilesSaved) {
+                                //-- Update tile count (if any added)
+                                s = QString("SELECT COUNT(size) FROM Tiles A INNER JOIN SetTiles B on A.tileID = B.tileID WHERE B.setID = %1").arg(insertSetID);
+                                if(cQuery.exec(s)) {
+                                    if(cQuery.next()) {
+                                        quint64 count  = cQuery.value(0).toULongLong();
+                                        s = QString("UPDATE TileSets SET numTiles = %1 WHERE setID = %2").arg(count).arg(insertSetID);
+                                        cQuery.exec(s);
+                                    }
+                                }
+                            }
+                            qint64 uniqueTiles = tilesFound - tilesSaved;
+                            if((quint64)uniqueTiles < tileCount) {
+                                tileCount -= uniqueTiles;
+                            } else {
+                                tileCount = 0;
+                            }
+                            //-- If there was nothing new in this set, remove it.
+                            if(!tilesSaved && !defaultSet) {
+                                qCDebug(QGCTileCacheLog) << "No unique tiles in" << name << "Removing it.";
+                                _deleteTileSet(insertSetID);
+                            }
+                        }
+                    }
+                } else {
+                    task->setError("No tile set in database");
+                }
+            }
+            delete dbImport;
+            QSqlDatabase::removeDatabase(kExportSession);
+            if(!tileCount) {
+                task->setError("No unique tiles in imported database");
+            }
+        } else {
+            task->setError("Error opening import database");
+        }
+    }
+    task->setImportCompleted();
+}
+
+//-----------------------------------------------------------------------------
+void
+QGCCacheWorker::_exportSets(QGCMapTask* mtask)
+{
+    if(!_testTask(mtask)) {
+        return;
+    }
+    QGCExportTileTask* task = static_cast<QGCExportTileTask*>(mtask);
+    //-- Delete target if it exists
+    QFile file(task->path());
+    file.remove();
+    //-- Create exported database
+    QSqlDatabase *dbExport = new QSqlDatabase(QSqlDatabase::addDatabase("QSQLITE", kExportSession));
+    dbExport->setDatabaseName(task->path());
+    dbExport->setConnectOptions("QSQLITE_ENABLE_SHARED_CACHE");
+    if (dbExport->open()) {
+        if(_createDB(dbExport, false)) {
+            //-- Prepare progress report
+            quint64 tileCount = 0;
+            quint64 currentCount = 0;
+            for(int i = 0; i < task->sets().count(); i++) {
+                QGCCachedTileSet* set = task->sets()[i];
+                //-- Default set has no unique tiles
+                if(set->defaultSet()) {
+                    tileCount += set->totalTileCount();
+                } else {
+                    tileCount += set->uniqueTileCount();
+                }
+            }
+            if(!tileCount) {
+                tileCount = 1;
+            }
+            //-- Iterate sets to save
+            for(int i = 0; i < task->sets().count(); i++) {
+                QGCCachedTileSet* set = task->sets()[i];
+                //-- Create Tile Exported Set
+                QSqlQuery exportQuery(*dbExport);
+                exportQuery.prepare("INSERT INTO TileSets("
+                    "name, typeStr, topleftLat, topleftLon, bottomRightLat, bottomRightLon, minZoom, maxZoom, type, numTiles, defaultSet, date"
+                    ") VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                exportQuery.addBindValue(set->name());
+                exportQuery.addBindValue(set->mapTypeStr());
+                exportQuery.addBindValue(set->topleftLat());
+                exportQuery.addBindValue(set->topleftLon());
+                exportQuery.addBindValue(set->bottomRightLat());
+                exportQuery.addBindValue(set->bottomRightLon());
+                exportQuery.addBindValue(set->minZoom());
+                exportQuery.addBindValue(set->maxZoom());
+                exportQuery.addBindValue(getQGCMapEngine()->urlFactory()->getIdFromType(set->type()));
+                exportQuery.addBindValue(set->totalTileCount());
+                exportQuery.addBindValue(set->defaultSet());
+                exportQuery.addBindValue(QDateTime::currentDateTime().toTime_t());
+                if(!exportQuery.exec()) {
+                    task->setError("Error adding tile set to exported database");
+                    break;
+                } else {
+                    //-- Get just created (auto-incremented) setID
+                    quint64 exportSetID = exportQuery.lastInsertId().toULongLong();
+                    //-- Find set tiles
+                    QString s = QString("SELECT * FROM SetTiles WHERE setID = %1").arg(set->id());
+                    QSqlQuery query(*_db);
+                    if(query.exec(s)) {
+                        dbExport->transaction();
+                        while(query.next()) {
+                            quint64 tileID = query.value("tileID").toULongLong();
+                            //-- Get tile
+                            QString s = QString("SELECT * FROM Tiles WHERE tileID = \"%1\"").arg(tileID);
+                            QSqlQuery subQuery(*_db);
+                            if(subQuery.exec(s)) {
+                                if(subQuery.next()) {
+                                    QString hash    = subQuery.value("hash").toString();
+                                    QString format  = subQuery.value("format").toString();
+                                    QByteArray img  = subQuery.value("tile").toByteArray();
+                                    int type        = subQuery.value("type").toInt();
+                                    //-- Save tile
+                                    exportQuery.prepare("INSERT INTO Tiles(hash, format, tile, size, type, date) VALUES(?, ?, ?, ?, ?, ?)");
+                                    exportQuery.addBindValue(hash);
+                                    exportQuery.addBindValue(format);
+                                    exportQuery.addBindValue(img);
+                                    exportQuery.addBindValue(img.size());
+                                    exportQuery.addBindValue(type);
+                                    exportQuery.addBindValue(QDateTime::currentDateTime().toTime_t());
+                                    if(exportQuery.exec()) {
+                                        quint64 exportTileID = exportQuery.lastInsertId().toULongLong();
+                                        QString s = QString("INSERT INTO SetTiles(tileID, setID) VALUES(%1, %2)").arg(exportTileID).arg(exportSetID);
+                                        exportQuery.prepare(s);
+                                        exportQuery.exec();
+                                        currentCount++;
+                                        task->setProgress((int)((double)currentCount / (double)tileCount * 100.0));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    dbExport->commit();
+                }
+            }
+        } else {
+            task->setError("Error creating export database");
+        }
+    } else {
+        qCritical() << "Map Cache SQL error (create export database):" << dbExport->lastError();
+        task->setError("Error opening export database");
+    }
+    delete dbExport;
+    QSqlDatabase::removeDatabase(kExportSession);
+    task->setExportCompleted();
+}
+
+//-----------------------------------------------------------------------------
+bool QGCCacheWorker::_testTask(QGCMapTask* mtask)
+{
+    if(!_valid) {
+        mtask->setError("No Cache Database");
+        return false;
+    }
+    return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -642,26 +980,31 @@ QGCCacheWorker::_init()
         _db->setDatabaseName(_databasePath);
         _db->setConnectOptions("QSQLITE_ENABLE_SHARED_CACHE");
         if (_db->open()) {
-            _createDB();
+            _valid = _createDB(_db);
+            if(!_valid) {
+                _failed = true;
+            }
         } else {
             qCritical() << "Map Cache SQL error (init() open db):" << _db->lastError();
             _failed = true;
         }
         delete _db;
-        _db = NULL;
+        _db = nullptr;
         QSqlDatabase::removeDatabase(kSession);
     } else {
         qCritical() << "Could not find suitable cache directory.";
         _failed = true;
     }
+    _testInternet();
     return _failed;
 }
 
 //-----------------------------------------------------------------------------
-void
-QGCCacheWorker::_createDB()
+bool
+QGCCacheWorker::_createDB(QSqlDatabase* db, bool createDefault)
 {
-    QSqlQuery query(*_db);
+    bool res = false;
+    QSqlQuery query(*db);
     if(!query.exec(
         "CREATE TABLE IF NOT EXISTS Tiles ("
         "tileID INTEGER PRIMARY KEY NOT NULL, "
@@ -678,7 +1021,6 @@ QGCCacheWorker::_createDB()
             "CREATE TABLE IF NOT EXISTS TileSets ("
             "setID INTEGER PRIMARY KEY NOT NULL, "
             "name TEXT NOT NULL UNIQUE, "
-            "description TEXT NOT NULL, "
             "typeStr TEXT, "
             "topleftLat REAL DEFAULT 0.0, "
             "topleftLon REAL DEFAULT 0.0, "
@@ -688,11 +1030,7 @@ QGCCacheWorker::_createDB()
             "maxZoom INTEGER DEFAULT 3, "
             "type INTEGER DEFAULT -1, "
             "numTiles INTEGER DEFAULT 0, "
-            "tilesSize INTEGER DEFAULT 0, "
             "defaultSet INTEGER DEFAULT 0, "
-            "thumbNail BLOB NULL, "
-            "thumbW INTEGER DEFAULT 0, "
-            "thumbH INTEGER DEFAULT 0, "
             "date INTEGER DEFAULT 0)"))
         {
             qWarning() << "Map Cache SQL error (create TileSets db):" << query.lastError().text();
@@ -717,33 +1055,88 @@ QGCCacheWorker::_createDB()
                     qWarning() << "Map Cache SQL error (create TilesDownload db):" << query.lastError().text();
                 } else {
                     //-- Database it ready for use
-                    _valid = true;
+                    res = true;
                 }
             }
         }
     }
     //-- Create default tile set
-    if(_valid) {
+    if(res && createDefault) {
         QString s = QString("SELECT name FROM TileSets WHERE name = \"%1\"").arg(kDefaultSet);
         if(query.exec(s)) {
             if(!query.next()) {
-                query.prepare("INSERT INTO TileSets(name, description, defaultSet, date) VALUES(?, ?, ?, ?)");
+                query.prepare("INSERT INTO TileSets(name, defaultSet, date) VALUES(?, ?, ?)");
                 query.addBindValue(kDefaultSet);
-                query.addBindValue("System wide tile cache");
                 query.addBindValue(1);
                 query.addBindValue(QDateTime::currentDateTime().toTime_t());
                 if(!query.exec()) {
-                    qWarning() << "Map Cache SQL error (Creating default tile set):" << _db->lastError();
-                    _valid = false;
+                    qWarning() << "Map Cache SQL error (Creating default tile set):" << db->lastError();
+                    res = false;
                 }
             }
         } else {
-            qWarning() << "Map Cache SQL error (Looking for default tile set):" << _db->lastError();
+            qWarning() << "Map Cache SQL error (Looking for default tile set):" << db->lastError();
         }
     }
-    if(!_valid) {
+    if(!res) {
         QFile file(_databasePath);
         file.remove();
     }
-    _failed = !_valid;
+    return res;
+}
+
+//-----------------------------------------------------------------------------
+void
+QGCCacheWorker::_testInternet()
+{
+    /*
+        To test if you have Internet connection, the code tests a connection to
+        8.8.8.8:53 (google DNS). It appears that some routers are now blocking TCP
+        connections to port 53. So instead, we use a TCP connection to "github.com"
+        (80). On exit, if the look up for “github.com” is under way, a call to abort
+        the lookup is made. This abort call on Android has no effect, and the code
+        blocks for a full minute. So to work around the issue, we continue a direct
+        TCP connection to 8.8.8.8:53 on Android and do the lookup/connect on the
+        other platforms.
+    */
+#if defined(__android__)
+    QTcpSocket socket;
+    socket.connectToHost("8.8.8.8", 53);
+    if (socket.waitForConnected(2000)) {
+        qCDebug(QGCTileCacheLog) << "Yes Internet Access";
+        emit internetStatus(true);
+        return;
+    }
+    qWarning() << "No Internet Access";
+    emit internetStatus(false);
+#else
+    if(!_hostLookupID) {
+        _hostLookupID = QHostInfo::lookupHost("www.github.com", this, SLOT(_lookupReady(QHostInfo)));
+    }
+#endif
+}
+
+//-----------------------------------------------------------------------------
+void
+QGCCacheWorker::_lookupReady(QHostInfo info)
+{
+#if defined(__android__)
+    Q_UNUSED(info);
+#else
+    _hostLookupID = 0;
+    if(info.error() == QHostInfo::NoError && info.addresses().size()) {
+        QTcpSocket socket;
+        QNetworkProxy tempProxy;
+        tempProxy.setType(QNetworkProxy::DefaultProxy);
+        socket.setProxy(tempProxy);
+        socket.connectToHost(info.addresses().first(), 80);
+        if (socket.waitForConnected(2000)) {
+            qCDebug(QGCTileCacheLog) << "Yes Internet Access";
+            emit internetStatus(true);
+            return;
+        }
+    }
+    qDebug() << "No Internet Access";
+    emit internetStatus(false);
+#endif
 }

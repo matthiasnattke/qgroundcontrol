@@ -18,7 +18,7 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
 #include "openglsurfacepainter.h"
@@ -60,33 +60,33 @@ OpenGLSurfacePainter::OpenGLSurfacePainter()
     , m_videoColorMatrix(GST_VIDEO_COLOR_MATRIX_UNKNOWN)
 {
 #ifndef QT_OPENGL_ES
-        glActiveTexture = (_glActiveTexture) QGLContext::currentContext()->getProcAddress(QLatin1String("glActiveTexture"));
+        glActiveTexture = (_glActiveTexture) QGLContext::currentContext()->getProcAddress(QStringLiteral("glActiveTexture"));
 #endif
 }
 
 //static
 QSet<GstVideoFormat> OpenGLSurfacePainter::supportedPixelFormats()
 {
-    return QSet<GstVideoFormat>()
+    return QSet<GstVideoFormat>({
         //also handled by the generic painter on LE
-        << GST_VIDEO_FORMAT_BGRA
-        << GST_VIDEO_FORMAT_BGRx
+        GST_VIDEO_FORMAT_BGRA,
+        GST_VIDEO_FORMAT_BGRx,
 
         //also handled by the generic painter on BE
-        << GST_VIDEO_FORMAT_ARGB
-        << GST_VIDEO_FORMAT_xRGB
+        GST_VIDEO_FORMAT_ARGB,
+        GST_VIDEO_FORMAT_xRGB,
 
         //also handled by the generic painter everywhere
-        << GST_VIDEO_FORMAT_RGB
-        << GST_VIDEO_FORMAT_RGB16
+        GST_VIDEO_FORMAT_RGB,
+        GST_VIDEO_FORMAT_RGB16,
 
         //not handled by the generic painter
-        << GST_VIDEO_FORMAT_BGR
-        << GST_VIDEO_FORMAT_v308
-        << GST_VIDEO_FORMAT_AYUV
-        << GST_VIDEO_FORMAT_YV12
-        << GST_VIDEO_FORMAT_I420
-        ;
+        GST_VIDEO_FORMAT_BGR,
+        GST_VIDEO_FORMAT_v308,
+        GST_VIDEO_FORMAT_AYUV,
+        GST_VIDEO_FORMAT_YV12,
+        GST_VIDEO_FORMAT_I420,
+    });
 }
 
 void OpenGLSurfacePainter::updateColors(int brightness, int contrast, int hue, int saturation)
@@ -397,11 +397,11 @@ ArbFpSurfacePainter::ArbFpSurfacePainter()
     , m_programId(0)
 {
     const QGLContext *context = QGLContext::currentContext();
-    glProgramStringARB  = (_glProgramStringARB)  context->getProcAddress(QLatin1String("glProgramStringARB"));
-    glBindProgramARB    = (_glBindProgramARB)    context->getProcAddress(QLatin1String("glBindProgramARB"));
-    glDeleteProgramsARB = (_glDeleteProgramsARB) context->getProcAddress(QLatin1String("glDeleteProgramsARB"));
-    glGenProgramsARB    = (_glGenProgramsARB)    context->getProcAddress(QLatin1String("glGenProgramsARB"));
-    glProgramLocalParameter4fARB = (_glProgramLocalParameter4fARB) context->getProcAddress(QLatin1String("glProgramLocalParameter4fARB"));
+    glProgramStringARB  = (_glProgramStringARB)  context->getProcAddress(QStringLiteral("glProgramStringARB"));
+    glBindProgramARB    = (_glBindProgramARB)    context->getProcAddress(QStringLiteral("glBindProgramARB"));
+    glDeleteProgramsARB = (_glDeleteProgramsARB) context->getProcAddress(QStringLiteral("glDeleteProgramsARB"));
+    glGenProgramsARB    = (_glGenProgramsARB)    context->getProcAddress(QStringLiteral("glGenProgramsARB"));
+    glProgramLocalParameter4fARB = (_glProgramLocalParameter4fARB) context->getProcAddress(QStringLiteral("glProgramLocalParameter4fARB"));
 }
 
 void ArbFpSurfacePainter::init(const BufferFormat &format)

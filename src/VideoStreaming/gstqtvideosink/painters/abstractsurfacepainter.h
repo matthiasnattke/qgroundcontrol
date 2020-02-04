@@ -18,11 +18,10 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
-#ifndef ABSTRACTSURFACEPAINTER_H
-#define ABSTRACTSURFACEPAINTER_H
+#pragma once
 
 #include "../utils/bufferformat.h"
 #include <QRectF>
@@ -46,4 +45,3 @@ public:
     virtual void updateColors(int brightness, int contrast, int hue, int saturation) = 0;
 };
 
-#endif

@@ -1,88 +1,124 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
-
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
- This file is part of the QGROUNDCONTROL project
-
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
- ======================================================================*/
 
 #ifndef QGCToolbox_h
 #define QGCToolbox_h
 
 #include <QObject>
 
-class AutoPilotPluginManager;
 class FactSystem;
 class FirmwarePluginManager;
-class FlightMapSettings;
-class GAudioOutput;
+class AudioOutput;
 class GPSManager;
-class HomePositionManager;
 class JoystickManager;
 class FollowMe;
 class LinkManager;
 class MAVLinkProtocol;
-class MissionCommands;
+class MissionCommandTree;
 class MultiVehicleManager;
 class QGCMapEngineManager;
 class QGCApplication;
 class QGCImageProvider;
 class UASMessageHandler;
+class QGCPositionManager;
+class VideoManager;
+class MAVLinkLogManager;
+class QGCCorePlugin;
+class SettingsManager;
+class AirspaceManager;
+class ADSBVehicleManager;
+#if defined(QGC_ENABLE_PAIRING)
+class PairingManager;
+#endif
+#if defined(QGC_GST_TAISYNC_ENABLED)
+class TaisyncManager;
+#endif
+#if defined(QGC_GST_MICROHARD_ENABLED)
+class MicrohardManager;
+#endif
 
 /// This is used to manage all of our top level services/tools
-class QGCToolbox {
+class QGCToolbox : public QObject {
+    Q_OBJECT
 
 public:
     QGCToolbox(QGCApplication* app);
-    ~QGCToolbox();
 
-    AutoPilotPluginManager*     autopilotPluginManager(void)    { return _autopilotPluginManager; }
-    FirmwarePluginManager*      firmwarePluginManager(void)     { return _firmwarePluginManager; }
-    FlightMapSettings*          flightMapSettings(void)         { return _flightMapSettings; }
-    GAudioOutput*               audioOutput(void)               { return _audioOutput; }
-    HomePositionManager*        homePositionManager(void)       { return _homePositionManager; }
-    JoystickManager*            joystickManager(void)           { return _joystickManager; }
-    LinkManager*                linkManager(void)               { return _linkManager; }
-    MAVLinkProtocol*            mavlinkProtocol(void)           { return _mavlinkProtocol; }
-    MissionCommands*            missionCommands(void)           { return _missionCommands; }
-    MultiVehicleManager*        multiVehicleManager(void)       { return _multiVehicleManager; }
-    QGCMapEngineManager*        mapEngineManager(void)          { return _mapEngineManager; }
-    QGCImageProvider*           imageProvider()                 { return _imageProvider; }
-    UASMessageHandler*          uasMessageHandler(void)         { return _uasMessageHandler; }
-    FollowMe*                   followMe(void)                  { return _followMe; }
+    FirmwarePluginManager*      firmwarePluginManager   () { return _firmwarePluginManager; }
+    AudioOutput*                audioOutput             () { return _audioOutput; }
+    JoystickManager*            joystickManager         () { return _joystickManager; }
+    LinkManager*                linkManager             () { return _linkManager; }
+    MAVLinkProtocol*            mavlinkProtocol         () { return _mavlinkProtocol; }
+    MissionCommandTree*         missionCommandTree      () { return _missionCommandTree; }
+    MultiVehicleManager*        multiVehicleManager     () { return _multiVehicleManager; }
+    QGCMapEngineManager*        mapEngineManager        () { return _mapEngineManager; }
+    QGCImageProvider*           imageProvider           () { return _imageProvider; }
+    UASMessageHandler*          uasMessageHandler       () { return _uasMessageHandler; }
+    FollowMe*                   followMe                () { return _followMe; }
+    QGCPositionManager*         qgcPositionManager      () { return _qgcPositionManager; }
+    VideoManager*               videoManager            () { return _videoManager; }
+    MAVLinkLogManager*          mavlinkLogManager       () { return _mavlinkLogManager; }
+    QGCCorePlugin*              corePlugin              () { return _corePlugin; }
+    SettingsManager*            settingsManager         () { return _settingsManager; }
+    AirspaceManager*            airspaceManager         () { return _airspaceManager; }
+    ADSBVehicleManager*         adsbVehicleManager      () { return _adsbVehicleManager; }
+#if defined(QGC_ENABLE_PAIRING)
+    PairingManager*             pairingManager          () { return _pairingManager; }
+#endif
+#ifndef __mobile__
+    GPSManager*                 gpsManager              () { return _gpsManager; }
+#endif
+#if defined(QGC_GST_TAISYNC_ENABLED)
+    TaisyncManager*             taisyncManager          () { return _taisyncManager; }
+#endif
+#if defined(QGC_GST_MICROHARD_ENABLED)
+    MicrohardManager*           microhardManager        () { return _microhardManager; }
+#endif
 
 private:
-    GAudioOutput*               _audioOutput;
-    AutoPilotPluginManager*     _autopilotPluginManager;
-    FactSystem*                 _factSystem;
-    FirmwarePluginManager*      _firmwarePluginManager;
-    FlightMapSettings*          _flightMapSettings;
-    GPSManager*                 _gpsManager;
-    HomePositionManager*        _homePositionManager;
-    QGCImageProvider*           _imageProvider;
-    JoystickManager*            _joystickManager;
-    LinkManager*                _linkManager;
-    MAVLinkProtocol*            _mavlinkProtocol;
-    MissionCommands*            _missionCommands;
-    MultiVehicleManager*        _multiVehicleManager;
-    QGCMapEngineManager*         _mapEngineManager;
-    UASMessageHandler*          _uasMessageHandler;
-    FollowMe*                   _followMe;
+    void setChildToolboxes(void);
+    void _scanAndLoadPlugins(QGCApplication *app);
+
+
+    AudioOutput*                _audioOutput            = nullptr;
+    FactSystem*                 _factSystem             = nullptr;
+    FirmwarePluginManager*      _firmwarePluginManager  = nullptr;
+#ifndef __mobile__
+    GPSManager*                 _gpsManager             = nullptr;
+#endif
+    QGCImageProvider*           _imageProvider          = nullptr;
+    JoystickManager*            _joystickManager        = nullptr;
+    LinkManager*                _linkManager            = nullptr;
+    MAVLinkProtocol*            _mavlinkProtocol        = nullptr;
+    MissionCommandTree*         _missionCommandTree     = nullptr;
+    MultiVehicleManager*        _multiVehicleManager    = nullptr;
+    QGCMapEngineManager*        _mapEngineManager       = nullptr;
+    UASMessageHandler*          _uasMessageHandler      = nullptr;
+    FollowMe*                   _followMe               = nullptr;
+    QGCPositionManager*         _qgcPositionManager     = nullptr;
+    VideoManager*               _videoManager           = nullptr;
+    MAVLinkLogManager*          _mavlinkLogManager      = nullptr;
+    QGCCorePlugin*              _corePlugin             = nullptr;
+    SettingsManager*            _settingsManager        = nullptr;
+    AirspaceManager*            _airspaceManager        = nullptr;
+    ADSBVehicleManager*         _adsbVehicleManager     = nullptr;
+#if defined(QGC_ENABLE_PAIRING)
+    PairingManager*             _pairingManager         = nullptr;
+#endif
+#if defined(QGC_GST_TAISYNC_ENABLED)
+    TaisyncManager*             _taisyncManager         = nullptr;
+#endif
+#if defined(QGC_GST_MICROHARD_ENABLED)
+    MicrohardManager*           _microhardManager       = nullptr;
+#endif
+    friend class QGCApplication;
 };
 
 /// This is the base class for all tools
@@ -90,11 +126,12 @@ class QGCTool : public QObject {
     Q_OBJECT
 
 public:
-    // All tools are parented to QGCAppliation and go through a two phase creation. First all tools are newed,
-    // and then setToolbox is called on all tools. The prevents creating an circular dependencies at constructor
-    // time.
-    QGCTool(QGCApplication* app);
+    // All tools must be parented to the QGCToolbox and go through a two phase creation. In the constructor the toolbox
+    // should only be passed to QGCTool constructor for correct parenting. It should not be referenced or set in the
+    // protected member. Then in the second phase of setToolbox calls is where you can reference the toolbox.
+    QGCTool(QGCApplication* app, QGCToolbox* toolbox);
 
+    // If you override this method, you must call the base class.
     virtual void setToolbox(QGCToolbox* toolbox);
 
 protected:

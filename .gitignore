@@ -1,11 +1,10 @@
 libs/lib/Frameworks/GStreamer.framework
+*_qmlcache.qrc
 *.swp
 *.nfs
 CMakeFiles
-*Makefile*
 tags
 build*/
-Info.plist
 obj
 .DS_Store
 *.log
@@ -28,7 +27,6 @@ doc/html
 doc/doxy.log
 deploy/mac
 deploy/linux
-deploy/qgroundcontrol*
 controller_log*
 user_config.pri
 *.app
@@ -56,16 +54,19 @@ thirdParty/qserialport/lib/
 libs/thirdParty/libxbee/lib/
 GeneratedFiles/
 gstreamer-1.0-android*
+src/Airmap/Airmap_api_key.h
+localization/qgroundcontrol/
 
 *.autosave
 .settings/
+
+# iOS Generated files
+ios/iOSForAppStore-Info.plist
 
 # Generated files
 moc_*
 ui_*
 *.o
-*.a
-*.so*
 *.moc
 *.prl
 
@@ -76,3 +77,11 @@ android/gradle.properties
 # doxygen
 src/html/
 src/latex/
+
+# vagrant
+.vagrant/
+Qt*-linux*.tar.*
+
+.vs/
+
+libs/airmapd/include/boost

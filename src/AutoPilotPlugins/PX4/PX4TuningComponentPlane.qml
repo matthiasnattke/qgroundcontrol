@@ -1,105 +1,85 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
+import QtQuick          2.3
+import QtQuick.Controls 1.2
+import QtCharts         2.2
+import QtQuick.Layouts  1.2
 
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+import QGroundControl               1.0
+import QGroundControl.Controls      1.0
+import QGroundControl.FactSystem    1.0
+import QGroundControl.FactControls  1.0
+import QGroundControl.ScreenTools   1.0
 
- This file is part of the QGROUNDCONTROL project
+SetupPage {
+    id:             tuningPage
+    pageComponent:  pageComponent
 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+    Component {
+        id: pageComponent
 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+        Column {
+            width: availableWidth
 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
+            Component.onCompleted: {
+                // We use QtCharts only on Desktop platforms
+                showAdvanced = !ScreenTools.isMobile
+            }
 
- ======================================================================*/
+            FactPanelController {
+                id:         controller
+            }
 
-import QtQuick              2.5
-import QtQuick.Controls     1.4
+            // Standard tuning page
+            FactSliderPanel {
+                width:          availableWidth
+                visible:        !advanced
+                sliderModel: ListModel {
+                    ListElement {
+                        title:          qsTr("Cruise throttle")
+                        description:    qsTr("This is the throttle setting required to achieve the desired cruise speed. Most planes need 50-60%.")
+                        param:          "FW_THR_CRUISE"
+                        min:            20
+                        max:            80
+                        step:           1
+                    }
+                }
+            }
 
-import QGroundControl.Controls  1.0
+            Loader {
+                anchors.left:       parent.left
+                anchors.right:      parent.right
+                sourceComponent:    advanced ? advancePageComponent : undefined
+            }
 
-FactSliderPanel {
-    anchors.fill: parent
+            Component {
+                id: advancePageComponent
 
-    sliderModel: ListModel {
-
-        ListElement {
-            title:          qsTr("Hover Roll sensitivity")
-            description:    qsTr("Slide to the left to make roll control during hover faster and more accurate. Slide to the right if roll oscillates or is too twitchy.")
-            param:          "MC_ROLL_TC"
-            min:            0.15
-            max:            0.25
-            step:           0.01
-        }
-
-        ListElement {
-            title:          qsTr("Hover Pitch sensitivity")
-            description:    qsTr("Slide to the left to make pitch control during hover faster and more accurate. Slide to the right if pitch oscillates or is too twitchy.")
-            param:          "MC_PITCH_TC"
-            min:            0.15
-            max:            0.25
-            step:           0.01
-        }
-
-        ListElement {
-            title:          qsTr("Hover Altitude control sensitivity")
-            description:    qsTr("Slide to the left to make altitude control during hover smoother and less twitchy. Slide to the right to make altitude control more accurate and more aggressive.")
-            param:          "MPC_Z_FF"
-            min:            0
-            max:            1.0
-            step:           0.1
-        }
-
-        ListElement {
-            title:          qsTr("Hover Position control sensitivity")
-            description:    qsTr("Slide to the left to make flight during hover in position control mode smoother and less twitchy. Slide to the right to make position control more accurate and more aggressive.")
-            param:          "MPC_XY_FF"
-            min:            0
-            max:            1.0
-            step:           0.1
-        }
-        ListElement {
-            title:          qsTr("Plane Roll sensitivity")
-            description:    qsTr("Slide to the left to make roll control faster and more accurate. Slide to the right if roll oscillates or is too twitchy.")
-            param:          "FW_R_TC"
-            min:            0.2
-            max:            0.8
-            step:           0.01
-        }
-
-        ListElement {
-            title:          qsTr("Plane Pitch sensitivity")
-            description:    qsTr("Slide to the left to make pitch control faster and more accurate. Slide to the right if pitch oscillates or is too twitchy.")
-            param:          "FW_P_TC"
-            min:            0.2
-            max:            0.8
-            step:           0.01
-        }
-
-        ListElement {
-            title:          qsTr("Plane Cruise throttle")
-            description:    qsTr("This is the throttle setting required to achieve the desired cruise speed. Most planes need 50-60%.")
-            param:          "FW_THR_CRUISE"
-            min:            0.2
-            max:            0.8
-            step:           0.01
-        }
-
-        ListElement {
-            title:          qsTr("Plane Mission mode sensitivity")
-            description:    qsTr("Slide to the left to make position control more accurate and more aggressive. Slide to the right to make flight in mission mode smoother and less twitchy.")
-            param:          "FW_L1_PERIOD"
-            min:            12
-            max:            50
-            step:           0.5
-        }
-    }
-}
+                PIDTuning {
+                    anchors.left:   parent.left
+                    anchors.right:  parent.right
+                    tuneList:            [ qsTr("Roll"), qsTr("Pitch"), qsTr("Yaw") ]
+                    params:              [
+                        [ controller.getParameterFact(-1, "FW_RR_P"),
+                         controller.getParameterFact(-1, "FW_RR_I"),
+                         controller.getParameterFact(-1, "FW_RR_FF"),
+                         controller.getParameterFact(-1, "FW_R_TC"),],
+                        [ controller.getParameterFact(-1, "FW_PR_P"),
+                         controller.getParameterFact(-1, "FW_PR_I"),
+                         controller.getParameterFact(-1, "FW_PR_FF"),
+                         controller.getParameterFact(-1, "FW_P_TC") ],
+                        [ controller.getParameterFact(-1, "FW_YR_P"),
+                         controller.getParameterFact(-1, "FW_YR_I"),
+                         controller.getParameterFact(-1, "FW_YR_FF") ] ]
+                }
+            } // Component - Advanced Page
+        } // Column
+    } // Component - pageComponent
+} // SetupPage

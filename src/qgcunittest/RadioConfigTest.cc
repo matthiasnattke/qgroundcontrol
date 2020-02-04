@@ -1,30 +1,21 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #include "RadioConfigTest.h"
 #include "RadioComponentController.h"
 #include "MultiVehicleManager.h"
 #include "QGCApplication.h"
+#include "PX4/PX4AutoPilotPlugin.h"
+#include "APM/APMAutoPilotPlugin.h"
+#include "APM/APMRadioComponent.h"
+#include "PX4RadioComponent.h"
 
 /// @file
 ///     @brief QRadioComponentController Widget unit test
@@ -38,28 +29,28 @@ QGC_LOGGING_CATEGORY(RadioConfigTestLog, "RadioConfigTestLog")
 #define CHK_BUTTONS(mask) \
 { \
     if (_controller->_nextButton->isEnabled() != !!((mask) & nextButtonMask) || \
-        _controller->_skipButton->isEnabled() != !!((mask) & skipButtonMask) || \
-        _controller->_cancelButton->isEnabled() != !!((mask) & cancelButtonMask) ) { \
-        qCDebug(RadioConfigTestLog) << _controller->_statusText->property("text"); \
+    _controller->_skipButton->isEnabled() != !!((mask) & skipButtonMask) || \
+    _controller->_cancelButton->isEnabled() != !!((mask) & cancelButtonMask) ) { \
+    qCDebug(RadioConfigTestLog) << _controller->_statusText->property("text"); \
     } \
     QCOMPARE(_controller->_nextButton->isEnabled(), !!((mask) & nextButtonMask)); \
     QCOMPARE(_controller->_skipButton->isEnabled(), !!((mask) & skipButtonMask)); \
     QCOMPARE(_controller->_cancelButton->isEnabled(), !!((mask) & cancelButtonMask)); \
-}
+    }
 
 // This allows you to write unit tests which will click the Cancel button the first time through, followed
 // by the Next button on the second iteration.
 #define NEXT_OR_CANCEL(cancelNum) \
 { \
     if (mode == testModeStandalone && tryCancel ## cancelNum) { \
-        QTest::mouseClick(_cancelButton, Qt::LeftButton); \
-        QCOMPARE(_controller->_rcCalState, RadioComponentController::rcCalStateChannelWait); \
-        tryCancel ## cancelNum = false; \
-        goto StartOver; \
+    QTest::mouseClick(_cancelButton, Qt::LeftButton); \
+    QCOMPARE(_controller->_rcCalState, RadioComponentController::rcCalStateChannelWait); \
+    tryCancel ## cancelNum = false; \
+    goto StartOver; \
     } else { \
-        QTest::mouseClick(_nextButton, Qt::LeftButton); \
+    QTest::mouseClick(_nextButton, Qt::LeftButton); \
     } \
-}
+    }
 
 const int RadioConfigTest::_stickSettleWait = RadioComponentController::_stickDetectSettleMSecs * 1.5;
 
@@ -68,98 +59,98 @@ const int RadioConfigTest::_testMaxValue = RadioComponentController::_rcCalPWMDe
 const int RadioConfigTest::_testCenterValue = RadioConfigTest::_testMinValue + ((RadioConfigTest::_testMaxValue - RadioConfigTest::_testMinValue) / 2);
 
 const struct RadioConfigTest::ChannelSettings RadioConfigTest::_rgChannelSettingsPX4[RadioComponentController::_chanMaxPX4] = {
-	// Function										Min                 Max                 #  Reversed
-	
-	// Channel 0 : Not mapped to function, Simulate invalid Min/Max
-	{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,	_testCenterValue,   0, false },
-	
-    // Channels 1-4: Mapped to attitude control function
-    { RadioComponentController::rcCalFunctionRoll,			_testMinValue,      _testMaxValue,      0, true },
-    { RadioComponentController::rcCalFunctionPitch,			_testMinValue,      _testMaxValue,      0, false },
-    { RadioComponentController::rcCalFunctionYaw,			_testMinValue,      _testMaxValue,      0, true },
-    { RadioComponentController::rcCalFunctionThrottle,		_testMinValue,      _testMaxValue,      0,  false },
-    
-    // Channels 5-11: Not mapped to function, Simulate invalid Min/Max, since available channel Min/Max is still shown.
-    // These are here to skip over the flight mode functions
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-	
-    // Channel 12 : Not mapped to function, Simulate invalid Min, valid Max
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,	_testMaxValue,      0,  false },
-    
-	// Channel 13 : Not mapped to function, Simulate valid Min, invalid Max
-	{ RadioComponentController::rcCalFunctionMax,           _testMinValue,      _testCenterValue,   0,	false },
-	
-    // Channels 14-17: Not mapped to function, Simulate invalid Min/Max, since available channel Min/Max is still shown
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-	{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-	{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+    // Function										Min                 Max                 #  Reversed
+
+    // Channel 0 : Not mapped to function, Simulate invalid Min/Max
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,	_testCenterValue,   0, false },
+
+// Channels 1-4: Mapped to attitude control function
+{ RadioComponentController::rcCalFunctionRoll,			_testMinValue,      _testMaxValue,      0, true },
+{ RadioComponentController::rcCalFunctionPitch,			_testMinValue,      _testMaxValue,      0, false },
+{ RadioComponentController::rcCalFunctionYaw,			_testMinValue,      _testMaxValue,      0, true },
+{ RadioComponentController::rcCalFunctionThrottle,		_testMinValue,      _testMaxValue,      0,  false },
+
+// Channels 5-11: Not mapped to function, Simulate invalid Min/Max, since available channel Min/Max is still shown.
+// These are here to skip over the flight mode functions
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+
+// Channel 12 : Not mapped to function, Simulate invalid Min, valid Max
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,	_testMaxValue,      0,  false },
+
+// Channel 13 : Not mapped to function, Simulate valid Min, invalid Max
+{ RadioComponentController::rcCalFunctionMax,           _testMinValue,      _testCenterValue,   0,	false },
+
+// Channels 14-17: Not mapped to function, Simulate invalid Min/Max, since available channel Min/Max is still shown
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
 };
 
 // Note the: 1500/*RadioComponentController::_rcCalPWMCenterPoint*/ entries. For some reason I couldn't get the compiler to do the
 // right thing with the constant. So I just hacked inthe real value instead of fighting with it any longer.
 const struct RadioConfigTest::ChannelSettings RadioConfigTest::_rgChannelSettingsValidatePX4[RadioComponentController::_chanMaxPX4] = {
     // Function										Min Value									Max Value									Trim Value										Reversed
-	
+
     // Channels 0: not mapped and should be set to defaults
-	{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-	
-    // Channels 1-4: Mapped to attitude control function
-	{ RadioComponentController::rcCalFunctionRoll,			_testMinValue,                              _testMaxValue,                              _testCenterValue,                               true },
-    { RadioComponentController::rcCalFunctionPitch,			_testMinValue,                              _testMaxValue,                              _testCenterValue,                               false },
-    { RadioComponentController::rcCalFunctionYaw,			_testMinValue,                              _testMaxValue,                              _testCenterValue,                               true },
-    { RadioComponentController::rcCalFunctionThrottle,		_testMinValue,                              _testMaxValue,                              _testMinValue,                                  false },
-    
-    // Channels 5-11: not mapped and should be set to defaults
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-	
-	// Channels 12-17 are not mapped and should be set to defaults
-	{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-	{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-	{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-	{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+
+// Channels 1-4: Mapped to attitude control function
+{ RadioComponentController::rcCalFunctionRoll,			_testMinValue,                              _testMaxValue,                              _testCenterValue,                               true },
+{ RadioComponentController::rcCalFunctionPitch,			_testMinValue,                              _testMaxValue,                              _testCenterValue,                               false },
+{ RadioComponentController::rcCalFunctionYaw,			_testMinValue,                              _testMaxValue,                              _testCenterValue,                               true },
+{ RadioComponentController::rcCalFunctionThrottle,		_testMinValue,                              _testMaxValue,                              _testMinValue,                                  false },
+
+// Channels 5-11: not mapped and should be set to defaults
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+
+// Channels 12-17 are not mapped and should be set to defaults
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
 };
 
 const struct RadioConfigTest::ChannelSettings RadioConfigTest::_rgChannelSettingsAPM[RadioComponentController::_chanMaxAPM] = {
     // Function										Min                 Max                 #  Reversed
 
     // Channel 0 : Not mapped to function, Simulate invalid Min/Max
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,	_testCenterValue,   0, false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,	_testCenterValue,   0, false },
 
-    // Channels 1-4: Mapped to attitude control function
-    { RadioComponentController::rcCalFunctionRoll,			_testMinValue,      _testMaxValue,      0, true },
-    { RadioComponentController::rcCalFunctionPitch,			_testMinValue,      _testMaxValue,      0, false },
-    { RadioComponentController::rcCalFunctionYaw,			_testMinValue,      _testMaxValue,      0, true },
-    { RadioComponentController::rcCalFunctionThrottle,		_testMinValue,      _testMaxValue,      0,  false },
+// Channels 1-4: Mapped to attitude control function
+{ RadioComponentController::rcCalFunctionRoll,			_testMinValue,      _testMaxValue,      0, true },
+{ RadioComponentController::rcCalFunctionPitch,			_testMinValue,      _testMaxValue,      0, false },
+{ RadioComponentController::rcCalFunctionYaw,			_testMinValue,      _testMaxValue,      0, true },
+{ RadioComponentController::rcCalFunctionThrottle,		_testMinValue,      _testMaxValue,      0,  false },
 
-    // Channels 5-11: Not mapped to function, Simulate invalid Min/Max, since available channel Min/Max is still shown.
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+// Channels 5-11: Not mapped to function, Simulate invalid Min/Max, since available channel Min/Max is still shown.
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,   _testCenterValue,   0,	false },
 
-    // Channel 12 : Not mapped to function, Simulate invalid Min, valid Max
-    { RadioComponentController::rcCalFunctionMax,			_testCenterValue,	_testMaxValue,      0,  false },
+// Channel 12 : Not mapped to function, Simulate invalid Min, valid Max
+{ RadioComponentController::rcCalFunctionMax,			_testCenterValue,	_testMaxValue,      0,  false },
 
-    // Channel 13 : Not mapped to function, Simulate valid Min, invalid Max
-    { RadioComponentController::rcCalFunctionMax,           _testMinValue,      _testCenterValue,   0,	false },
+// Channel 13 : Not mapped to function, Simulate valid Min, invalid Max
+{ RadioComponentController::rcCalFunctionMax,           _testMinValue,      _testCenterValue,   0,	false },
 };
 
 // Note the: 1500/*RadioComponentController::_rcCalPWMCenterPoint*/ entries. For some reason I couldn't get the compiler to do the
@@ -168,26 +159,26 @@ const struct RadioConfigTest::ChannelSettings RadioConfigTest::_rgChannelSetting
     // Function										Min Value									Max Value									Trim Value										Reversed
 
     // Channels 0: not mapped and should be set to defaults
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
 
-    // Channels 1-4: Mapped to attitude control function
-    { RadioComponentController::rcCalFunctionRoll,			_testMinValue, _testMaxValue, _testCenterValue, true },
-    { RadioComponentController::rcCalFunctionPitch,			_testMinValue, _testMaxValue, _testCenterValue, true },
-    { RadioComponentController::rcCalFunctionYaw,			_testMinValue, _testMaxValue, _testCenterValue, true },
-    { RadioComponentController::rcCalFunctionThrottle,		_testMinValue, _testMaxValue, _testMinValue,    false },
+// Channels 1-4: Mapped to attitude control function
+{ RadioComponentController::rcCalFunctionRoll,			_testMinValue, _testMaxValue, _testCenterValue, true },
+{ RadioComponentController::rcCalFunctionPitch,			_testMinValue, _testMaxValue, _testCenterValue, true },
+{ RadioComponentController::rcCalFunctionYaw,			_testMinValue, _testMaxValue, _testCenterValue, true },
+{ RadioComponentController::rcCalFunctionThrottle,		_testMinValue, _testMaxValue, _testMinValue,    false },
 
-    // Channels 5-11: not mapped and should be set to defaults
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+// Channels 5-11: not mapped and should be set to defaults
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
 
-    // Channels 12-13 are not mapped and should be set to defaults
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
-    { RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+// Channels 12-13 are not mapped and should be set to defaults
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
+{ RadioComponentController::rcCalFunctionMax,			RadioComponentController::_rcCalPWMDefaultMinValue,	RadioComponentController::_rcCalPWMDefaultMaxValue,	1500/*RadioComponentController::_rcCalPWMCenterPoint*/,         false },
 };
 
 RadioConfigTest::RadioConfigTest(void) :
@@ -203,12 +194,37 @@ void RadioConfigTest::_init(MAV_AUTOPILOT firmwareType)
     
     _autopilot = qgcApp()->toolbox()->multiVehicleManager()->activeVehicle()->autopilotPlugin();
     Q_ASSERT(_autopilot);
+
+    // This test is so quick that it tends to finish before the mission item protocol completes. This causes an error to pop up.
+    // So we wait a little to let mission items sync.
+    QTest::qWait(500);
     
     // This will instatiate the widget with an active uas with ready parameters
     _calWidget = new QGCQmlWidgetHolder(QString(), NULL);
     _calWidget->resize(600, 600);
     Q_CHECK_PTR(_calWidget);
     _calWidget->setAutoPilot(_autopilot);
+
+    // Find the radio component
+    QObject* vehicleComponent = NULL;
+    for (const QVariant& varVehicleComponent: _autopilot->vehicleComponents()) {
+        if (firmwareType == MAV_AUTOPILOT_PX4) {
+            PX4RadioComponent* radioComponent = qobject_cast<PX4RadioComponent*>(varVehicleComponent.value<VehicleComponent*>());
+            if (radioComponent) {
+                vehicleComponent = radioComponent;
+                break;
+            }
+        } else {
+            APMRadioComponent* radioComponent = qobject_cast<APMRadioComponent*>(varVehicleComponent.value<VehicleComponent*>());
+            if (radioComponent) {
+                vehicleComponent = radioComponent;
+                break;
+            }
+        }
+    }
+    Q_CHECK_PTR(vehicleComponent);
+
+    _calWidget->setContextPropertyObject("vehicleComponent", vehicleComponent);
     _calWidget->setSource(QUrl::fromUserInput("qrc:/qml/RadioComponent.qml"));
     
     // Nasty hack to get to controller
@@ -331,28 +347,6 @@ void RadioConfigTest::_switchMinMaxStep(void)
     QCOMPARE(_controller->_currentStep, saveStep + 1);
 }
 
-void RadioConfigTest::_switchSelectAutoStep(const char* functionStr, RadioComponentController::rcCalFunctions function)
-{
-    Q_UNUSED(functionStr);
-    ////qCDebug(RadioConfigTestLog)() << "_switchSelectAutoStep" << functionStr << "function:" << function;
-    
-    int buttonMask = cancelButtonMask;
-    if (function != RadioComponentController::rcCalFunctionModeSwitch) {
-        buttonMask |= skipButtonMask;
-    }
-    
-    CHK_BUTTONS(buttonMask);
-    
-    int saveStep = _controller->_currentStep;
-    
-    // Wiggle stick for channel
-    int channel = _rgFunctionChannelMap[function];
-    _mockLink->emitRemoteControlChannelRawChanged(channel, _testMinValue);
-    _mockLink->emitRemoteControlChannelRawChanged(channel, _testMaxValue);
-    
-    QCOMPARE(_controller->_currentStep, saveStep + 1);
-}
-
 void RadioConfigTest::_fullCalibrationWorker(MAV_AUTOPILOT firmwareType)
 {
     _init(firmwareType);
@@ -376,8 +370,8 @@ void RadioConfigTest::_fullCalibrationWorker(MAV_AUTOPILOT firmwareType)
                     QStringList switchList;
                     switchList << "RC_MAP_MODE_SW" << "RC_MAP_LOITER_SW" << "RC_MAP_RETURN_SW" << "RC_MAP_POSCTL_SW" << "RC_MAP_ACRO_SW";
 
-                    foreach (const QString &switchParam, switchList) {
-                        Q_ASSERT(_autopilot->getParameterFact(FactSystem::defaultComponentId, switchParam)->rawValue().toInt() != channel + 1);
+                    for (const QString &switchParam: switchList) {
+                        Q_ASSERT(_vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, switchParam)->rawValue().toInt() != channel + 1);
                     }
                 }
                 
@@ -392,7 +386,7 @@ void RadioConfigTest::_fullCalibrationWorker(MAV_AUTOPILOT firmwareType)
         if (!found) {
             const char* paramName = _functionInfo()[function].parameterName;
             if (paramName) {
-                _rgFunctionChannelMap[function] = _autopilot->getParameterFact(FactSystem::defaultComponentId, paramName)->rawValue().toInt();
+                _rgFunctionChannelMap[function] = _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, paramName)->rawValue().toInt();
                 qCDebug(RadioConfigTestLog) << "Assigning switch" << function << _rgFunctionChannelMap[function];
                 if (_rgFunctionChannelMap[function] == 0) {
                     _rgFunctionChannelMap[function] = -1;   // -1 signals no mapping
@@ -408,15 +402,15 @@ void RadioConfigTest::_fullCalibrationWorker(MAV_AUTOPILOT firmwareType)
     _channelHomePosition();
     _controller->nextButtonClicked();
     _beginCalibration();
-    _stickMoveAutoStep("Throttle", RadioComponentController::rcCalFunctionThrottle, moveToMax, true /* identify step */);
-    _stickMoveAutoStep("Throttle", RadioComponentController::rcCalFunctionThrottle, moveToMin, false /* not identify step */);
-    _stickMoveAutoStep("Yaw", RadioComponentController::rcCalFunctionYaw, moveToMax, true /* identify step */);
-    _stickMoveAutoStep("Yaw", RadioComponentController::rcCalFunctionYaw, moveToMin, false /* not identify step */);
-    _stickMoveAutoStep("Roll", RadioComponentController::rcCalFunctionRoll, moveToMax, true /* identify step */);
-    _stickMoveAutoStep("Roll", RadioComponentController::rcCalFunctionRoll, moveToMin, false /* not identify step */);
-    _stickMoveAutoStep("Pitch", RadioComponentController::rcCalFunctionPitch, moveToMax, true /* identify step */);
-    _stickMoveAutoStep("Pitch", RadioComponentController::rcCalFunctionPitch, moveToMin, false /* not identify step */);
-    _stickMoveAutoStep("Pitch", RadioComponentController::rcCalFunctionPitch, moveToCenter, false /* not identify step */);
+    _stickMoveAutoStep("Throttle",  RadioComponentController::rcCalFunctionThrottle,    moveToMax,      true /* identify step */);
+    _stickMoveAutoStep("Throttle",  RadioComponentController::rcCalFunctionThrottle,    moveToMin,      false /* not identify step */);
+    _stickMoveAutoStep("Yaw",       RadioComponentController::rcCalFunctionYaw,         moveToMax,      true /* identify step */);
+    _stickMoveAutoStep("Yaw",       RadioComponentController::rcCalFunctionYaw,         moveToMin,      false /* not identify step */);
+    _stickMoveAutoStep("Roll",      RadioComponentController::rcCalFunctionRoll,        moveToMax,      true /* identify step */);
+    _stickMoveAutoStep("Roll",      RadioComponentController::rcCalFunctionRoll,        moveToMin,      false /* not identify step */);
+    _stickMoveAutoStep("Pitch",     RadioComponentController::rcCalFunctionPitch,       moveToMax,      true /* identify step */);
+    _stickMoveAutoStep("Pitch",     RadioComponentController::rcCalFunctionPitch,       moveToMin,      false /* not identify step */);
+    _stickMoveAutoStep("Pitch",     RadioComponentController::rcCalFunctionPitch,       moveToCenter,   false /* not identify step */);
     _switchMinMaxStep();
 
     // One more click and the parameters should get saved
@@ -453,8 +447,10 @@ void RadioConfigTest::_validateParameters(void)
     QString minTpl("RC%1_MIN");
     QString maxTpl("RC%1_MAX");
     QString trimTpl("RC%1_TRIM");
-    QString revTpl("RC%1_REV");
-    
+
+    QString revTplPX4("RC%1_REV");
+    QString revTplAPM("RC%1_REVERSED");
+
     // Check mapping for all fuctions
     for (int chanFunction=0; chanFunction<RadioComponentController::rcCalFunctionMax; chanFunction++) {
         int chanIndex = _rgFunctionChannelMap[chanFunction];
@@ -468,8 +464,8 @@ void RadioConfigTest::_validateParameters(void)
         
         const char* paramName = _functionInfo()[chanFunction].parameterName;
         if (paramName) {
-            qCDebug(RadioConfigTestLog) << "Validate" << chanFunction << _autopilot->getParameterFact(FactSystem::defaultComponentId, paramName)->rawValue().toInt();
-            QCOMPARE(_autopilot->getParameterFact(FactSystem::defaultComponentId, paramName)->rawValue().toInt(), expectedParameterValue);
+            qCDebug(RadioConfigTestLog) << "Validate" << chanFunction << _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, paramName)->rawValue().toInt();
+            QCOMPARE(_vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, paramName)->rawValue().toInt(), expectedParameterValue);
         }
     }
 
@@ -484,15 +480,21 @@ void RadioConfigTest::_validateParameters(void)
         int rcTrimExpected = _channelSettingsValidate()[chan].rcTrim;
         bool rcReversedExpected = _channelSettingsValidate()[chan].reversed;
 
-        int rcMinActual = _autopilot->getParameterFact(FactSystem::defaultComponentId, minTpl.arg(oneBasedChannel))->rawValue().toInt(&convertOk);
+        int rcMinActual = _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, minTpl.arg(oneBasedChannel))->rawValue().toInt(&convertOk);
         QCOMPARE(convertOk, true);
-        int rcMaxActual = _autopilot->getParameterFact(FactSystem::defaultComponentId, maxTpl.arg(oneBasedChannel))->rawValue().toInt(&convertOk);
+        int rcMaxActual = _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, maxTpl.arg(oneBasedChannel))->rawValue().toInt(&convertOk);
         QCOMPARE(convertOk, true);
-        int rcTrimActual = _autopilot->getParameterFact(FactSystem::defaultComponentId, trimTpl.arg(oneBasedChannel))->rawValue().toInt(&convertOk);
+        int rcTrimActual = _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, trimTpl.arg(oneBasedChannel))->rawValue().toInt(&convertOk);
         QCOMPARE(convertOk, true);
-        float rcReversedFloat = _autopilot->getParameterFact(FactSystem::defaultComponentId, revTpl.arg(oneBasedChannel))->rawValue().toFloat(&convertOk);
-        QCOMPARE(convertOk, true);
-        bool rcReversedActual = (rcReversedFloat == -1.0f);
+
+        bool rcReversedActual;
+        if (_vehicle->px4Firmware()) {
+            float rcReversedFloat = _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, revTplPX4.arg(oneBasedChannel))->rawValue().toFloat(&convertOk);
+            QCOMPARE(convertOk, true);
+            rcReversedActual = (rcReversedFloat == -1.0f);
+        } else {
+            rcReversedActual = _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, revTplAPM.arg(oneBasedChannel))->rawValue().toBool();
+        }
         
         qCDebug(RadioConfigTestLog) << "_validateParameters expected channel:min:max:trim:rev" << chan << rcMinExpected << rcMaxExpected << rcTrimExpected << rcReversedExpected;
         qCDebug(RadioConfigTestLog) << "_validateParameters actual channel:min:max:trim:rev" << chan << rcMinActual << rcMaxActual << rcTrimActual << rcReversedActual;
@@ -514,7 +516,7 @@ void RadioConfigTest::_validateParameters(void)
         const char* paramName = _functionInfo()[chanFunction].parameterName;
         if (paramName) {
             // qCDebug(RadioConfigTestLog) << chanFunction << expectedValue << mapParamsSet[paramName].toInt();
-            QCOMPARE(_autopilot->getParameterFact(FactSystem::defaultComponentId, paramName)->rawValue().toInt(), expectedValue);
+            QCOMPARE(_vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, paramName)->rawValue().toInt(), expectedValue);
         }
     }
 }

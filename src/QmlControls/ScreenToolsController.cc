@@ -1,46 +1,75 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
-
- (c) 2009, 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
- This file is part of the QGROUNDCONTROL project
-
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
- ======================================================================*/
 
 /// @file
-///     @author Gus Grubba <mavlink@grubba.com>
+/// @author Gus Grubba <gus@auterion.com>
 
 #include "ScreenToolsController.h"
+#include <QFontDatabase>
+#include <QScreen>
 
-#ifdef Q_OS_WIN
-const double ScreenToolsController::_defaultFontPixelSizeRatio  = 1.0;
-#elif __android__
-const double ScreenToolsController::_defaultFontPixelSizeRatio  = 1.0;
-#elif __ios__
-const double ScreenToolsController::_defaultFontPixelSizeRatio  = 0.6;
-#else
-const double ScreenToolsController::_defaultFontPixelSizeRatio  = 0.8;
+#include "SettingsManager.h"
+
+#if defined(__ios__)
+#include <sys/utsname.h>
 #endif
-
-const double ScreenToolsController::_smallFontPixelSizeRatio    = 0.75;
-const double ScreenToolsController::_mediumFontPixelSizeRatio   = 1.22;
-const double ScreenToolsController::_largeFontPixelSizeRatio    = 1.66;
 
 ScreenToolsController::ScreenToolsController()
 {
 
+}
+
+bool
+ScreenToolsController::hasTouch() const
+{
+    return QTouchDevice::devices().count() > 0 || isMobile();
+}
+
+QString
+ScreenToolsController::iOSDevice() const
+{
+#if defined(__ios__)
+    struct utsname systemInfo;
+    uname(&systemInfo);
+    return QString(systemInfo.machine);
+#else
+    return QString();
+#endif
+}
+
+QString
+ScreenToolsController::fixedFontFamily() const
+{
+    return QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+}
+
+QString
+ScreenToolsController::normalFontFamily() const
+{
+    //-- See App.SettinsGroup.json for index
+    int langID = qgcApp()->toolbox()->settingsManager()->appSettings()->language()->rawValue().toInt();
+    if(langID == 6 /*Korean*/) {
+        return QString("fonts/NanumGothic-Regular");
+    } else {
+        return QString("opensans");
+    }
+}
+
+QString
+ScreenToolsController::boldFontFamily() const
+{
+    //-- See App.SettinsGroup.json for index
+    int langID = qgcApp()->toolbox()->settingsManager()->appSettings()->language()->rawValue().toInt();
+    if(langID == 6 /*Korean*/) {
+        return QString("NanumGothic-Bold");
+    } else {
+        return QString("opensans-demibold");
+    }
 }

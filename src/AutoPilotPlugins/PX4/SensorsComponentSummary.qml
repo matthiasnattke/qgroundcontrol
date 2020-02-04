@@ -1,6 +1,6 @@
-import QtQuick 2.2
+import QtQuick 2.3
 import QtQuick.Controls 1.2
-import QtQuick.Controls.Styles 1.2
+import QtQuick.Controls.Styles 1.4
 
 import QGroundControl.FactSystem 1.0
 import QGroundControl.FactControls 1.0
@@ -11,13 +11,10 @@ import QGroundControl.Palette 1.0
     IMPORTANT NOTE: Any changes made here must also be made to SensorsComponentSummary.qml
 */
 
-FactPanel {
-    id:             panel
+Item {
     anchors.fill:   parent
-    color:          qgcPal.windowShadeDark
 
-    QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
-    FactPanelController { id: controller; factPanel: panel }
+    FactPanelController { id: controller; }
 
     property Fact mag0IdFact:   controller.getParameterFact(-1, "CAL_MAG0_ID")
     property Fact mag1IdFact:   controller.getParameterFact(-1, "CAL_MAG1_ID")
@@ -27,32 +24,31 @@ FactPanel {
 
     Column {
         anchors.fill:       parent
-        anchors.margins:    8
 
         VehicleSummaryRow {
-            labelText: qsTr("Compass 0:")
+            labelText: qsTr("Compass 0")
             valueText: mag0IdFact ? (mag0IdFact.value === 0 ? qsTr("Setup required") : qsTr("Ready")) : ""
         }
 
         VehicleSummaryRow {
-            labelText:  qsTr("Compass 1:")
+            labelText:  qsTr("Compass 1")
             visible:    mag1IdFact.value !== 0
             valueText:  qsTr("Ready")
         }
 
         VehicleSummaryRow {
-            labelText:  qsTr("Compass 2:")
+            labelText:  qsTr("Compass 2")
             visible:    mag2IdFact.value !== 0
             valueText:  qsTr("Ready")
         }
 
         VehicleSummaryRow {
-            labelText: qsTr("Gyro:")
+            labelText: qsTr("Gyro")
             valueText: gyro0IdFact ? (gyro0IdFact.value === 0 ? qsTr("Setup required") : qsTr("Ready")) : ""
         }
 
         VehicleSummaryRow {
-            labelText: qsTr("Accelerometer:")
+            labelText: qsTr("Accelerometer")
             valueText: accel0IdFact ? (accel0IdFact.value === 0 ? qsTr("Setup required") : qsTr("Ready")) : ""
         }
     }

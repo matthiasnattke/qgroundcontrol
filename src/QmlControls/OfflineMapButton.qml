@@ -1,45 +1,61 @@
-import QtQuick                  2.5
-import QtQuick.Controls         1.2
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
+import QtQuick          2.3
+import QtQuick.Controls 2.4
 
 import QGroundControl.Palette       1.0
 import QGroundControl.ScreenTools   1.0
 
-Rectangle
-{
-    id: __mapButton
+Button {
+    id:                 mapButton
+    height:             ScreenTools.defaultFontPixelHeight * 4
+    autoExclusive:      true
 
-    property var    __qgcPal: QGCPalette { colorGroupEnabled: enabled }
-    property bool   __showHighlight: (__pressed | __hovered | checked) && !__forceHoverOff
+    background: Rectangle {
+        anchors.fill:   parent
+        color:          _showHighlight ? qgcPal.buttonHighlight : qgcPal.button
+        border.width:   _showBorder ? 1: 0
+        border.color:   qgcPal.buttonText
+    }
 
-    property bool   __forceHoverOff:    false
-    property int    __lastGlobalMouseX: 0
-    property int    __lastGlobalMouseY: 0
-    property bool   __pressed:          false
-    property bool   __hovered:          false
-
-    property bool   checked:    false
+    property var    tileSet:    null
+    property var    currentSet: null
     property bool   complete:   false
-    property alias  text:       nameLabel.text
-    property alias  size:       sizeLabel.text
+    property int    tiles:      0
+    property string size:       ""
 
-    signal clicked()
+    property bool   _showHighlight: (_pressed | _hovered | checked) && !_forceHoverOff
+    property bool   _showBorder:    qgcPal.globalTheme === QGCPalette.Light
 
-    color:          __showHighlight ? __qgcPal.buttonHighlight : __qgcPal.button
-    anchors.margins: ScreenTools.defaultFontPixelWidth
-    Row {
-        anchors.centerIn: parent
+    property bool   _forceHoverOff:    false
+    property int    _lastGlobalMouseX: 0
+    property int    _lastGlobalMouseY: 0
+    property bool   _pressed:          false
+    property bool   _hovered:          false
+
+    contentItem: Row {
+        anchors.centerIn:   parent
+        anchors.margins:    ScreenTools.defaultFontPixelWidth
         QGCLabel {
-            id:     nameLabel
-            width:  __mapButton.width * 0.4
-            color:  __showHighlight ? __qgcPal.buttonHighlightText : __qgcPal.buttonText
+            text:   mapButton.text
+            width:  mapButton.width * 0.4
+            color:  _showHighlight ? qgcPal.buttonHighlightText : qgcPal.buttonText
             anchors.verticalCenter: parent.verticalCenter
         }
         QGCLabel {
             id:     sizeLabel
-            width:  __mapButton.width * 0.4
+            width:  mapButton.width * 0.4
             horizontalAlignment: Text.AlignRight
             anchors.verticalCenter: parent.verticalCenter
-            color:  __showHighlight ? __qgcPal.buttonHighlightText : __qgcPal.buttonText
+            color:  _showHighlight ? qgcPal.buttonHighlightText : qgcPal.buttonText
+            text:   mapButton.size + (tiles > 0 ? " (" + tiles + " tiles)" : "")
         }
         Item {
             width:  ScreenTools.defaultFontPixelWidth * 2
@@ -60,44 +76,12 @@ Rectangle
         QGCColoredImage {
             width:      sizeLabel.height * 0.8
             height:     sizeLabel.height * 0.8
+            sourceSize.height:  height
             source:     "/res/buttonRight.svg"
             mipmap:     true
             fillMode:   Image.PreserveAspectFit
-            color:      __showHighlight ? __qgcPal.buttonHighlightText : __qgcPal.buttonText
+            color:      _showHighlight ? qgcPal.buttonHighlightText : qgcPal.buttonText
             anchors.verticalCenter: parent.verticalCenter
-        }
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        onMouseXChanged: {
-            __lastGlobalMouseX = ScreenTools.mouseX()
-            __lastGlobalMouseY = ScreenTools.mouseY()
-        }
-        onMouseYChanged: {
-            __lastGlobalMouseX = ScreenTools.mouseX()
-            __lastGlobalMouseY = ScreenTools.mouseY()
-        }
-        onEntered:  { __hovered = true;  __forceHoverOff = false; hoverTimer.start() }
-        onExited:   { __hovered = false; __forceHoverOff = false; hoverTimer.stop()  }
-        onPressed:  { __pressed = true;  }
-        onReleased: { __pressed = false; }
-        onClicked: {
-            __mapButton.clicked()
-        }
-    }
-
-    Timer {
-        id:         hoverTimer
-        interval:   250
-        repeat:     true
-        onTriggered: {
-            if (__lastGlobalMouseX !== ScreenTools.mouseX() || __lastGlobalMouseY !== ScreenTools.mouseY()) {
-                __forceHoverOff = true
-            } else {
-                __forceHoverOff = false
-            }
         }
     }
 }

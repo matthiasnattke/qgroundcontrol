@@ -1,27 +1,16 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
 
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
-
- This file is part of the QGROUNDCONTROL project
-
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
-
- ======================================================================*/
-
-import QtQuick 2.3
+import QtQuick          2.11
+import QtQuick.Controls 2.4
+import QtQuick.Layouts  1.11
 
 import QGroundControl               1.0
 import QGroundControl.Controls      1.0
@@ -38,40 +27,59 @@ Rectangle {
 
     QGCFlickable {
         anchors.fill:   parent
-        contentWidth:   column.width + (_margins * 2)
+        contentWidth:   column.width  + (_margins * 2)
         contentHeight:  column.height + (_margins * 2)
         clip:           true
 
-        Column {
+        ColumnLayout {
             id:                 column
             anchors.margins:    _margins
             anchors.left:       parent.left
             anchors.top:        parent.top
             spacing:            ScreenTools.defaultFontPixelHeight
 
-            QGCButton {
-                text:       qsTr("PX4 Vehicle")
-                onClicked:  QGroundControl.startPX4MockLink(sendStatusText.checked)
-            }
-            QGCButton {
-                text:       qsTr("APM ArduCopter Vehicle")
-                onClicked:  QGroundControl.startAPMArduCopterMockLink(sendStatusText.checked)
-            }
-            QGCButton {
-                text:       qsTr("APM ArduPlane Vehicle")
-                onClicked:  QGroundControl.startAPMArduPlaneMockLink(sendStatusText.checked)
-            }
-            QGCButton {
-                text:       qsTr("Generic Vehicle")
-                onClicked:  QGroundControl.startGenericMockLink(sendStatusText.checked)
-            }
             QGCCheckBox {
-                id:     sendStatusText
-                text:   qsTr("Send status text + voice")
+                id:             sendStatusText
+                text:           qsTr("Send status text + voice")
             }
             QGCButton {
-                text:       qsTr("Stop All MockLinks")
-                onClicked:  QGroundControl.stopAllMockLinks()
+                text:               qsTr("PX4 Vehicle")
+                Layout.fillWidth:   true
+                onClicked:          QGroundControl.startPX4MockLink(sendStatusText.checked)
+            }
+            QGCButton {
+                text:               qsTr("APM ArduCopter Vehicle")
+                visible:            QGroundControl.hasAPMSupport
+                Layout.fillWidth:   true
+                onClicked:          QGroundControl.startAPMArduCopterMockLink(sendStatusText.checked)
+            }
+            QGCButton {
+                text:               qsTr("APM ArduPlane Vehicle")
+                visible:            QGroundControl.hasAPMSupport
+                Layout.fillWidth:   true
+                onClicked:          QGroundControl.startAPMArduPlaneMockLink(sendStatusText.checked)
+            }
+            QGCButton {
+                text:               qsTr("APM ArduSub Vehicle")
+                visible:            QGroundControl.hasAPMSupport
+                Layout.fillWidth:   true
+                onClicked:          QGroundControl.startAPMArduSubMockLink(sendStatusText.checked)
+            }
+            QGCButton {
+                text:               qsTr("APM ArduRover Vehicle")
+                visible:            QGroundControl.hasAPMSupport
+                Layout.fillWidth:   true
+                onClicked:          QGroundControl.startAPMArduRoverMockLink(sendStatusText.checked)
+            }
+            QGCButton {
+                text:               qsTr("Generic Vehicle")
+                Layout.fillWidth:   true
+                onClicked:          QGroundControl.startGenericMockLink(sendStatusText.checked)
+            }
+            QGCButton {
+                text:               qsTr("Stop One MockLink")
+                Layout.fillWidth:   true
+                onClicked:          QGroundControl.stopOneMockLink()
             }
         }
     }

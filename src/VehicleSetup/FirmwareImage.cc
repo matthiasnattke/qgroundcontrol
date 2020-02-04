@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009, 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 /// @file
 ///     @brief Support for Intel Hex firmware file
@@ -31,7 +18,8 @@
 #include "QGCMAVLink.h"
 #include "QGCApplication.h"
 #include "FirmwarePlugin.h"
-#include "ParameterLoader.h"
+#include "ParameterManager.h"
+#include "Bootloader.h"
 
 #include <QDebug>
 #include <QFile>
@@ -64,10 +52,12 @@ bool FirmwareImage::load(const QString& imageFilename, uint32_t boardId)
     _boardId = boardId;
     
     if (imageFilename.endsWith(".bin")) {
-        return _binLoad(imageFilename);
         _binFormat = true;
-        return true;
+        return _binLoad(imageFilename);
     } else if (imageFilename.endsWith(".px4")) {
+        _binFormat = true;
+        return _px4Load(imageFilename);
+    } else if (imageFilename.endsWith(".apj")) {
         _binFormat = true;
         return _px4Load(imageFilename);
     } else if (imageFilename.endsWith(".ihx")) {
@@ -132,7 +122,7 @@ bool FirmwareImage::_ihxLoad(const QString& ihxFilename)
     
     QFile ihxFile(ihxFilename);
     if (!ihxFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        emit statusMessage(QString("Unable to open firmware file %1, error: %2").arg(ihxFilename).arg(ihxFile.errorString()));
+        emit statusMessage(QString("Unable to open firmware file %1, error: %2").arg(ihxFilename, ihxFile.errorString()));
         return false;
     }
     
@@ -155,12 +145,12 @@ bool FirmwareImage::_ihxLoad(const QString& ihxFilename)
             !_readByteFromStream(stream, recordType) ||
             !_readBytesFromStream(stream, blockByteCount, bytes) ||
             !_readByteFromStream(stream, crc)) {
-            emit statusMessage("Incorrectly formatted line in .ihx file, line too short");
+            emit statusMessage(tr("Incorrectly formatted line in .ihx file, line too short"));
             return false;
         }
         
         if (!(recordType == 0 || recordType == 1)) {
-            emit statusMessage(QString("Unsupported record type in file: %1").arg(recordType));
+            emit statusMessage(tr("Unsupported record type in file: %1").arg(recordType));
             return false;
         }
         
@@ -207,15 +197,33 @@ bool FirmwareImage::_ihxLoad(const QString& ihxFilename)
     return true;
 }
 
+bool FirmwareImage::isCompatible(uint32_t boardId, uint32_t firmwareId) {
+    bool result = false;
+    if (boardId == firmwareId ) {
+        result = true;
+    }
+    switch(boardId) {
+    case Bootloader::boardIDAUAVX2_1: // AUAVX2.1 is compatible with px4-v2/v3
+        if (firmwareId == 9) result = true;
+        break;
+    case Bootloader::boardIDPX4FMUV3:
+        if (firmwareId == 9) result = true;
+        break;
+    default:
+        break;
+    }
+    return result;
+}
+
 bool FirmwareImage::_px4Load(const QString& imageFilename)
 {
     _imageSize = 0;
     
-    // We need to collect information from the .px4 file as well as pull the binary image out to a seperate file.
+    // We need to collect information from the .px4 file as well as pull the binary image out to a separate file.
     
     QFile px4File(imageFilename);
     if (!px4File.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        emit statusMessage(QString("Unable to open firmware file %1, error: %2").arg(imageFilename).arg(px4File.errorString()));
+        emit statusMessage(tr("Unable to open firmware file %1, error: %2").arg(imageFilename, px4File.errorString()));
         return false;
     }
     
@@ -224,7 +232,7 @@ bool FirmwareImage::_px4Load(const QString& imageFilename)
     QJsonDocument doc = QJsonDocument::fromJson(bytes);
     
     if (doc.isNull()) {
-        emit statusMessage("Supplied file is not a valid JSON document");
+        emit statusMessage(tr("Supplied file is not a valid JSON document"));
         return false;
     }
     
@@ -235,7 +243,7 @@ bool FirmwareImage::_px4Load(const QString& imageFilename)
     QStringList requiredKeys;
     requiredKeys << _jsonBoardIdKey << _jsonImageKey << _jsonImageSizeKey;
     if (!JsonHelper::validateRequiredKeys(px4Json, requiredKeys, errorString)) {
-        emit statusMessage(QString("Firmware file mission required key: %1").arg(errorString));
+        emit statusMessage(tr("Firmware file mission required key: %1").arg(errorString));
         return false;
     }
 
@@ -245,13 +253,13 @@ bool FirmwareImage::_px4Load(const QString& imageFilename)
     keys << _jsonBoardIdKey << _jsonParamXmlSizeKey << _jsonParamXmlKey << _jsonAirframeXmlSizeKey << _jsonAirframeXmlKey << _jsonImageSizeKey << _jsonImageKey << _jsonMavAutopilotKey;
     types << QJsonValue::Double << QJsonValue::Double << QJsonValue::String << QJsonValue::Double << QJsonValue::String << QJsonValue::Double << QJsonValue::String << QJsonValue::Double;
     if (!JsonHelper::validateKeyTypes(px4Json, keys, types, errorString)) {
-        emit statusMessage(QString("Firmware file has invalid key: %1").arg(errorString));
+        emit statusMessage(tr("Firmware file has invalid key: %1").arg(errorString));
         return false;
     }
 
     uint32_t firmwareBoardId = (uint32_t)px4Json.value(_jsonBoardIdKey).toInt();
-    if (firmwareBoardId != _boardId) {
-        emit statusMessage(QString("Downloaded firmware board id does not match hardware board id: %1 != %2").arg(firmwareBoardId).arg(_boardId));
+    if (!isCompatible(_boardId, firmwareBoardId)) {
+        emit statusMessage(tr("Downloaded firmware board id does not match hardware board id: %1 != %2").arg(firmwareBoardId).arg(_boardId));
         return false;
     }
 
@@ -267,28 +275,24 @@ bool FirmwareImage::_px4Load(const QString& imageFilename)
                                         _jsonParamXmlKey,      // key which holds compressed bytes
                                         decompressedBytes);    // Returned decompressed bytes
     if (success) {
-        // Use settings location as our work directory, this way is something goes wrong the file is still there
-        // sitting next to the cache files.
-        QSettings settings;
-        QDir parameterDir = QFileInfo(settings.fileName()).dir();
-        QString parameterFilename = parameterDir.filePath("ParameterFactMetaData.xml");
-        QFile parameterFile(parameterFilename);
+        QString parameterFilename = QGCApplication::cachedParameterMetaDataFile();
+        QFile parameterFile(QGCApplication::cachedParameterMetaDataFile());
 
         if (parameterFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
             qint64 bytesWritten = parameterFile.write(decompressedBytes);
             if (bytesWritten != decompressedBytes.count()) {
-                emit statusMessage(QString("Write failed for parameter meta data file, error: %1").arg(parameterFile.errorString()));
+                emit statusMessage(tr("Write failed for parameter meta data file, error: %1").arg(parameterFile.errorString()));
                 parameterFile.close();
                 QFile::remove(parameterFilename);
             } else {
                 parameterFile.close();
             }
         } else {
-            emit statusMessage(QString("Unable to open parameter meta data file %1 for writing, error: %2").arg(parameterFilename).arg(parameterFile.errorString()));
+            emit statusMessage(tr("Unable to open parameter meta data file %1 for writing, error: %2").arg(parameterFilename, parameterFile.errorString()));
         }
 
         // Cache this file with the system
-        ParameterLoader::cacheMetaDataFile(parameterFilename, firmwareType);
+        ParameterManager::cacheMetaDataFile(parameterFilename, firmwareType);
     }
 
     // Decompress the airframe xml and save to file
@@ -298,25 +302,22 @@ bool FirmwareImage::_px4Load(const QString& imageFilename)
                                         _jsonAirframeXmlKey,        // key which holds compressed bytes
                                         decompressedBytes);         // Returned decompressed bytes
     if (success) {
-        // We cache the airframe xml in the same location as settings and parameters
-        QSettings settings;
-        QDir airframeDir = QFileInfo(settings.fileName()).dir();
-        QString airframeFilename = airframeDir.filePath("PX4AirframeFactMetaData.xml");
+        QString airframeFilename = QGCApplication::cachedAirframeMetaDataFile();
         //qDebug() << airframeFilename;
-        QFile airframeFile(airframeFilename);
+        QFile airframeFile(QGCApplication::cachedAirframeMetaDataFile());
 
         if (airframeFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
             qint64 bytesWritten = airframeFile.write(decompressedBytes);
             if (bytesWritten != decompressedBytes.count()) {
                 // FIXME: What about these warnings?
-                emit statusMessage(QString("Write failed for airframe meta data file, error: %1").arg(airframeFile.errorString()));
+                emit statusMessage(tr("Write failed for airframe meta data file, error: %1").arg(airframeFile.errorString()));
                 airframeFile.close();
                 QFile::remove(airframeFilename);
             } else {
                 airframeFile.close();
             }
         } else {
-            emit statusMessage(QString("Unable to open airframe meta data file %1 for writing, error: %2").arg(airframeFilename).arg(airframeFile.errorString()));
+            emit statusMessage(tr("Unable to open airframe meta data file %1 for writing, error: %2").arg(airframeFilename, airframeFile.errorString()));
         }
     }
     
@@ -342,13 +343,13 @@ bool FirmwareImage::_px4Load(const QString& imageFilename)
     
     QFile decompressFile(decompressFilename);
     if (!decompressFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        emit statusMessage(QString("Unable to open decompressed file %1 for writing, error: %2").arg(decompressFilename).arg(decompressFile.errorString()));
+        emit statusMessage(tr("Unable to open decompressed file %1 for writing, error: %2").arg(decompressFilename, decompressFile.errorString()));
         return false;
     }
     
     qint64 bytesWritten = decompressFile.write(decompressedBytes);
     if (bytesWritten != decompressedBytes.count()) {
-        emit statusMessage(QString("Write failed for decompressed image file, error: %1").arg(decompressFile.errorString()));
+        emit statusMessage(tr("Write failed for decompressed image file, error: %1").arg(decompressFile.errorString()));
         return false;
     }
     decompressFile.close();
@@ -372,7 +373,7 @@ bool FirmwareImage::_decompressJsonValue(const QJsonObject&	jsonObject,			///< J
     }
     int decompressedSize = jsonObject.value(QString(sizeKey)).toInt();
     if (decompressedSize == 0) {
-        emit statusMessage(QString("Firmware file has invalid decompressed size for %1").arg(sizeKey));
+        emit statusMessage(tr("Firmware file has invalid decompressed size for %1").arg(sizeKey));
         return false;
     }
     
@@ -384,12 +385,12 @@ bool FirmwareImage::_decompressJsonValue(const QJsonObject&	jsonObject,			///< J
     
     QStringList parts = QString(jsonDocBytes).split(QString("\"%1\": \"").arg(bytesKey));
     if (parts.count() == 1) {
-        emit statusMessage(QString("Could not find compressed bytes for %1 in Firmware file").arg(bytesKey));
+        emit statusMessage(tr("Could not find compressed bytes for %1 in Firmware file").arg(bytesKey));
         return false;
     }
     parts = parts.last().split("\"");
     if (parts.count() == 1) {
-        emit statusMessage(QString("Incorrectly formed compressed bytes section for %1 in Firmware file").arg(bytesKey));
+        emit statusMessage(tr("Incorrectly formed compressed bytes section for %1 in Firmware file").arg(bytesKey));
         return false;
     }
     
@@ -405,15 +406,15 @@ bool FirmwareImage::_decompressJsonValue(const QJsonObject&	jsonObject,			///< J
     decompressedBytes = qUncompress(raw);
     
     if (decompressedBytes.count() == 0) {
-        emit statusMessage(QString("Firmware file has 0 length %1").arg(bytesKey));
+        emit statusMessage(tr("Firmware file has 0 length %1").arg(bytesKey));
         return false;
     }
     if (decompressedBytes.count() != decompressedSize) {
-        emit statusMessage(QString("Size for decompressed %1 does not match stored size: Expected(%1) Actual(%2)").arg(decompressedSize).arg(decompressedBytes.count()));
+        emit statusMessage(tr("Size for decompressed %1 does not match stored size: Expected(%1) Actual(%2)").arg(decompressedSize).arg(decompressedBytes.count()));
         return false;
     }
     
-    emit statusMessage(QString("Succesfully decompressed %1").arg(bytesKey));
+    emit statusMessage(tr("Successfully decompressed %1").arg(bytesKey));
     
     return true;
 }
@@ -441,13 +442,15 @@ bool FirmwareImage::_binLoad(const QString& imageFilename)
 {
     QFile binFile(imageFilename);
     if (!binFile.open(QIODevice::ReadOnly)) {
-        emit statusMessage(QString("Unabled to open firmware file %1, %2").arg(imageFilename).arg(binFile.errorString()));
+        emit statusMessage(tr("Unabled to open firmware file %1, %2").arg(imageFilename, binFile.errorString()));
         return false;
     }
     
     _imageSize = (uint32_t)binFile.size();
     
     binFile.close();
+    
+    _binFilename = imageFilename;
     
     return true;
 }

@@ -1,88 +1,99 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
- QGroundControl Open Source Ground Control Station
+import QtQuick          2.3
+import QtQuick.Controls 1.2
+import QtCharts         2.2
+import QtQuick.Layouts  1.2
 
- (c) 2009 - 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+import QGroundControl               1.0
+import QGroundControl.Controls      1.0
+import QGroundControl.FactSystem    1.0
+import QGroundControl.FactControls  1.0
+import QGroundControl.ScreenTools   1.0
 
- This file is part of the QGROUNDCONTROL project
+SetupPage {
+    id:             tuningPage
+    pageComponent:  pageComponent
 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+    Component {
+        id: pageComponent
 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+        Column {
+            width: availableWidth
 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
+            Component.onCompleted: {
+                // We use QtCharts only on Desktop platforms
+                showAdvanced = !ScreenTools.isMobile
+            }
 
- ======================================================================*/
+            FactPanelController {
+                id:         controller
+            }
 
-import QtQuick              2.5
-import QtQuick.Controls     1.4
+            // Standard tuning page
+            FactSliderPanel {
+                width:          availableWidth
+                visible:        !advanced
 
-import QGroundControl.Controls  1.0
+                sliderModel: ListModel {
+                    ListElement {
+                        title:          qsTr("Hover Throttle")
+                        description:    qsTr("Adjust throttle so hover is at mid-throttle. Slide to the left if hover is lower than throttle center. Slide to the right if hover is higher than throttle center.")
+                        param:          "MPC_THR_HOVER"
+                        min:            20
+                        max:            80
+                        step:           1
+                    }
 
-FactSliderPanel {
-    anchors.fill:   parent
-    panelTitle:     "Tuning"
+                    ListElement {
+                        title:          qsTr("Manual minimum throttle")
+                        description:    qsTr("Slide to the left to start the motors with less idle power. Slide to the right if descending in manual flight becomes unstable.")
+                        param:          "MPC_MANTHR_MIN"
+                        min:            0
+                        max:            15
+                        step:           1
+                    }
+                }
+            }
 
-    sliderModel: ListModel {
-        ListElement {
-            title:          qsTr("Throttle Hover")
-            description:    qsTr("Adjust throttle so hover is at mid-throttle. Slide to the left if hover is lower than throttle center. Slide to the right if hover is higher than throttle center.")
-            param:          "MPC_THR_HOVER"
-            min:            0.2
-            max:            0.8
-            step:           0.01
-        }
+            Loader {
+                anchors.left:       parent.left
+                anchors.right:      parent.right
+                sourceComponent:    advanced ? advancePageComponent : undefined
+            }
 
-        ListElement {
-            title:          qsTr("Roll sensitivity")
-            description:    qsTr("Slide to the left to make roll control faster and more accurate. Slide to the right if roll oscillates or is too twitchy.")
-            param:          "MC_ROLL_TC"
-            min:            0.15
-            max:            0.25
-            step:           0.01
-        }
+            Component {
+                id: advancePageComponent
 
-        ListElement {
-            title:          qsTr("Pitch sensitivity")
-            description:    qsTr("Slide to the left to make pitch control faster and more accurate. Slide to the right if pitch oscillates or is too twitchy.")
-            param:          "MC_PITCH_TC"
-            min:            0.15
-            max:            0.25
-            step:           0.01
-        }
-
-        ListElement {
-            title:          qsTr("Altitude control sensitivity")
-            description:    qsTr("Slide to the left to make altitude control smoother and less twitchy. Slide to the right to make altitude control more accurate and more aggressive.")
-            param:          "MPC_Z_FF"
-            min:            0
-            max:            1.0
-            step:           0.1
-        }
-
-        ListElement {
-            title:          qsTr("Position control sensitivity")
-            description:    qsTr("Slide to the left to make flight in position control mode smoother and less twitchy. Slide to the right to make position control more accurate and more aggressive.")
-            param:          "MPC_XY_FF"
-            min:            0
-            max:            1.0
-            step:           0.1
-        }
-
-        ListElement {
-            title:          qsTr("Manual minimum throttle")
-            description:    qsTr("Slide to the left to start the motors with less idle power. Slide to the right if descending in manual flight becomes unstable.")
-            param:          "MPC_MANTHR_MIN"
-            min:            0
-            max:            0.15
-            step:           0.01
-        }
-    }
-}
+                PIDTuning {
+                    anchors.left:   parent.left
+                    anchors.right:  parent.right
+                    tuneList:            [ qsTr("Roll"), qsTr("Pitch"), qsTr("Yaw") ]
+                    params:              [
+                        [ controller.getParameterFact(-1, "MC_ROLL_P"),
+                         controller.getParameterFact(-1, "MC_ROLLRATE_P"),
+                         controller.getParameterFact(-1, "MC_ROLLRATE_I"),
+                         controller.getParameterFact(-1, "MC_ROLLRATE_D"),
+                         controller.getParameterFact(-1, "MC_ROLLRATE_FF") ],
+                        [ controller.getParameterFact(-1, "MC_PITCH_P"),
+                         controller.getParameterFact(-1, "MC_PITCHRATE_P"),
+                         controller.getParameterFact(-1, "MC_PITCHRATE_I"),
+                         controller.getParameterFact(-1, "MC_PITCHRATE_D"),
+                         controller.getParameterFact(-1, "MC_PITCHRATE_FF") ],
+                        [ controller.getParameterFact(-1, "MC_YAW_P"),
+                         controller.getParameterFact(-1, "MC_YAWRATE_P"),
+                         controller.getParameterFact(-1, "MC_YAWRATE_I"),
+                         controller.getParameterFact(-1, "MC_YAWRATE_D"),
+                         controller.getParameterFact(-1, "MC_YAWRATE_FF") ] ]
+                }
+            } // Component - Advanced Page
+        } // Column
+    } // Component - pageComponent
+} // SetupPage

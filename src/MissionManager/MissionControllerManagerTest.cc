@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009 - 2014 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #include "MissionControllerManagerTest.h"
 #include "LinkManager.h"
@@ -34,7 +21,7 @@ MissionControllerManagerTest::MissionControllerManagerTest(void)
 void MissionControllerManagerTest::cleanup(void)
 {
     delete _multiSpyMissionManager;
-    _multiSpyMissionManager = NULL;
+    _multiSpyMissionManager = nullptr;
 
     UnitTest::cleanup();
 }
@@ -48,9 +35,10 @@ void MissionControllerManagerTest::_initForFirmwareType(MAV_AUTOPILOT firmwareTy
     _missionManager = qgcApp()->toolbox()->multiVehicleManager()->activeVehicle()->missionManager();
     QVERIFY(_missionManager);
     
-    _rgMissionManagerSignals[newMissionItemsAvailableSignalIndex] =   SIGNAL(newMissionItemsAvailable(void));
-    _rgMissionManagerSignals[inProgressChangedSignalIndex] =          SIGNAL(inProgressChanged(bool));
-    _rgMissionManagerSignals[errorSignalIndex] =                      SIGNAL(error(int, const QString&));
+    _rgMissionManagerSignals[newMissionItemsAvailableSignalIndex] = SIGNAL(newMissionItemsAvailable(bool));
+    _rgMissionManagerSignals[sendCompleteSignalIndex] =             SIGNAL(sendComplete(bool));
+    _rgMissionManagerSignals[inProgressChangedSignalIndex] =        SIGNAL(inProgressChanged(bool));
+    _rgMissionManagerSignals[errorSignalIndex] =                    SIGNAL(error(int, const QString&));
 
     _multiSpyMissionManager = new MultiSignalSpy();
     Q_CHECK_PTR(_multiSpyMissionManager);

@@ -1,25 +1,12 @@
-/*=====================================================================
- 
- QGroundControl Open Source Ground Control Station
- 
- (c) 2009, 2015 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- 
- This file is part of the QGROUNDCONTROL project
- 
- QGROUNDCONTROL is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- QGROUNDCONTROL is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with QGROUNDCONTROL. If not, see <http://www.gnu.org/licenses/>.
- 
- ======================================================================*/
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
+
 
 #ifndef APMSensorsComponentController_H
 #define APMSensorsComponentController_H
@@ -33,6 +20,7 @@
 #include "APMCompassCal.h"
 
 Q_DECLARE_LOGGING_CATEGORY(APMSensorsComponentControllerLog)
+Q_DECLARE_LOGGING_CATEGORY(APMSensorsComponentControllerVerboseLog)
 
 /// Sensors Component MVC Controller for SensorsComponent.qml.
 class APMSensorsComponentController : public FactPanelController
@@ -41,14 +29,11 @@ class APMSensorsComponentController : public FactPanelController
     
 public:
     APMSensorsComponentController(void);
+    ~APMSensorsComponentController();
 
-    Q_PROPERTY(bool fixedWing READ fixedWing CONSTANT)
-    
     Q_PROPERTY(QQuickItem* statusLog MEMBER _statusLog)
     Q_PROPERTY(QQuickItem* progressBar MEMBER _progressBar)
     
-    Q_PROPERTY(QQuickItem* compassButton MEMBER _compassButton)
-    Q_PROPERTY(QQuickItem* accelButton MEMBER _accelButton)
     Q_PROPERTY(QQuickItem* nextButton MEMBER _nextButton)
     Q_PROPERTY(QQuickItem* cancelButton MEMBER _cancelButton)
     Q_PROPERTY(QQuickItem* orientationCalAreaHelpText MEMBER _orientationCalAreaHelpText)
@@ -87,17 +72,46 @@ public:
     Q_PROPERTY(bool orientationCalTailDownSideRotate MEMBER _orientationCalTailDownSideRotate NOTIFY orientationCalSidesRotateChanged)
     
     Q_PROPERTY(bool waitingForCancel MEMBER _waitingForCancel NOTIFY waitingForCancelChanged)
-    
+
+    Q_PROPERTY(bool compass1CalSucceeded READ compass1CalSucceeded NOTIFY compass1CalSucceededChanged)
+    Q_PROPERTY(bool compass2CalSucceeded READ compass2CalSucceeded NOTIFY compass2CalSucceededChanged)
+    Q_PROPERTY(bool compass3CalSucceeded READ compass3CalSucceeded NOTIFY compass3CalSucceededChanged)
+
+    Q_PROPERTY(double compass1CalFitness READ compass1CalFitness NOTIFY compass1CalFitnessChanged)
+    Q_PROPERTY(double compass2CalFitness READ compass2CalFitness NOTIFY compass2CalFitnessChanged)
+    Q_PROPERTY(double compass3CalFitness READ compass3CalFitness NOTIFY compass3CalFitnessChanged)
+
     Q_INVOKABLE void calibrateCompass(void);
     Q_INVOKABLE void calibrateAccel(void);
+    Q_INVOKABLE void calibrateMotorInterference(void);
+    Q_INVOKABLE void levelHorizon(void);
+    Q_INVOKABLE void calibratePressure(void);
     Q_INVOKABLE void cancelCalibration(void);
     Q_INVOKABLE void nextClicked(void);
-
-    bool fixedWing(void);
+    Q_INVOKABLE bool usingUDPLink(void);
 
     bool compassSetupNeeded(void) const;
     bool accelSetupNeeded(void) const;
-    
+
+    typedef enum {
+        CalTypeAccel,
+        CalTypeOnboardCompass,
+        CalTypeOffboardCompass,
+        CalTypeLevelHorizon,
+        CalTypeCompassMot,
+        CalTypePressure,
+        CalTypeNone
+    } CalType_t;
+    Q_ENUM(CalType_t)
+
+    bool compass1CalSucceeded(void) const { return _rgCompassCalSucceeded[0]; }
+    bool compass2CalSucceeded(void) const { return _rgCompassCalSucceeded[1]; }
+    bool compass3CalSucceeded(void) const { return _rgCompassCalSucceeded[2]; }
+
+    double compass1CalFitness(void) const { return _rgCompassCalFitness[0]; }
+    double compass2CalFitness(void) const { return _rgCompassCalFitness[1]; }
+    double compass3CalFitness(void) const { return _rgCompassCalFitness[2]; }
+
 signals:
     void showGyroCalAreaChanged(void);
     void showOrientationCalAreaChanged(void);
@@ -108,11 +122,20 @@ signals:
     void resetStatusTextArea(void);
     void waitingForCancelChanged(void);
     void setupNeededChanged(void);
-    void calibrationComplete(void);
-    
+    void calibrationComplete(CalType_t calType);
+    void compass1CalSucceededChanged(bool compass1CalSucceeded);
+    void compass2CalSucceededChanged(bool compass2CalSucceeded);
+    void compass3CalSucceededChanged(bool compass3CalSucceeded);
+    void compass1CalFitnessChanged(double compass1CalFitness);
+    void compass2CalFitnessChanged(double compass2CalFitness);
+    void compass3CalFitnessChanged(double compass3CalFitness);
+    void setAllCalButtonsEnabled(bool enabled);
+
 private slots:
     void _handleUASTextMessage(int uasId, int compId, int severity, QString text);
-    
+    void _mavlinkMessageReceived(LinkInterface* link, mavlink_message_t message);
+    void _mavCommandResult(int vehicleId, int component, int command, int result, bool noReponseFromVehicle);
+
 private:
     void _startLogCalibration(void);
     void _startVisualCalibration(void);
@@ -120,9 +143,14 @@ private:
     void _refreshParams(void);
     void _hideAllCalAreas(void);
     void _resetInternalState(void);
-    
+    void _handleCommandAck(mavlink_message_t& message);
+    void _handleMagCalProgress(mavlink_message_t& message);
+    void _handleMagCalReport(mavlink_message_t& message);
+    void _restorePreviousCompassCalFitness(void);
+
     enum StopCalibrationCode {
         StopCalibrationSuccess,
+        StopCalibrationSuccessShowLog,
         StopCalibrationFailed,
         StopCalibrationCancelled
     };
@@ -135,17 +163,19 @@ private:
 
     QQuickItem* _statusLog;
     QQuickItem* _progressBar;
-    QQuickItem* _compassButton;
-    QQuickItem* _accelButton;
     QQuickItem* _nextButton;
     QQuickItem* _cancelButton;
     QQuickItem* _orientationCalAreaHelpText;
     
     bool _showOrientationCalArea;
     
-    bool _magCalInProgress;
-    bool _accelCalInProgress;
-    
+    CalType_t _calTypeInProgress;
+
+    uint8_t _rgCompassCalProgress[3];
+    bool    _rgCompassCalComplete[3];
+    bool    _rgCompassCalSucceeded[3];
+    float   _rgCompassCalFitness[3];
+
     bool _orientationCalDownSideDone;
     bool _orientationCalUpsideDownSideDone;
     bool _orientationCalLeftSideDone;
@@ -175,6 +205,10 @@ private:
     bool _orientationCalTailDownSideRotate;
     
     bool _waitingForCancel;
+
+    bool _restoreCompassCalFitness;
+    float _previousCompassCalFitness;
+    static const char* _compassCalFitnessParam;
     
     static const int _supportedFirmwareCalVersion = 2;
 };

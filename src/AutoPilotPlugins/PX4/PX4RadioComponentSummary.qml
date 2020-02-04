@@ -1,4 +1,4 @@
-import QtQuick 2.2
+import QtQuick 2.3
 import QtQuick.Controls 1.2
 
 import QGroundControl.FactSystem 1.0
@@ -6,13 +6,10 @@ import QGroundControl.FactControls 1.0
 import QGroundControl.Controls 1.0
 import QGroundControl.Palette 1.0
 
-FactPanel {
-    id:             panel
+Item {
     anchors.fill:   parent
-    color:          qgcPal.windowShadeDark
 
-    QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
-    FactPanelController { id: controller; factPanel: panel }
+    FactPanelController { id: controller; }
 
     property Fact mapRollFact:      controller.getParameterFact(-1, "RC_MAP_ROLL")
     property Fact mapPitchFact:     controller.getParameterFact(-1, "RC_MAP_PITCH")
@@ -24,40 +21,40 @@ FactPanel {
 
     Column {
         anchors.fill:       parent
-        anchors.margins:    8
 
         VehicleSummaryRow {
-            labelText: qsTr("Roll:")
+            labelText: qsTr("Roll")
             valueText: mapRollFact ? (mapRollFact.value === 0 ? qsTr("Setup required") : mapRollFact.valueString) : ""
         }
 
         VehicleSummaryRow {
-            labelText: qsTr("Pitch:")
+            labelText: qsTr("Pitch")
             valueText: mapPitchFact ? (mapPitchFact.value === 0 ? qsTr("Setup required") : mapPitchFact.valueString) : ""
         }
 
         VehicleSummaryRow {
-            labelText: qsTr("Yaw:")
+            labelText: qsTr("Yaw")
             valueText: mapYawFact ? (mapYawFact.value === 0 ? qsTr("Setup required") : mapYawFact.valueString) : ""
         }
 
         VehicleSummaryRow {
-            labelText: qsTr("Throttle:")
+            labelText: qsTr("Throttle")
             valueText: mapThrottleFact ? (mapThrottleFact.value === 0 ? qsTr("Setup required") : mapThrottleFact.valueString) : ""
         }
 
         VehicleSummaryRow {
-            labelText: qsTr("Flaps:")
-            valueText: mapFlapsFact ? (mapFlapsFact.value === 0 ? qsTr("Disabled") : mapFlapsFact.valueString) : ""
+            labelText:  qsTr("Flaps")
+            valueText:  mapFlapsFact ? (mapFlapsFact.value === 0 ? qsTr("Disabled") : mapFlapsFact.valueString) : ""
+            visible:    !controller.vehicle.multiRotor
         }
 
         VehicleSummaryRow {
-            labelText: qsTr("Aux1:")
+            labelText: qsTr("Aux1")
             valueText: mapAux1Fact ? (mapAux1Fact.value === 0 ? qsTr("Disabled") : mapAux1Fact.valueString) : ""
         }
 
         VehicleSummaryRow {
-            labelText: qsTr("Aux2:")
+            labelText: qsTr("Aux2")
             valueText: mapAux2Fact ? (mapAux2Fact.value === 0 ? qsTr("Disabled") : mapAux2Fact.valueString) : ""
         }
     }

@@ -17,11 +17,10 @@
 /**
  * @file
  *   @brief Extracted from QtGstreamer to avoid overly complex dependency
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
-#ifndef QTQUICK2VIDEOSINKDELEGATE_H
-#define QTQUICK2VIDEOSINKDELEGATE_H
+#pragma once
 
 #include "basedelegate.h"
 #include <QtQuick/QSGNode>
@@ -35,4 +34,3 @@ public:
     QSGNode *updateNode(QSGNode *node, const QRectF & targetArea);
 };
 
-#endif // QTQUICK2VIDEOSINKDELEGATE_H

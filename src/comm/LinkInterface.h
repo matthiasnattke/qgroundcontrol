@@ -1,36 +1,13 @@
-/*=====================================================================
+/****************************************************************************
+ *
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ *
+ * QGroundControl is licensed according to the terms in the file
+ * COPYING.md in the root of the source code directory.
+ *
+ ****************************************************************************/
 
-PIXHAWK Micro Air Vehicle Flying Robotics Toolkit
-
-(c) 2009 PIXHAWK PROJECT  <http://pixhawk.ethz.ch>
-
-This file is part of the PIXHAWK project
-
-PIXHAWK is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-PIXHAWK is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with PIXHAWK. If not, see <http://www.gnu.org/licenses/>.
-
-======================================================================*/
-
-/**
-* @file
-*   @brief Brief Description
-*
-*   @author Lorenz Meier <mavteam@student.ethz.ch>
-*
-*/
-
-#ifndef _LINKINTERFACE_H_
-#define _LINKINTERFACE_H_
+#pragma once
 
 #include <QThread>
 #include <QDateTime>
@@ -38,16 +15,18 @@ along with PIXHAWK. If not, see <http://www.gnu.org/licenses/>.
 #include <QMutexLocker>
 #include <QMetaType>
 #include <QSharedPointer>
+#include <QDebug>
+#include <QTimer>
 
 #include "QGCMAVLink.h"
+#include "LinkConfiguration.h"
+#include "MavlinkMessagesTimer.h"
 
 class LinkManager;
-class LinkConfiguration;
 
 /**
-* The link interface defines the interface for all links used to communicate
-* with the groundstation application.
-*
+* @brief The link interface defines the interface for all links used to communicate
+* with the ground station application.
 **/
 class LinkInterface : public QThread
 {
@@ -56,25 +35,30 @@ class LinkInterface : public QThread
     // Only LinkManager is allowed to create/delete or _connect/_disconnect a link
     friend class LinkManager;
 
-public:
-    Q_PROPERTY(bool active      READ active         WRITE setActive         NOTIFY activeChanged)
+public:    
+    virtual ~LinkInterface() {
+        stopMavlinkMessagesTimer();
+        _config->setLink(nullptr);
+    }
+
+    Q_PROPERTY(bool active      READ active     NOTIFY activeChanged)
+    Q_PROPERTY(bool isPX4Flow   READ isPX4Flow  CONSTANT)
+
+    Q_INVOKABLE bool link_active(int vehicle_id) const;
+    Q_INVOKABLE bool getHighLatency(void) const { return _highLatency; }
 
     // Property accessors
-    bool active(void)                       { return _active; }
-    void setActive(bool active)             { _active = active; emit activeChanged(active); }
+    bool active() const;
+    bool isPX4Flow(void) const { return _isPX4Flow; }
 
-    /**
-     * @brief Get link configuration (if used)
-     * @return A pointer to the instance of LinkConfiguration if supported. NULL otherwise.
-     **/
-    virtual LinkConfiguration* getLinkConfiguration() { return NULL; }
+    LinkConfiguration* getLinkConfiguration(void) { return _config.data(); }
 
     /* Connection management */
 
     /**
      * @brief Get the human readable name of this link
      */
-    virtual QString getName() const = 0;
+    Q_INVOKABLE virtual QString getName() const = 0;
 
     virtual void requestReset() = 0;
 
@@ -102,7 +86,7 @@ public:
     virtual bool isLogReplay(void) { return false; }
 
     /**
-     * @Enable/Disable data rate collection
+     * @Brief Enable/Disable data rate collection
      **/
     void enableDataRate(bool enable)
     {
@@ -137,7 +121,15 @@ public:
     
     /// mavlink channel to use for this link, as used by mavlink_parse_char. The mavlink channel is only
     /// set into the link when it is added to LinkManager
-    uint8_t getMavlinkChannel(void) const { Q_ASSERT(_mavlinkChannelSet); return _mavlinkChannel; }
+    uint8_t mavlinkChannel(void) const;
+
+    /// Returns whether this link is high latency or not. High latency links should only perform
+    /// minimal communication with vehicle.
+    ///     signals: highLatencyChanged
+    bool highLatency(void) const { return _highLatency; }
+
+    bool decodedFirstMavlinkPacket(void) const { return _decodedFirstMavlinkPacket; }
+    bool setDecodedFirstMavlinkPacket(bool decodedFirstMavlinkPacket) { return _decodedFirstMavlinkPacket = decodedFirstMavlinkPacket; }
 
     // These are left unimplemented in order to cause linker errors which indicate incorrect usage of
     // connect/disconnect on link directly. All connect/disconnect calls should be made through LinkManager.
@@ -154,8 +146,8 @@ public slots:
      * communication arbitrary byte lengths can be written. The method ensures
      * thread safety regardless of the underlying LinkInterface implementation.
      *
-     * @param bytes The pointer to the byte array containing the data
-     * @param length The length of the data array
+     * @param bytes:  The pointer to the byte array containing the data
+     * @param length: The length of the data array
      **/
     void writeBytesSafe(const char *bytes, int length)
     {
@@ -164,11 +156,14 @@ public slots:
 
 private slots:
     virtual void _writeBytes(const QByteArray) = 0;
+
+    void _activeChanged(bool active, int vehicle_id);
     
 signals:
     void autoconnectChanged(bool autoconnect);
-    void activeChanged(bool active);
+    void activeChanged(LinkInterface* link, bool active, int vehicle_id);
     void _invokeWriteBytes(QByteArray);
+    void highLatencyChanged(bool highLatency);
 
     /// Signalled when a link suddenly goes away due to it being removed by for example pulling the cable to the connection.
     void connectionRemoved(LinkInterface* link);
@@ -181,9 +176,21 @@ signals:
      * affect performance, for control links it is however desirable to directly
      * forward the link data.
      *
-     * @param data the new bytes
+     * @param link: Link where the data is coming from
+     * @param data: The data received
      */
     void bytesReceived(LinkInterface* link, QByteArray data);
+
+    /**
+     * @brief New data has been sent
+     * *
+     * The new data is contained in the QByteArray data.
+     * The data is logged into telemetry logging system
+     *
+     * @param link: Link used
+     * @param data: The data sent
+     */
+    void bytesSent(LinkInterface* link, QByteArray data);
 
     /**
      * @brief This signal is emitted instantly when the link is connected
@@ -200,51 +207,30 @@ signals:
      */
     void nameChanged(QString name);
 
-    /** @brief Communication error occured */
+    /** @brief Communication error occurred */
     void communicationError(const QString& title, const QString& error);
 
     void communicationUpdate(const QString& linkname, const QString& text);
 
 protected:
     // Links are only created by LinkManager so constructor is not public
-    LinkInterface() :
-        QThread(0)
-        , _mavlinkChannelSet(false)
-        , _active(false)
-        , _enableRateCollection(false)
-    {
-        // Initialize everything for the data rate calculation buffers.
-        _inDataIndex  = 0;
-        _outDataIndex = 0;
-        
-        // Initialize our data rate buffers.
-        memset(_inDataWriteAmounts, 0, sizeof(_inDataWriteAmounts));
-        memset(_inDataWriteTimes,   0, sizeof(_inDataWriteTimes));
-        memset(_outDataWriteAmounts,0, sizeof(_outDataWriteAmounts));
-        memset(_outDataWriteTimes,  0, sizeof(_outDataWriteTimes));
-        
-        QObject::connect(this, &LinkInterface::_invokeWriteBytes, this, &LinkInterface::_writeBytes);
-        qRegisterMetaType<LinkInterface*>("LinkInterface*");
-    }
+    LinkInterface(SharedLinkConfigurationPointer& config, bool isPX4Flow = false);
 
     /// This function logs the send times and amounts of datas for input. Data is used for calculating
     /// the transmission rate.
     ///     @param byteCount Number of bytes received
-    ///     @param time Time in ms send occured
-    void _logInputDataRate(quint64 byteCount, qint64 time) {
-        if(_enableRateCollection)
-            _logDataRateToBuffer(_inDataWriteAmounts, _inDataWriteTimes, &_inDataIndex, byteCount, time);
-    }
+    ///     @param time Time in ms send occurred
+    void _logInputDataRate(quint64 byteCount, qint64 time);
     
     /// This function logs the send times and amounts of datas for output. Data is used for calculating
     /// the transmission rate.
     ///     @param byteCount Number of bytes sent
-    ///     @param time Time in ms receive occured
-    void _logOutputDataRate(quint64 byteCount, qint64 time) {
-        if(_enableRateCollection)
-            _logDataRateToBuffer(_outDataWriteAmounts, _outDataWriteTimes, &_outDataIndex, byteCount, time);
-    }
-    
+    ///     @param time Time in ms receive occurred
+    void _logOutputDataRate(quint64 byteCount, qint64 time);
+
+    SharedLinkConfigurationPointer _config;
+    bool _highLatency;
+
 private:
     /**
      * @brief logDataRateToBuffer Stores transmission times/amounts for statistics
@@ -258,24 +244,7 @@ private:
      * @param bytes The amount of bytes transmit.
      * @param time The time (in ms) this transmission occurred.
      */
-    void _logDataRateToBuffer(quint64 *bytesBuffer, qint64 *timeBuffer, int *writeIndex, quint64 bytes, qint64 time)
-    {
-        QMutexLocker dataRateLocker(&_dataRateMutex);
-        
-        int i = *writeIndex;
-
-        // Now write into the buffer, if there's no room, we just overwrite the first data point.
-        bytesBuffer[i] = bytes;
-        timeBuffer[i] = time;
-
-        // Increment and wrap the write index
-        ++i;
-        if (i == _dataRateBufferSize)
-        {
-            i = 0;
-        }
-        *writeIndex = i;
-    }
+    void _logDataRateToBuffer(quint64 *bytesBuffer, qint64 *timeBuffer, int *writeIndex, quint64 bytes, qint64 time);
 
     /**
      * @brief getCurrentDataRate Get the current data rate given a data rate buffer.
@@ -290,48 +259,7 @@ private:
      * @param dataWriteAmounts The amount of data (in bits) that was transferred.
      * @return The bits per second of data transferrence of the interface over the last [-statsCurrentTimespan, 0] timespan.
      */
-    qint64 _getCurrentDataRate(int index, const qint64 dataWriteTimes[], const quint64 dataWriteAmounts[]) const
-    {
-        const qint64 now = QDateTime::currentMSecsSinceEpoch();
-
-        // Limit the time we calculate to the recent past
-        const qint64 cutoff = now - _dataRateCurrentTimespan;
-
-        // Grab the mutex for working with the stats variables
-        QMutexLocker dataRateLocker(&_dataRateMutex);
-
-        // Now iterate through the buffer of all received data packets adding up all values
-        // within now and our cutof.
-        qint64 totalBytes = 0;
-        qint64 totalTime = 0;
-        qint64 lastTime = 0;
-        int size = _dataRateBufferSize;
-        while (size-- > 0)
-        {
-            // If this data is within our cutoff time, include it in our calculations.
-            // This also accounts for when the buffer is empty and filled with 0-times.
-            if (dataWriteTimes[index] > cutoff && lastTime > 0) {
-                // Track the total time, using the previous time as our timeperiod.
-                totalTime += dataWriteTimes[index] - lastTime;
-                totalBytes += dataWriteAmounts[index];
-            }
-
-            // Track the last time sample for doing timespan calculations
-            lastTime = dataWriteTimes[index];
-
-            // Increment and wrap the index if necessary.
-            if (++index == _dataRateBufferSize)
-            {
-                index = 0;
-            }
-        }
-
-        // Return the final calculated value in bits / s, converted from bytes/ms.
-        qint64 dataRate = (totalTime != 0)?(qint64)((float)totalBytes * 8.0f / ((float)totalTime / 1000.0f)):0;
-
-        // Finally return our calculated data rate.
-        return dataRate;
-    }
+    qint64 _getCurrentDataRate(int index, const qint64 dataWriteTimes[], const quint64 dataWriteAmounts[]) const;
 
     /**
      * @brief Connect this interface logically
@@ -341,10 +269,25 @@ private:
     virtual bool _connect(void) = 0;
 
     virtual void _disconnect(void) = 0;
-    
+
     /// Sets the mavlink channel to use for this link
-    void _setMavlinkChannel(uint8_t channel) { Q_ASSERT(!_mavlinkChannelSet); _mavlinkChannelSet = true; _mavlinkChannel = channel; }
+    void _setMavlinkChannel(uint8_t channel);
     
+    /**
+     * @brief startMavlinkMessagesTimer
+     *
+     * Start/restart the mavlink messages timer for the specific vehicle.
+     * If no timer exists an instance is allocated.
+     */
+    void startMavlinkMessagesTimer(int vehicle_id);
+
+    /**
+     * @brief stopMavlinkMessagesTimer
+     *
+     * Stop and deallocate the mavlink messages timers for all vehicles if any exists.
+     */
+    void stopMavlinkMessagesTimer();
+
     bool _mavlinkChannelSet;    ///< true: _mavlinkChannel has been set
     uint8_t _mavlinkChannel;    ///< mavlink channel to use for this link, as used by mavlink_parse_char
     
@@ -366,10 +309,12 @@ private:
     
     mutable QMutex _dataRateMutex; // Mutex for accessing the data rate member variables
 
-    bool _active;       ///< true: link is actively receiving mavlink messages
     bool _enableRateCollection;
+    bool _decodedFirstMavlinkPacket;    ///< true: link has correctly decoded it's first mavlink packet
+    bool _isPX4Flow;
+
+    QMap<int /* vehicle id */, MavlinkMessagesTimer*> _mavlinkMessagesTimers;
 };
 
-typedef QSharedPointer<LinkInterface> SharedLinkInterface;
+typedef QSharedPointer<LinkInterface> SharedLinkInterfacePointer;
 
-#endif // _LINKINTERFACE_H_

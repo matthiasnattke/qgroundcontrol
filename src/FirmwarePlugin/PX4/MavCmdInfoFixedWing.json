@@ -1,4 +1,6 @@
 {
+    "comment":  "PX4 Pro, Fixed Wing",
+
     "version": 1,
 
     "mavCmdInfo": [
